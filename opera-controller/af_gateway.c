@@ -36,6 +36,7 @@
 #include <arpa/inet.h>
 #include <linux/ip.h>
 #include <linux/icmp.h>
+#include <bpf/bpf_endian.h>
 
 
 // #include "../common/common_params.h"
@@ -1128,14 +1129,22 @@ static void print_pkt_info(uint8_t *pkt, uint32_t len)
 	}
 }
 
+//Header structure of GRE tap packet:
+    // Ethernet type of GRE encapsulated packet is ETH_P_TEB (gretap)
+	// outer eth
+	// outer ip
+	// gre
+    // inner eth
+	// inner ip
+	// payload
+
 static void process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr)
 {
-	struct iphdr encap_outer_iphdr; //encap outer ip header
-	struct hdr_cursor nh;
+	struct iphdr *outer_iphdr; 
 
 	int encap_size = 0; //outer_eth + outer_ip + gre
     int encap_outer_eth_len = ETH_HLEN;
-    int encap_outer_ip_len = sizeof(encap_outer_iphdr);
+    int encap_outer_ip_len = sizeof(outer_iphdr);
     int encap_gre_len = sizeof(struct gre_hdr);
     
     encap_size += encap_outer_eth_len; 
@@ -1153,7 +1162,7 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 	u8 *new_data = xsk_umem__get_data(params->bp->addr, new_addr);
 
 	struct ethhdr *eth = (struct ethhdr *) new_data;
-	struct iphdr *ip_hdr = (struct iphdr *)(new_data +
+	struct iphdr *inner_ip_hdr = (struct iphdr *)(new_data +
 					  sizeof(struct ethhdr));
 
 	int is_veth = strcmp(params->iface, "veth1"); 
@@ -1161,22 +1170,47 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 
 	if (is_veth == 0)
 	{
-		printf("~~~~Packet received from veth~~~~~ \n"); //encap gre headers
 
-		struct icmphdr *icmp = (struct icmphdr *) (ip_hdr + 1);
-
-		// int sz = sizeof(*eth) + sizeof(*ip_hdr) + sizeof(*icmp);
-		// printf("sz %d \n", sz);
+		struct icmphdr *icmp = (struct icmphdr *) (inner_ip_hdr + 1);
 
 		if (ntohs(eth->h_proto) != ETH_P_IP ||
-		    len < (sizeof(*eth) + sizeof(*ip_hdr) + sizeof(*icmp)) ||
-		    ip_hdr->protocol != IPPROTO_ICMP ||
+		    len < (sizeof(*eth) + sizeof(*inner_ip_hdr) + sizeof(*icmp)) ||
+		    inner_ip_hdr->protocol != IPPROTO_ICMP ||
 		    icmp->type != ICMP_ECHO)
 			{
 				printf("not icmp \n");
 				return false;
 			}
 		printf("ICMP \n");
+		// printf("~~~~Packet received from veth~~~~~ \n"); //encap gre headers
+		struct ethhdr *outer_eth_hdr; 
+		outer_eth_hdr = data;
+
+		unsigned char out_eth_src[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5e, 0x9c};
+		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5e, 0x9c};
+		__builtin_memcpy(outer_eth_hdr->h_source, out_eth_src, sizeof(outer_eth_hdr->h_source));
+    	__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
+
+		int olen = encap_outer_ip_len; 
+		olen += sizeof(struct gre_hdr);
+		olen += ETH_HLEN;
+
+		outer_iphdr = (void *)(outer_eth_hdr + 1);
+		// outer_iphdr = (struct iphdr *)(data + sizeof(struct ethhdr));
+		outer_iphdr = inner_ip_hdr;
+		outer_iphdr->tot_len = bpf_htons(olen + bpf_ntohs(outer_iphdr->tot_len));
+		outer_iphdr->protocol = IPPROTO_GRE;
+
+		/* IP header checksum */
+		outer_iphdr->check = 0;
+		outer_iphdr->check = ip_fast_csum((const void *)outer_iphdr, outer_iphdr->ihl);
+
+		struct gre_hdr *gre_hdr; //decap gre header
+    	int gre_protocol;
+		gre_hdr = (void *)(outer_iphdr + 1);
+
+		gre_hdr->proto = bpf_htons(ETH_P_TEB);
+		gre_hdr->flags = 1;
 		
 	} else if (is_nic == 0)
 	{
