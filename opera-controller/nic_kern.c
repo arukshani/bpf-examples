@@ -35,7 +35,8 @@ int xdp_sock_prog(struct xdp_md *ctx)
 	eth_type = parse_ethhdr(&nh, data_end, &eth);
 	if (eth_type == bpf_htons(ETH_P_IP)) {
 		ip_type = parse_iphdr(&nh, data_end, &iphdr);
-		if (ip_type != IPPROTO_ICMP) {
+		// if (ip_type != IPPROTO_ICMP) {
+		if (ip_type != IPPROTO_GRE) {
             goto out;
         }
         else {
