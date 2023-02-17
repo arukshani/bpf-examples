@@ -1095,6 +1095,95 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 	return (__sum16)~do_csum(iph, ihl * 4);
 }
 
+struct gre_hdr {
+	__be16 flags;
+	__be16 proto;
+};
+
+/* Header cursor to keep track of current parsing position */
+struct hdr_cursor {
+	void *pos;
+};
+
+/* As debug tool print some info about packet */
+static void print_pkt_info(uint8_t *pkt, uint32_t len)
+{
+	struct ethhdr *eth = (struct ethhdr *) pkt;
+	__u16 proto = ntohs(eth->h_proto);
+
+	char *fmt = "DEBUG-pkt len=%04d Eth-proto:0x%X %s "
+		"src:%s -> dst:%s\n";
+	char src_str[128] = { 0 };
+	char dst_str[128] = { 0 };
+
+	if (proto == ETH_P_IP) {
+		struct iphdr *ipv4 = (struct iphdr *) (eth + 1);
+		inet_ntop(AF_INET, &ipv4->saddr, src_str, sizeof(src_str));
+		inet_ntop(AF_INET, &ipv4->daddr, dst_str, sizeof(dst_str));
+		printf(fmt, len, proto, "IPv4", src_str, dst_str);
+	} else if (proto == ETH_P_ARP) {
+		printf(fmt, len, proto, "ARP", "", "");
+	} else {
+		printf(fmt, len, proto, "Unknown", "", "");
+	}
+}
+
+static void process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr)
+{
+	struct iphdr encap_outer_iphdr; //encap outer ip header
+	struct hdr_cursor nh;
+
+	int encap_size = 0; //outer_eth + outer_ip + gre
+    int encap_outer_eth_len = ETH_HLEN;
+    int encap_outer_ip_len = sizeof(encap_outer_iphdr);
+    int encap_gre_len = sizeof(struct gre_hdr);
+    
+    encap_size += encap_outer_eth_len; 
+    encap_size += encap_outer_ip_len; 
+    encap_size += encap_gre_len; 
+
+	int offset = 0 - encap_size;
+	u64 new_addr = addr + offset;
+
+	// memcpy(xsk_umem__get_data(umem->buffer, addr), pkt_data,
+	//        PKT_SIZE);
+	// u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
+	// 					     addr);
+	memcpy(xsk_umem__get_data(params->bp->addr, new_addr), data, len);
+	u8 *new_data = xsk_umem__get_data(params->bp->addr, new_addr);
+
+	struct ethhdr *eth = (struct ethhdr *) new_data;
+	struct iphdr *ip_hdr = (struct iphdr *)(new_data +
+					  sizeof(struct ethhdr));
+
+	int is_veth = strcmp(params->iface, "veth1"); 
+	int is_nic = strcmp(params->iface, "eno50np1"); 
+
+	if (is_veth == 0)
+	{
+		printf("~~~~Packet received from veth~~~~~ \n"); //encap gre headers
+
+		struct icmphdr *icmp = (struct icmphdr *) (ip_hdr + 1);
+
+		// int sz = sizeof(*eth) + sizeof(*ip_hdr) + sizeof(*icmp);
+		// printf("sz %d \n", sz);
+
+		if (ntohs(eth->h_proto) != ETH_P_IP ||
+		    len < (sizeof(*eth) + sizeof(*ip_hdr) + sizeof(*icmp)) ||
+		    ip_hdr->protocol != IPPROTO_ICMP ||
+		    icmp->type != ICMP_ECHO)
+			{
+				printf("not icmp \n");
+				return false;
+			}
+		printf("ICMP \n");
+		
+	} else if (is_nic == 0)
+	{
+		printf("Packet received from NIC \n");  //decap gre headers
+	}
+}
+
 static void check_icmp(void *data, struct port_params *params, uint32_t len)
 {
 	struct ethhdr *eth = (struct ethhdr *) data;
@@ -1200,7 +1289,11 @@ thread_func(void *arg)
 			// printf("Packet received from %d/n", i);
 			// swap_mac_addresses(pkt);
 			// update_ips_and_macs(pkt, &port_rx->params);
-			check_icmp(pkt, &port_rx->params, brx->len[j]);
+			// check_icmp(pkt, &port_rx->params, brx->len[j]);
+
+			// printf("pool addr %d \n", port_rx->params.bp->addr);
+			// printf("desc addr %d and mem addr %d \n", brx->addr[j], addr);
+			process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 
 			btx->addr[btx->n_pkts] = brx->addr[j];
 			btx->len[btx->n_pkts] = brx->len[j];
