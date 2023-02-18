@@ -1138,39 +1138,38 @@ static void print_pkt_info(uint8_t *pkt, uint32_t len)
 	// inner ip
 	// payload
 
-static void process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr)
+static int process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr)
 {
-	struct iphdr *outer_iphdr; 
-
-	int encap_size = 0; //outer_eth + outer_ip + gre
-    int encap_outer_eth_len = ETH_HLEN;
-    int encap_outer_ip_len = sizeof(outer_iphdr);
-    int encap_gre_len = sizeof(struct gre_hdr);
-    
-    encap_size += encap_outer_eth_len; 
-    encap_size += encap_outer_ip_len; 
-    encap_size += encap_gre_len; 
-
-	int offset = 0 - encap_size;
-	u64 new_addr = addr + offset;
-
-	// memcpy(xsk_umem__get_data(umem->buffer, addr), pkt_data,
-	//        PKT_SIZE);
-	// u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
-	// 					     addr);
-	memcpy(xsk_umem__get_data(params->bp->addr, new_addr), data, len);
-	u8 *new_data = xsk_umem__get_data(params->bp->addr, new_addr);
-
-	struct ethhdr *eth = (struct ethhdr *) new_data;
-	struct iphdr *inner_ip_hdr = (struct iphdr *)(new_data +
-					  sizeof(struct ethhdr));
-
 	int is_veth = strcmp(params->iface, "veth1"); 
 	int is_nic = strcmp(params->iface, "eno50np1"); 
 
 	if (is_veth == 0)
 	{
+		struct iphdr *outer_iphdr; 
 
+		int encap_size = 0; //outer_eth + outer_ip + gre
+		int encap_outer_eth_len = ETH_HLEN;
+		int encap_outer_ip_len = sizeof(outer_iphdr);
+		int encap_gre_len = sizeof(struct gre_hdr);
+		
+		encap_size += encap_outer_eth_len; 
+		encap_size += encap_outer_ip_len; 
+		encap_size += encap_gre_len; 
+
+		int offset = 0 - encap_size;
+		u64 new_addr = addr + offset;
+		int new_len = len + encap_size;
+
+		// memcpy(xsk_umem__get_data(umem->buffer, addr), pkt_data,
+		//        PKT_SIZE);
+		// u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
+		// 					     addr);
+		memcpy(xsk_umem__get_data(params->bp->addr, new_addr), data, len);
+		u8 *new_data = xsk_umem__get_data(params->bp->addr, new_addr);
+
+		struct ethhdr *eth = (struct ethhdr *) new_data;
+		struct iphdr *inner_ip_hdr = (struct iphdr *)(new_data +
+						sizeof(struct ethhdr));
 		struct icmphdr *icmp = (struct icmphdr *) (inner_ip_hdr + 1);
 
 		if (ntohs(eth->h_proto) != ETH_P_IP ||
@@ -1183,8 +1182,10 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 			}
 		printf("ICMP \n");
 		// printf("~~~~Packet received from veth~~~~~ \n"); //encap gre headers
+		// memcpy(xsk_umem__get_data(umem->buffer, addr), pkt_data, PKT_SIZE);
+		void *start_location = xsk_umem__get_data(params->bp->addr, addr);
 		struct ethhdr *outer_eth_hdr; 
-		outer_eth_hdr = data;
+		outer_eth_hdr = start_location;
 
 		unsigned char out_eth_src[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5e, 0x9c};
 		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5e, 0x9c};
@@ -1211,10 +1212,33 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 
 		gre_hdr->proto = bpf_htons(ETH_P_TEB);
 		gre_hdr->flags = 1;
+
+		return new_len;
 		
 	} else if (is_nic == 0)
 	{
+		struct ethhdr *eth = (struct ethhdr *) data;
+		struct iphdr *outer_ip_hdr = (struct iphdr *)(data +
+						sizeof(struct ethhdr));
+		struct gre_hdr *greh = (struct gre_hdr *) (outer_ip_hdr + 1);
 		printf("Packet received from NIC \n");  //decap gre headers
+		if (ntohs(eth->h_proto) != ETH_P_IP || outer_ip_hdr->protocol != IPPROTO_GRE)
+		{
+			printf("not a gre packet \n");
+		}
+		printf("GRE packet \n");
+		
+		void *cutoff_pos = greh + sizeof(struct gre_hdr);
+		int cutoff_len = (int)(cutoff_pos - data);
+		int new_len = len - cutoff_len;
+
+		int offset = 0 - cutoff_len;
+		u64 inner_eth_start_addr = addr + offset;
+
+		u8 *new_data = xsk_umem__get_data(params->bp->addr, inner_eth_start_addr);
+		memcpy(xsk_umem__get_data(params->bp->addr, addr), new_data, new_len);
+		
+		return new_len;
 	}
 }
 
@@ -1327,10 +1351,11 @@ thread_func(void *arg)
 
 			// printf("pool addr %d \n", port_rx->params.bp->addr);
 			// printf("desc addr %d and mem addr %d \n", brx->addr[j], addr);
-			process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
+			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 
 			btx->addr[btx->n_pkts] = brx->addr[j];
-			btx->len[btx->n_pkts] = brx->len[j];
+			// btx->len[btx->n_pkts] = brx->len[j];
+			btx->len[btx->n_pkts] = new_len;
 			btx->n_pkts++;
 
 			// if (btx->n_pkts == MAX_BURST_TX) {
