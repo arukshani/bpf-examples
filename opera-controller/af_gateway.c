@@ -827,7 +827,7 @@ static void load_xdp_program(void)
 {
 	//Outer veth 
     struct config veth_cfg = {
-		.ifindex = 8,
+		.ifindex = 6,
 		.ifname = "veth1",
 		.xsk_if_queue = 0,
 		.xsk_poll_mode = true,
@@ -1144,6 +1144,8 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 	int is_veth = strcmp(params->iface, "veth1"); 
 	int is_nic = strcmp(params->iface, "eno50np1"); 
 
+	printf("process rx packet is_nic %d \n", is_nic);
+
 	if (is_veth == 0)
 	{
 		struct iphdr *outer_iphdr; 
@@ -1360,7 +1362,7 @@ thread_func(void *arg)
 			u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
 						     addr);
 
-			// printf("Packet received from %d/n", i);
+			printf("Packet received from %d/n", i);
 			// swap_mac_addresses(pkt);
 			// update_ips_and_macs(pkt, &port_rx->params);
 			// check_icmp(pkt, &port_rx->params, brx->len[j]);
