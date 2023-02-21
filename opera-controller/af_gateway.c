@@ -1201,10 +1201,24 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		olen += ETH_HLEN;
 
 		outer_iphdr = (void *)(outer_eth_hdr + 1);
-		// outer_iphdr = (struct iphdr *)(data + sizeof(struct ethhdr));
-		outer_iphdr = inner_ip_hdr;
-		outer_iphdr->tot_len = bpf_htons(olen + bpf_ntohs(outer_iphdr->tot_len));
+		// outer_iphdr = inner_ip_hdr;
+		// outer_iphdr->tot_len = bpf_htons(olen + bpf_ntohs(outer_iphdr->tot_len));
+		// outer_iphdr->protocol = IPPROTO_GRE;
+
+		// /* IP header checksum */
+		// outer_iphdr->check = 0;
+		// outer_iphdr->check = ip_fast_csum((const void *)outer_iphdr, outer_iphdr->ihl);
+
+		outer_iphdr->version = 4;
+		outer_iphdr->ihl = sizeof(*inner_ip_hdr) >> 2;
+		outer_iphdr->frag_off = 0;
 		outer_iphdr->protocol = IPPROTO_GRE;
+		outer_iphdr->check = 0;
+		outer_iphdr->id = 0;
+		outer_iphdr->tos = 0;
+		outer_iphdr->tot_len = bpf_htons(olen + sizeof(*inner_ip_hdr));
+		outer_iphdr->daddr = inner_ip_hdr->daddr;
+		outer_iphdr->saddr = inner_ip_hdr->saddr;
 
 		/* IP header checksum */
 		outer_iphdr->check = 0;
