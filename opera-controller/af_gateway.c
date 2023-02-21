@@ -1144,7 +1144,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 	int is_veth = strcmp(params->iface, "veth1"); 
 	int is_nic = strcmp(params->iface, "eno50np1"); 
 
-	printf("process rx packet is_nic %d \n", is_nic);
+	// printf("process rx packet is_nic %d \n", is_nic);
 
 	if (is_veth == 0)
 	{
@@ -1225,7 +1225,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		struct iphdr *outer_ip_hdr = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
 		struct gre_hdr *greh = (struct gre_hdr *) (outer_ip_hdr + 1);
-		printf("Packet received from NIC \n");  //decap gre headers
+		// printf("Packet received from NIC \n");  //decap gre headers
 		if (ntohs(eth->h_proto) != ETH_P_IP || outer_ip_hdr->protocol != IPPROTO_GRE)
 		{
 			printf("not a gre packet \n");
@@ -1348,7 +1348,7 @@ thread_func(void *arg)
 			u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
 						     addr);
 
-			printf("Packet received from %d/n", i);
+			// printf("Packet received from %d/n", i);
 			// swap_mac_addresses(pkt);
 			// update_ips_and_macs(pkt, &port_rx->params);
 			// check_icmp(pkt, &port_rx->params, brx->len[j]);

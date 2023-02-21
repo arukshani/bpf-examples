@@ -81,11 +81,11 @@ int xdp_sock_prog(struct xdp_md *ctx)
 	eth_type = parse_eth_hdr(&nh, data_end, &eth);
 	// bpf_printk("packet received eth_type is %x %x \n", bpf_htons(ETH_P_IP), eth_type);
 	if (eth_type == bpf_htons(ETH_P_IP)) {
-		bpf_printk("packet is ETH_P_IP \n");
+		// bpf_printk("packet is ETH_P_IP \n");
 		ip_type = parse_ip_hdr(&nh, data_end, &iphdr);
 		// if (ip_type != IPPROTO_ICMP) {
 		if (ip_type != IPPROTO_GRE) {
-			bpf_printk("ip type is not IPPROTO_GRE %d \n", ip_type);
+			// bpf_printk("ip type is not IPPROTO_GRE %d \n", ip_type);
             goto out;
         }
         else {
