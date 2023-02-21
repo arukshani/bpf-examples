@@ -987,6 +987,7 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 	}
 
 	// printf("Fill tx desc for n_pkts %ld \n", n_pkts);
+	printf("Port tx burst \n");
 
 	for (i = 0; i < n_pkts; i++) {
 		xsk_ring_prod__tx_desc(&p->txq, pos + i)->addr = b->addr[i];
@@ -1189,10 +1190,11 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		struct ethhdr *outer_eth_hdr; 
 		outer_eth_hdr = start_location;
 
-		unsigned char out_eth_src[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5e, 0x9c};
-		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5e, 0x9c};
+		unsigned char out_eth_src[ETH_ALEN+1] = { 0x9c, 0xdc, 0x71, 0x4a, 0x4c, 0xa1}; //9c:dc:71:4a:4c:a1
+		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xcc, 0x12, 0xc1}; //98:f2:b3:cc:12:c1
 		__builtin_memcpy(outer_eth_hdr->h_source, out_eth_src, sizeof(outer_eth_hdr->h_source));
     	__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
+		outer_eth_hdr->h_proto = htons(ETH_P_IP);
 
 		int olen = encap_outer_ip_len; 
 		olen += sizeof(struct gre_hdr);
