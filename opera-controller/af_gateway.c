@@ -1293,6 +1293,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		
 	} else if (is_nic == 0)
 	{
+		printf("In NIC \n");
 		struct ethhdr *eth = (struct ethhdr *) data;
 		struct iphdr *outer_ip_hdr = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
@@ -1325,8 +1326,8 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		struct ethhdr *test_eth = (struct ethhdr *) pkt_data;
 
 		//86:99:55:ab:89:0f
-		unsigned char inner_veth_mac[ETH_ALEN+1] = { 0x86, 0x99, 0x55, 0xab, 0x89, 0x0f}; 
-		unsigned char outer_veth_mac[ETH_ALEN+1] = { 0x86, 0xf5, 0x4e, 0xbf, 0xab, 0x54};  //86:f5:4e:bf:ab:54
+		unsigned char inner_veth_mac[ETH_ALEN+1] = { 0xfe, 0x65, 0xa9, 0xa9, 0xad, 0x64}; //fe:65:a9:a9:ad:64
+		unsigned char outer_veth_mac[ETH_ALEN+1] = { 0x96, 0x2a, 0xb3, 0x19, 0x9f, 0x8d};  //96:2a:b3:19:9f:8d
 		__builtin_memcpy(test_eth->h_dest, inner_veth_mac, sizeof(test_eth->h_dest));
 		__builtin_memcpy(test_eth->h_source, outer_veth_mac, sizeof(test_eth->h_source));
 		
