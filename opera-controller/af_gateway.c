@@ -1162,7 +1162,8 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		int encap_size = 0; //outer_eth + outer_ip + gre
 		int encap_outer_eth_len = ETH_HLEN;
-		int encap_outer_ip_len = sizeof(encap_outer_iphdr);
+		// int encap_outer_ip_len = sizeof(encap_outer_iphdr);
+		int encap_outer_ip_len = sizeof(struct iphdr);
 		int encap_gre_len = sizeof(struct gre_hdr);
 		
 		encap_size += encap_outer_eth_len; 
@@ -1174,6 +1175,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		printf("encap_size --------------------%d \n", encap_size);
 		printf("addr --------------------------%d \n", addr);
 
+		// encap_size = 37;
 		int offset = 0 - encap_size;
 		u64 new_addr = addr + offset;
 		int new_len = len + encap_size;
@@ -1253,6 +1255,9 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		gre_hdr->proto = bpf_htons(ETH_P_TEB);
 		gre_hdr->flags = 1;
 
+		// void *adjust = (void *)(gre_hdr + 1);
+		// memcpy(xsk_umem__get_data(params->bp->addr, adjust), new_data, len);
+
 		// struct ethhdr *inner_eth = (struct ethhdr *) (gre_hdr + sizeof(struct gre_hdr));
 		// struct ethhdr *inner_eth = (void *)(gre_hdr + 1);
 		// printf("inner eth proto is ETH_P_IP----%x \n", inner_eth->h_proto);
@@ -1275,13 +1280,25 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 			printf("%x %x \n", ntohs(test_greh->proto), ETH_P_TEB);
 			return false;
 		}
-		printf("GRE packet %x \n", ntohs(test_greh->proto));
+		printf("GRE packet proto %x \n", ntohs(test_greh->proto));
+		printf("GRE packet flag %x \n", test_greh->flags);
 
-		// struct ethhdr *test_inner_eth = (struct ethhdr *) (test_greh + sizeof(struct gre_hdr));
+		// struct ethhdr *eth = (struct ethhdr *) outer_eth_hdr;
+		// struct iphdr *inner_ip_hdr = (struct iphdr *)(new_data +
+		// 				sizeof(struct ethhdr));
+		
+		// struct ethhdr *test_inner_eth = (struct ethhdr *) (test_greh + sizeof(test_greh));
 		struct ethhdr *test_inner_eth = (struct ethhdr *) (test_greh +  1);
 		if (ntohs(test_inner_eth->h_proto) != ETH_P_IP) {
-			printf("inner eth proto is not ETH_P_IP %x \n", test_inner_eth->h_proto);
+			printf("inner eth proto in testing %x \n", test_inner_eth->h_proto);
 		}
+
+		u8 *test_new_data = xsk_umem__get_data(params->bp->addr, new_new_addr);
+		struct ethhdr *_test_new_eth = (struct ethhdr *) test_new_data;
+		if (ntohs(_test_new_eth->h_proto) != ETH_P_IP) {
+			printf("inner eth proto using moved loc is not eth %x \n", _test_new_eth->h_proto);
+		}
+		printf("inner eth proto using moved loc %x \n", _test_new_eth->h_proto);
 
 		return new_len;
 		
