@@ -1100,7 +1100,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 struct gre_hdr {
 	__be16 flags;
 	__be16 proto;
-};
+} __attribute__((packed));
 
 /* Header cursor to keep track of current parsing position */
 struct hdr_cursor {
@@ -1159,10 +1159,22 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		struct iphdr *inner_ip_hdr_tmp = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
 		__builtin_memcpy(&encap_outer_iphdr, inner_ip_hdr_tmp, sizeof(encap_outer_iphdr));
+		encap_outer_iphdr.protocol = IPPROTO_GRE;
+
+
+		int olen = 0;
+		olen += ETH_HLEN; 
+		olen += sizeof(struct gre_hdr); 
+
+		encap_outer_iphdr.tot_len = bpf_htons(olen + bpf_ntohs(inner_ip_hdr_tmp->tot_len));
+
+		/* IP header checksum */
+		// encap_outer_iphdr.check = 0;
+		// encap_outer_iphdr.check = ip_fast_csum((const void *)outer_iphdr, outer_iphdr->ihl);
+		// __builtin_memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
 
 		int encap_size = 0; //outer_eth + outer_ip + gre
 		int encap_outer_eth_len = ETH_HLEN;
-		// int encap_outer_ip_len = sizeof(encap_outer_iphdr);
 		int encap_outer_ip_len = sizeof(struct iphdr);
 		int encap_gre_len = sizeof(struct gre_hdr);
 		
@@ -1170,25 +1182,23 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		encap_size += encap_outer_ip_len; 
 		encap_size += encap_gre_len; 
 
-		printf("========================================================= \n");
-		printf("inner ip hdt tot len ----------%d \n", bpf_ntohs(inner_ip_hdr_tmp->tot_len));
-		printf("encap_size --------------------%d \n", encap_size);
-		printf("addr --------------------------%d \n", addr);
+		// printf("========================================================= \n");
+		// printf("inner ip hdt tot len ----------%d \n", bpf_ntohs(inner_ip_hdr_tmp->tot_len));
+		// printf("outer ip hdt tot len ----------%d \n", bpf_ntohs(encap_outer_iphdr.tot_len));
+		// printf("encap_size --------------------%d \n", encap_size);
+		// printf("addr --------------------------%d \n", addr);
+		// printf("encap_gre_len --------------------------%d \n", encap_gre_len);
+		// printf("encap_outer_eth_len --------------------------%d \n", encap_outer_eth_len);
 
-		// encap_size = 37;
-		int offset = 0 - encap_size;
+		int offset = 0 + encap_size;
 		u64 new_addr = addr + offset;
 		int new_len = len + encap_size;
 
 		u64 new_new_addr = xsk_umem__add_offset_to_addr(new_addr);
-		printf("new_new_addr ------------------%d \n", new_new_addr);
-		printf("len ---------------------------%d \n", len);
-		printf("new_len -----------------------%d \n", new_len);
+		// printf("new_new_addr ------------------%d \n", new_new_addr);
+		// printf("len ---------------------------%d \n", len);
+		// printf("new_len -----------------------%d \n", new_len);
 
-		// memcpy(xsk_umem__get_data(umem->buffer, addr), pkt_data,
-		//        PKT_SIZE);
-		// u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
-		// 					     addr);
 		memcpy(xsk_umem__get_data(params->bp->addr, new_new_addr), data, len);
 		u8 *new_data = xsk_umem__get_data(params->bp->addr, new_new_addr);
 
@@ -1208,49 +1218,27 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 				return false;
 			}
 		printf("ICMP \n");
-		// struct ethhdr *empty_loc = (struct ethhdr *) data;
-		// printf("After shifling location empty_loc-eth_type %x \n", empty_loc->h_proto);
-		void *start_location = xsk_umem__get_data(params->bp->addr, addr);
-		// struct ethhdr *start_loc = (struct ethhdr *) start_location;
-		// printf("After shifling location start_loc-eth_type %x \n", start_loc->h_proto);
-
-		// printf("~~~~Packet received from veth~~~~~ \n"); //encap gre headers
-		// memcpy(xsk_umem__get_data(umem->buffer, addr), pkt_data, PKT_SIZE);
  
-		outer_eth_hdr = start_location;
+		outer_eth_hdr = (struct ethhdr *) data;
 		__builtin_memcpy(outer_eth_hdr->h_source, out_eth_src, sizeof(outer_eth_hdr->h_source));
     	__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
 		outer_eth_hdr->h_proto = htons(ETH_P_IP);
 
-		int olen = encap_outer_ip_len; 
-		olen += sizeof(struct gre_hdr);
-		olen += ETH_HLEN;
-		// olen += encap_outer_eth_len;
+		outer_iphdr = (struct iphdr *)(data +
+						sizeof(struct ethhdr));
 
-		printf("olen --------------------------%d \n", olen);
-		printf("inner ip hdt tot len ----------%d \n", bpf_ntohs(encap_outer_iphdr.tot_len));
 
-		// struct ethhdr *eth = (struct ethhdr *) outer_eth_hdr;
-		// struct iphdr *inner_ip_hdr = (struct iphdr *)(new_data +
-		// 				sizeof(struct ethhdr));
-		// struct icmphdr *icmp = (struct icmphdr *) (inner_ip_hdr + 1);
-
-		outer_iphdr = (void *)(outer_eth_hdr + 1);
+		// outer_iphdr = (void *)(outer_eth_hdr + 1);
 		// outer_iphdr = (struct iphdr *)(outer_eth_hdr + sizeof(struct ethhdr));
 		__builtin_memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
-		outer_iphdr->protocol = IPPROTO_GRE;
-		outer_iphdr->tot_len = bpf_htons(olen + bpf_ntohs(encap_outer_iphdr.tot_len));
-
-		printf("tot outer ip len --------------%d \n", bpf_ntohs(outer_iphdr->tot_len));
-
-		/* IP header checksum */
-		outer_iphdr->check = 0;
-		outer_iphdr->check = ip_fast_csum((const void *)outer_iphdr, outer_iphdr->ihl);
+		// printf("sizeof(*outer_iphdr) ----------%d \n", sizeof(*outer_iphdr));
 
 		struct gre_hdr *gre_hdr; //decap gre header
     	int gre_protocol;
 		// gre_hdr = (struct gre_hdr *) (outer_iphdr + 1);
-		gre_hdr = (void *)(outer_iphdr + 1);
+		// gre_hdr = (void *)(outer_iphdr + 1);
+		gre_hdr = (struct gre_hdr *)(data +
+						sizeof(struct ethhdr) + sizeof(struct iphdr));
 
 		gre_hdr->proto = bpf_htons(ETH_P_TEB);
 		gre_hdr->flags = 1;
@@ -1264,41 +1252,42 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		// printf("inner eth proto for new_data---%x \n", eth->h_proto);
 
 		//+++++++++++++++++++++++TESTING++++++++++++++++++++++++++++++++++++++
-		u8 *test_data = xsk_umem__get_data(params->bp->addr, addr);
-		struct ethhdr *test_eth = (struct ethhdr *) test_data;
-		printf("outer eth proto for new_data---%x \n", test_eth->h_proto);
+		// u8 *test_data = xsk_umem__get_data(params->bp->addr, addr);
+		// struct ethhdr *test_eth = (struct ethhdr *) test_data;
+		// printf("outer eth proto for new_data---%x \n", test_eth->h_proto);
 
-		struct iphdr *test_outer_ip_hdr = (struct iphdr *)(test_data +
-						sizeof(struct ethhdr));
-		struct gre_hdr *test_greh = (struct gre_hdr *) (test_outer_ip_hdr + 1);
-		
-		if (ntohs(test_eth->h_proto) != ETH_P_IP || test_outer_ip_hdr->protocol != IPPROTO_GRE || 
-					ntohs(test_greh->proto) != ETH_P_TEB)
-		{
-			printf("%x %x \n", ntohs(test_eth->h_proto), ETH_P_IP);
-			printf("%x %x \n", test_outer_ip_hdr->protocol, IPPROTO_GRE);
-			printf("%x %x \n", ntohs(test_greh->proto), ETH_P_TEB);
-			return false;
-		}
-		printf("GRE packet proto %x \n", ntohs(test_greh->proto));
-		printf("GRE packet flag %x \n", test_greh->flags);
-
-		// struct ethhdr *eth = (struct ethhdr *) outer_eth_hdr;
-		// struct iphdr *inner_ip_hdr = (struct iphdr *)(new_data +
+		// struct iphdr *test_outer_ip_hdr = (struct iphdr *)(test_data +
 		// 				sizeof(struct ethhdr));
+		// // struct gre_hdr *test_greh = (struct gre_hdr *) (test_outer_ip_hdr + 1);
+		// struct gre_hdr *test_greh = (struct gre_hdr *) (test_data +
+		// 				sizeof(struct ethhdr) + sizeof(struct iphdr));
 		
-		// struct ethhdr *test_inner_eth = (struct ethhdr *) (test_greh + sizeof(test_greh));
-		struct ethhdr *test_inner_eth = (struct ethhdr *) (test_greh +  1);
-		if (ntohs(test_inner_eth->h_proto) != ETH_P_IP) {
-			printf("inner eth proto in testing %x \n", test_inner_eth->h_proto);
-		}
+		// if (ntohs(test_eth->h_proto) != ETH_P_IP || test_outer_ip_hdr->protocol != IPPROTO_GRE || 
+		// 			ntohs(test_greh->proto) != ETH_P_TEB)
+		// {
+		// 	printf("%x %x \n", ntohs(test_eth->h_proto), ETH_P_IP);
+		// 	printf("%x %x \n", test_outer_ip_hdr->protocol, IPPROTO_GRE);
+		// 	printf("%x %x \n", ntohs(test_greh->proto), ETH_P_TEB);
+		// 	return false;
+		// }
+		// printf("GRE packet proto %x \n", ntohs(test_greh->proto));
+		// printf("GRE packet flag %x \n", test_greh->flags);
 
-		u8 *test_new_data = xsk_umem__get_data(params->bp->addr, new_new_addr);
-		struct ethhdr *_test_new_eth = (struct ethhdr *) test_new_data;
-		if (ntohs(_test_new_eth->h_proto) != ETH_P_IP) {
-			printf("inner eth proto using moved loc is not eth %x \n", _test_new_eth->h_proto);
-		}
-		printf("inner eth proto using moved loc %x \n", _test_new_eth->h_proto);
+		// struct ethhdr *test_inner_eth = (struct ethhdr *) (test_data +
+		// 				sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct gre_hdr));
+
+		// // struct ethhdr *test_inner_eth = (struct ethhdr *) (test_greh +  1);
+		// if (ntohs(test_inner_eth->h_proto) != ETH_P_IP) {
+		// 	printf("inner eth proto in testing is not eth_ip %x \n", test_inner_eth->h_proto);
+		// }
+		// printf("inner eth proto in testing is %x \n", test_inner_eth->h_proto);
+
+		// memcpy(test_inner_eth, xsk_umem__get_data(params->bp->addr, new_new_addr), len);
+		// if (ntohs(test_inner_eth->h_proto) != ETH_P_IP) {
+		// 	printf("after moving loc again not eth_ip %x \n", test_inner_eth->h_proto);
+		// }
+		// printf("after moving loc again %x \n", test_inner_eth->h_proto);
+		//+++++++++++++++++++++++END OF TESTING++++++++++++++++++++++++++++++++++++++
 
 		return new_len;
 		
@@ -1308,22 +1297,38 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		struct iphdr *outer_ip_hdr = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
 		struct gre_hdr *greh = (struct gre_hdr *) (outer_ip_hdr + 1);
-		// printf("Packet received from NIC \n");  //decap gre headers
-		if (ntohs(eth->h_proto) != ETH_P_IP || outer_ip_hdr->protocol != IPPROTO_GRE)
+		
+		if (ntohs(eth->h_proto) != ETH_P_IP || outer_ip_hdr->protocol != IPPROTO_GRE || 
+					ntohs(greh->proto) != ETH_P_TEB)
 		{
 			printf("not a gre packet \n");
+			return false;
 		}
-		printf("GRE packet \n");
-		
-		void *cutoff_pos = greh + sizeof(struct gre_hdr);
+		printf("GRE packet %x \n", ntohs(greh->proto));
+
+		struct ethhdr *inner_eth = (struct ethhdr *) (greh +  1);
+		if (ntohs(inner_eth->h_proto) != ETH_P_IP) {
+			printf("inner eth proto is not ETH_P_IP %x \n", inner_eth->h_proto);
+		}
+
+		void *cutoff_pos = greh + 1;
 		int cutoff_len = (int)(cutoff_pos - data);
 		int new_len = len - cutoff_len;
 
-		int offset = 0 - cutoff_len;
+		int offset = 0 + cutoff_len;
 		u64 inner_eth_start_addr = addr + offset;
 
 		u8 *new_data = xsk_umem__get_data(params->bp->addr, inner_eth_start_addr);
 		memcpy(xsk_umem__get_data(params->bp->addr, addr), new_data, new_len);
+
+		u8 *pkt_data = xsk_umem__get_data(params->bp->addr, addr);
+		struct ethhdr *test_eth = (struct ethhdr *) pkt_data;
+
+		//86:99:55:ab:89:0f
+		unsigned char inner_veth_mac[ETH_ALEN+1] = { 0x86, 0x99, 0x55, 0xab, 0x89, 0x0f}; 
+		unsigned char outer_veth_mac[ETH_ALEN+1] = { 0x86, 0xf5, 0x4e, 0xbf, 0xab, 0x54};  //86:f5:4e:bf:ab:54
+		__builtin_memcpy(test_eth->h_dest, inner_veth_mac, sizeof(test_eth->h_dest));
+		__builtin_memcpy(test_eth->h_source, outer_veth_mac, sizeof(test_eth->h_source));
 		
 		return new_len;
 	}
