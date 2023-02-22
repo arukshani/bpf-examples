@@ -37,7 +37,10 @@
 #include <linux/ip.h>
 #include <linux/icmp.h>
 #include <bpf/bpf_endian.h>
-
+// #include "csum.h"
+// #include <linux/in.h>
+// #include <linux/udp.h>
+// #include <linux/tcp.h>
 
 // #include "../common/common_params.h"
 // #include "../common/common_user_bpf_xdp.h"
@@ -363,7 +366,7 @@ bcache_cons_check(struct bcache *bc, u32 n_buffers)
 	bp->n_slabs_available = n_slabs_available;
 	pthread_mutex_unlock(&bp->lock);
 
-	printf("after n_slabs_available--  %lld \n", bp->n_slabs_available);
+	// printf("after n_slabs_available--  %lld \n", bp->n_slabs_available);
 
 	bc->slab_cons = slab_full;
 	bc->n_buffers_cons = n_buffers_per_slab;
@@ -437,7 +440,7 @@ bcache_prod(struct bcache *bc, u64 buffer)
 		return;
 	}
 
-	printf("prod slab FULL bp->n_slabs_available %lld \n", bp->n_slabs_available);
+	// printf("prod slab FULL bp->n_slabs_available %lld \n", bp->n_slabs_available);
 
 	/*
 	 * Producer slab is full: trade the cache's current producer slab
@@ -457,7 +460,7 @@ bcache_prod(struct bcache *bc, u64 buffer)
 	bc->slab_prod = slab_empty;
 	bc->n_buffers_prod = 1;
 
-	printf("AFTER prod slab FULL bp->n_slabs_available %lld \n", bp->n_slabs_available);
+	// printf("AFTER prod slab FULL bp->n_slabs_available %lld \n", bp->n_slabs_available);
 }
 
 
@@ -1012,90 +1015,90 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 // 	*dst_addr = tmp;
 // }
 
-/*
- * This function code has been taken from
- * Linux kernel lib/checksum.c
- */
-static inline unsigned short from32to16(unsigned int x)
-{
-	/* add up 16-bit and 16-bit for 16+c bit */
-	x = (x & 0xffff) + (x >> 16);
-	/* add up carry.. */
-	x = (x & 0xffff) + (x >> 16);
-	return x;
-}
+// /*
+//  * This function code has been taken from
+//  * Linux kernel lib/checksum.c
+//  */
+// static inline unsigned short from32to16(unsigned int x)
+// {
+// 	/* add up 16-bit and 16-bit for 16+c bit */
+// 	x = (x & 0xffff) + (x >> 16);
+// 	/* add up carry.. */
+// 	x = (x & 0xffff) + (x >> 16);
+// 	return x;
+// }
 
-/*
- * This function code has been taken from
- * Linux kernel lib/checksum.c
- */
-static unsigned int do_csum(const unsigned char *buff, int len)
-{
-	unsigned int result = 0;
-	int odd;
+// /*
+//  * This function code has been taken from
+//  * Linux kernel lib/checksum.c
+//  */
+// static unsigned int do_csum(const unsigned char *buff, int len)
+// {
+// 	unsigned int result = 0;
+// 	int odd;
 
-	if (len <= 0)
-		goto out;
-	odd = 1 & (unsigned long)buff;
-	if (odd) {
-#ifdef __LITTLE_ENDIAN
-		result += (*buff << 8);
-#else
-		result = *buff;
-#endif
-		len--;
-		buff++;
-	}
-	if (len >= 2) {
-		if (2 & (unsigned long)buff) {
-			result += *(unsigned short *)buff;
-			len -= 2;
-			buff += 2;
-		}
-		if (len >= 4) {
-			const unsigned char *end = buff +
-						   ((unsigned int)len & ~3);
-			unsigned int carry = 0;
+// 	if (len <= 0)
+// 		goto out;
+// 	odd = 1 & (unsigned long)buff;
+// 	if (odd) {
+// #ifdef __LITTLE_ENDIAN
+// 		result += (*buff << 8);
+// #else
+// 		result = *buff;
+// #endif
+// 		len--;
+// 		buff++;
+// 	}
+// 	if (len >= 2) {
+// 		if (2 & (unsigned long)buff) {
+// 			result += *(unsigned short *)buff;
+// 			len -= 2;
+// 			buff += 2;
+// 		}
+// 		if (len >= 4) {
+// 			const unsigned char *end = buff +
+// 						   ((unsigned int)len & ~3);
+// 			unsigned int carry = 0;
 
-			do {
-				unsigned int w = *(unsigned int *)buff;
+// 			do {
+// 				unsigned int w = *(unsigned int *)buff;
 
-				buff += 4;
-				result += carry;
-				result += w;
-				carry = (w > result);
-			} while (buff < end);
-			result += carry;
-			result = (result & 0xffff) + (result >> 16);
-		}
-		if (len & 2) {
-			result += *(unsigned short *)buff;
-			buff += 2;
-		}
-	}
-	if (len & 1)
-#ifdef __LITTLE_ENDIAN
-		result += *buff;
-#else
-		result += (*buff << 8);
-#endif
-	result = from32to16(result);
-	if (odd)
-		result = ((result >> 8) & 0xff) | ((result & 0xff) << 8);
-out:
-	return result;
-}
+// 				buff += 4;
+// 				result += carry;
+// 				result += w;
+// 				carry = (w > result);
+// 			} while (buff < end);
+// 			result += carry;
+// 			result = (result & 0xffff) + (result >> 16);
+// 		}
+// 		if (len & 2) {
+// 			result += *(unsigned short *)buff;
+// 			buff += 2;
+// 		}
+// 	}
+// 	if (len & 1)
+// #ifdef __LITTLE_ENDIAN
+// 		result += *buff;
+// #else
+// 		result += (*buff << 8);
+// #endif
+// 	result = from32to16(result);
+// 	if (odd)
+// 		result = ((result >> 8) & 0xff) | ((result & 0xff) << 8);
+// out:
+// 	return result;
+// }
 
-/*
- *	This is a version of ip_compute_csum() optimized for IP headers,
- *	which always checksum on 4 octet boundaries.
- *	This function code has been taken from
- *	Linux kernel lib/checksum.c
- */
-static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
-{
-	return (__sum16)~do_csum(iph, ihl * 4);
-}
+// /*
+//  *	This is a version of ip_compute_csum() optimized for IP headers,
+//  *	which always checksum on 4 octet boundaries.
+//  *	This function code has been taken from
+//  *	Linux kernel lib/checksum.c
+//  */
+// static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
+// {
+// 	return (__sum16)~do_csum(iph, ihl * 4);
+// }
 
 struct gre_hdr {
 	__be16 flags;
@@ -1202,6 +1205,9 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 						sizeof(struct ethhdr));
 
 		__builtin_memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
+		// /* IP header checksum */
+		// outer_iphdr->check = 0;
+		// outer_iphdr->check = ip_fast_csum((const void *)outer_iphdr, outer_iphdr->protocol);
 
 		struct gre_hdr *gre_hdr; 
     	int gre_protocol;
@@ -1210,6 +1216,8 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		gre_hdr->proto = bpf_htons(ETH_P_TEB);
 		gre_hdr->flags = 1;
+
+		// printf("Encap GRE packet recevied from veth0 \n");
 
 		return new_len;
 		
@@ -1251,6 +1259,40 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		unsigned char outer_veth_mac[ETH_ALEN+1] = { 0x86, 0xf5, 0x4e, 0xbf, 0xab, 0x54};  //86:f5:4e:bf:ab:54
 		__builtin_memcpy(test_eth->h_dest, inner_veth_mac, sizeof(test_eth->h_dest));
 		__builtin_memcpy(test_eth->h_source, outer_veth_mac, sizeof(test_eth->h_source));
+
+		struct iphdr *inner_ip_hdr = (struct iphdr *)(pkt_data +
+						sizeof(struct ethhdr));
+
+		// inner_ip_hdr->check = csum_diff4(inner_ip_hdr->ihl, inner_ip_hdr->ihl, inner_ip_hdr->check);
+
+		// __u16 *next_iph_u16;
+		// u32 csum = 0;
+		// next_iph_u16 = (__u16 *)&inner_ip_hdr;
+		// for (int i = 0; i < (int)sizeof(*inner_ip_hdr) >> 1; i++)
+		// 	csum += *next_iph_u16++;
+		// inner_ip_hdr->check = ~((csum & 0xffff) + (csum >> 16));
+
+		// switch (inner_ip_hdr->protocol)
+		// {
+		// 	case IPPROTO_UDP:
+		// 	{
+		// 		struct udphdr *udphdr = pkt_data + sizeof(struct ethhdr) + (inner_ip_hdr->ihl * 4);
+		// 		// udphdr->check = csum_diff4(inner_ip_hdr->ihl, inner_ip_hdr->ihl, udphdr->check);
+		// 		break;
+		// 	}
+		// 	case IPPROTO_TCP:
+		// 	{
+		// 		struct tcphdr *tcphdr = data + sizeof(struct ethhdr) + (inner_ip_hdr->ihl * 4);
+		// 		// tcphdr->check = csum_diff4(inner_ip_hdr->ihl, inner_ip_hdr->ihl, tcphdr->check);
+		// 		break;
+		// 	}
+		// }
+
+		/* IP header checksum */
+		// inner_ip_hdr->check = 0;
+		// inner_ip_hdr->check = ip_fast_csum((const void *)inner_ip_hdr, inner_ip_hdr->ihl);
+
+		// printf("Decap GRE packet received from NIC \n");
 		
 		return new_len;
 	}
