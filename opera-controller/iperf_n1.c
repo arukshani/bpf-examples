@@ -363,7 +363,7 @@ bcache_cons_check(struct bcache *bc, u32 n_buffers)
 	bp->n_slabs_available = n_slabs_available;
 	pthread_mutex_unlock(&bp->lock);
 
-	printf("after n_slabs_available--  %lld \n", bp->n_slabs_available);
+	// printf("after n_slabs_available--  %lld \n", bp->n_slabs_available);
 
 	bc->slab_cons = slab_full;
 	bc->n_buffers_cons = n_buffers_per_slab;
@@ -437,7 +437,7 @@ bcache_prod(struct bcache *bc, u64 buffer)
 		return;
 	}
 
-	printf("prod slab FULL bp->n_slabs_available %lld \n", bp->n_slabs_available);
+	// printf("prod slab FULL bp->n_slabs_available %lld \n", bp->n_slabs_available);
 
 	/*
 	 * Producer slab is full: trade the cache's current producer slab
@@ -457,7 +457,7 @@ bcache_prod(struct bcache *bc, u64 buffer)
 	bc->slab_prod = slab_empty;
 	bc->n_buffers_prod = 1;
 
-	printf("AFTER prod slab FULL bp->n_slabs_available %lld \n", bp->n_slabs_available);
+	// printf("AFTER prod slab FULL bp->n_slabs_available %lld \n", bp->n_slabs_available);
 }
 
 
@@ -1201,6 +1201,9 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		outer_iphdr = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
 		__builtin_memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
+        // /* IP header checksum */
+		// outer_iphdr->check = 0;
+		// outer_iphdr->check = ip_fast_csum((const void *)outer_iphdr, outer_iphdr->protocol);
 
 		struct gre_hdr *gre_hdr;
     	int gre_protocol;
@@ -1209,6 +1212,8 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		gre_hdr->proto = bpf_htons(ETH_P_TEB);
 		gre_hdr->flags = 1;
+
+        // printf("Encap GRE packet recevied from veth0 \n");
 
 		return new_len;
 		
@@ -1249,6 +1254,15 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		unsigned char outer_veth_mac[ETH_ALEN+1] = { 0x96, 0x2a, 0xb3, 0x19, 0x9f, 0x8d};  //96:2a:b3:19:9f:8d
 		__builtin_memcpy(test_eth->h_dest, inner_veth_mac, sizeof(test_eth->h_dest));
 		__builtin_memcpy(test_eth->h_source, outer_veth_mac, sizeof(test_eth->h_source));
+
+        // struct iphdr *inner_ip_hdr = (struct iphdr *)(pkt_data +
+		// 				sizeof(struct ethhdr));
+
+		// /* IP header checksum */
+		// inner_ip_hdr->check = 0;
+		// inner_ip_hdr->check = ip_fast_csum((const void *)inner_ip_hdr, inner_ip_hdr->ihl);
+
+        // printf("Decap GRE packet received from NIC \n");
 		
 		return new_len;
 	}
