@@ -22,4 +22,10 @@ ip link set veth0 mtu 3400
 sudo ip link set veth1 mtu 3400
 
 iperf3 -c 192.168.1.2 -p 5000 (7.67 Gbits/sec)
+
+//In client
+arp -s 192.168.1.2 86:99:55:ab:89:0f
+
+//In server
+arp -s 192.168.1.1 fe:65:a9:a9:ad:64
 ```

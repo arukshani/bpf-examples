@@ -1246,14 +1246,14 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		u8 *new_data = xsk_umem__get_data(params->bp->addr, inner_eth_start_addr);
 		memcpy(xsk_umem__get_data(params->bp->addr, addr), new_data, new_len);
 
-		u8 *pkt_data = xsk_umem__get_data(params->bp->addr, addr);
-		struct ethhdr *test_eth = (struct ethhdr *) pkt_data;
+		// u8 *pkt_data = xsk_umem__get_data(params->bp->addr, addr);
+		// struct ethhdr *test_eth = (struct ethhdr *) pkt_data;
 
-		//86:99:55:ab:89:0f
-		unsigned char inner_veth_mac[ETH_ALEN+1] = { 0xfe, 0x65, 0xa9, 0xa9, 0xad, 0x64}; //fe:65:a9:a9:ad:64
-		unsigned char outer_veth_mac[ETH_ALEN+1] = { 0x96, 0x2a, 0xb3, 0x19, 0x9f, 0x8d};  //96:2a:b3:19:9f:8d
-		__builtin_memcpy(test_eth->h_dest, inner_veth_mac, sizeof(test_eth->h_dest));
-		__builtin_memcpy(test_eth->h_source, outer_veth_mac, sizeof(test_eth->h_source));
+		// //86:99:55:ab:89:0f
+		// unsigned char inner_veth_mac[ETH_ALEN+1] = { 0xfe, 0x65, 0xa9, 0xa9, 0xad, 0x64}; //fe:65:a9:a9:ad:64
+		// unsigned char outer_veth_mac[ETH_ALEN+1] = { 0x96, 0x2a, 0xb3, 0x19, 0x9f, 0x8d};  //96:2a:b3:19:9f:8d
+		// __builtin_memcpy(test_eth->h_dest, inner_veth_mac, sizeof(test_eth->h_dest));
+		// __builtin_memcpy(test_eth->h_source, outer_veth_mac, sizeof(test_eth->h_source));
 
         // struct iphdr *inner_ip_hdr = (struct iphdr *)(pkt_data +
 		// 				sizeof(struct ethhdr));
