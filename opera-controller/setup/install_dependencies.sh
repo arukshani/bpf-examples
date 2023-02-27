@@ -10,3 +10,4 @@ sudo apt-get -y install jq
 sudo apt-get -y install linuxptp
 sudo apt-get -y install libmnl-dev
 sudo apt-get -y install m4
+sudo apt-get -y install iperf3
