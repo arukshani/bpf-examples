@@ -10,4 +10,7 @@ ip_addr=$(ip -f inet addr show eno50np1 | awk '/inet / {print $2}')
 
 sudo ip netns exec blue ip addr add $ip_addr dev veth0
 sudo ip netns exec blue ip link set arp off dev veth0
+sudo ip netns exec blue ethtool -K veth0 tx off
+
+
 
