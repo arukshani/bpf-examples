@@ -38,6 +38,21 @@
 #include <linux/icmp.h>
 #include <bpf/bpf_endian.h>
 
+#include <errno.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <math.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/timex.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 
 // #include "../common/common_params.h"
 // #include "../common/common_user_bpf_xdp.h"
@@ -99,6 +114,17 @@
 // // #include "../common/common_user_bpf_xdp.h"
 // // #include "../common/common_libbpf.h"
 // // #include "../lib/xdp-tools/headers/xdp/libxdp.h"
+
+#include <linux/ptp_clock.h>
+#define DEVICE "/dev/ptp1"
+
+#ifndef CLOCK_INVALID
+#define CLOCK_INVALID -1
+#endif
+
+#define CLOCKFD 3
+#define FD_TO_CLOCKID(fd)	((clockid_t) ((((unsigned int) ~fd) << 3) | CLOCKFD))
+#define CLOCKID_TO_FD(clk)	((unsigned int) ~((clk) >> 3))
 
 #define STRERR_BUFSIZE          1024
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
@@ -827,7 +853,7 @@ static void load_xdp_program(void)
 {
 	//Outer veth 
     struct config veth_cfg = {
-		.ifindex = 8,
+		.ifindex = 6,
 		.ifname = "veth1",
 		.xsk_if_queue = 0,
 		.xsk_poll_mode = true,
@@ -1111,6 +1137,69 @@ struct hdr_cursor {
 // 	}
 // }
 
+// static unsigned long get_nsecs_realtime(void)
+// {
+// 	struct timespec ts;
+
+// 	clock_gettime(CLOCK_REALTIME, &ts);
+// 	return ts.tv_sec * 1000000000UL + ts.tv_nsec;
+// }
+
+// static clockid_t get_clockid(int fd)
+// {
+// #define CLOCKFD 3
+// 	return (((unsigned int) ~fd) << 3) | CLOCKFD;
+// }
+
+clockid_t clkid;
+static clockid_t get_nic_clock_id(void)
+{
+	int fd;
+    char *device = DEVICE;
+    clockid_t clkid;
+
+    fd = open(device, O_RDWR);
+	if (fd < 0) {
+		fprintf(stderr, "opening %s: %s\n", device, strerror(errno));
+		return -1;
+	}
+
+	clkid = FD_TO_CLOCKID(fd);
+
+	if (CLOCK_INVALID == clkid) {
+		fprintf(stderr, "failed to read clock id\n");
+		return -1;
+	}
+	return clkid;
+}
+
+// static unsigned long get_nsec_nicclock(void)
+// {
+// 	struct timespec ts;
+// 	clock_gettime(clkid, &ts);
+// 	return ts.tv_sec * 1000000000UL + ts.tv_nsec;
+// }
+
+static struct timespec get_realtime(void)
+{
+	struct timespec ts;
+
+	clock_gettime(CLOCK_REALTIME, &ts);
+	return ts;
+}
+
+static struct timespec get_nicclock(void)
+{
+	struct timespec ts;
+	clock_gettime(clkid, &ts);
+	return ts;
+}
+
+// unsigned long timestamp_arr[10050];
+struct timespec timestamp_arr[10050];
+unsigned int slot_arr[10050];
+long time_index = 0;
+
 //Header structure of GRE tap packet:
     // Ethernet type of GRE encapsulated packet is ETH_P_TEB (gretap)
 	// outer eth
@@ -1119,7 +1208,6 @@ struct hdr_cursor {
     // inner eth
 	// inner ip
 	// payload
-
 static int process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr)
 {
 	int is_veth = strcmp(params->iface, "veth1"); 
@@ -1131,8 +1219,15 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		struct iphdr encap_outer_iphdr; 
 		struct ethhdr *outer_eth_hdr; 
 
-		unsigned char out_eth_src[ETH_ALEN+1] = { 0x9c, 0xdc, 0x71, 0x4a, 0x4c, 0xa1}; //9c:dc:71:4a:4c:a1
-		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xcc, 0x12, 0xc1}; //98:f2:b3:cc:12:c1
+		// unsigned long now = get_nsec_nicclock();
+		// struct timespec now = get_nicclock();
+		struct timespec now = get_realtime();
+		timestamp_arr[time_index] = now;
+		slot_arr[time_index] = 1;
+		time_index++;
+
+		unsigned char out_eth_src[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xca, 0x21, 0xa1}; //98:f2:b3:ca:21:a1
+		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xca, 0x60, 0x81}; //98:f2:b3:ca:60:81
 
 		struct iphdr *inner_ip_hdr_tmp = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
@@ -1212,6 +1307,15 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
             return false;
 		}
 
+		// unsigned long now = get_nsecs_realtime();
+		// unsigned long now = get_nsec_nicclock();
+		// struct timespec now = get_nicclock();
+		struct timespec now = get_realtime();
+		timestamp_arr[time_index] = now;
+		slot_arr[time_index] = 2;
+		time_index++;
+		// printf("node3 %ld \n", now); 
+
 		void *cutoff_pos = greh + 1;
 		int cutoff_len = (int)(cutoff_pos - data);
 		int new_len = len - cutoff_len;
@@ -1221,6 +1325,19 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		u8 *new_data = xsk_umem__get_data(params->bp->addr, inner_eth_start_addr);
 		memcpy(xsk_umem__get_data(params->bp->addr, addr), new_data, new_len);
+
+		//only for clock testing purpose
+		// u8 *pkt_data = xsk_umem__get_data(params->bp->addr, addr);
+
+		// struct ethhdr *test_eth = (struct ethhdr *) pkt_data;
+		// unsigned char veth_dst_mac[ETH_ALEN+1] = { 0xa6, 0x04, 0x7d, 0x52, 0x0d, 0xde};  //a6:04:7d:52:0d:de
+		// __builtin_memcpy(test_eth->h_dest, veth_dst_mac, sizeof(test_eth->h_dest));
+
+		// struct iphdr *test_ip_hdr = (struct iphdr *)(pkt_data +
+		// 				sizeof(struct ethhdr));
+		// test_ip_hdr->daddr = htonl(0xc0a80103); //192.168.1.3
+
+		// printf("node3 received \n");
 		
 		return new_len;
 	}
@@ -1231,6 +1348,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 static void *
 thread_func(void *arg)
 {
+	
 	struct thread_data *t = arg;
 	cpu_set_t cpu_cores;
 	u32 i;
@@ -1238,6 +1356,7 @@ thread_func(void *arg)
 	CPU_ZERO(&cpu_cores);
 	CPU_SET(t->cpu_core_id, &cpu_cores);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
+	clkid = get_nic_clock_id();
 	
 	for (i = 0; !t->quit; i = (i + 1) & (t->n_ports_rx - 1)) {
 		// printf("port rx %d \n", i);
@@ -1334,7 +1453,7 @@ int main(int argc, char **argv)
 		// printf("af port_init %d, \n", ports[i]->bc->n_buffers_cons);
 	}
 	printf("All ports created successfully.\n");
-	
+	// clkid = get_nic_clock_id();
 
 	/* Threads. */
 	for (i = 0; i < n_threads; i++) {
@@ -1380,7 +1499,24 @@ int main(int argc, char **argv)
 	// sleep(10);
 
 	/* Threads completion. */
-	printf("Quit.\n");
+	// printf("Quit.\n");
+
+	int z;
+	for (z = 0; z < time_index; z++ ) {
+		// printf("node1-%d	 %ld\n", slot_arr[z], timestamp_arr[z].tv_nsec);
+
+		char buff[100];
+		strftime(buff, sizeof buff, "%D %T", gmtime(&timestamp_arr[z].tv_sec));
+		printf("node3-%d,%ld,%ld,%s\n", slot_arr[z], timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec, buff);
+
+		// char buff[100];
+		// strftime(buff, sizeof buff, "%D %T", gmtime(&timestamp_arr[z].tv_sec));
+		// printf("Current time: %s.%09ld UTC\n", buff, timestamp_arr[z].tv_nsec);
+
+		// printf("%lld.%.9ld seconds have elapsed! \n", (long long) timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec);
+  		// printf("\nOR \n%d seconds and %ld nanoseconds have elapsed! \n", timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec);
+	}
+
 	for (i = 0; i < n_threads; i++)
 		thread_data[i].quit = 1;
 
