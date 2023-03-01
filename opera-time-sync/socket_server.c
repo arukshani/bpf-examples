@@ -15,6 +15,7 @@ int main()
     struct sockaddr_in servaddr;
  
     listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    // listen_fd = socket(AF_INET, SOCK_DGRAM, 0);
  
     bzero( &servaddr, sizeof(servaddr));
  
@@ -28,8 +29,8 @@ int main()
  
     comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL);
  
-    while(1)
-    {
+    // while(1)
+    // {
  
         bzero( str, 100);
  
@@ -39,5 +40,5 @@ int main()
  
         write(comm_fd, str, strlen(str)+1);
  
-    }
+    // }
 }
