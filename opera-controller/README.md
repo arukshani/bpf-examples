@@ -25,7 +25,9 @@ iperf3 -c 192.168.1.2 -p 5000 (7.67 Gbits/sec)
 
 //In client
 arp -s 192.168.1.2 86:99:55:ab:89:0f
+arp -s 10.0.0.3 ec:0d:9a:68:21:84
 
 //In server
 arp -s 192.168.1.1 fe:65:a9:a9:ad:64
+arp -s 10.0.0.2 ec:0d:9a:68:21:b0
 ```
