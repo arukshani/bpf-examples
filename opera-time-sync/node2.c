@@ -116,7 +116,7 @@
 // // #include "../lib/xdp-tools/headers/xdp/libxdp.h"
 
 #include <linux/ptp_clock.h>
-#define DEVICE "/dev/ptp3"
+#define DEVICE "/dev/ptp1"
 
 #ifndef CLOCK_INVALID
 #define CLOCK_INVALID -1
@@ -863,8 +863,8 @@ static void load_xdp_program(void)
 
 	//Physical NIC
     struct config nic_cfg = {
-		.ifindex = 4,
-		.ifname = "enp65s0f0np0",
+		.ifindex = 3,
+		.ifname = "eno50np1",
 		.xsk_if_queue = 0,
 		.xsk_poll_mode = true,
 		.filename = "nic_kern.o",
@@ -1165,6 +1165,7 @@ static clockid_t get_nic_clock_id(void)
 	}
 
 	clkid = FD_TO_CLOCKID(fd);
+
 	if (CLOCK_INVALID == clkid) {
 		fprintf(stderr, "failed to read clock id\n");
 		return -1;
@@ -1210,18 +1211,23 @@ long time_index = 0;
 static int process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr)
 {
 	int is_veth = strcmp(params->iface, "veth1"); 
-	int is_nic = strcmp(params->iface, "enp65s0f0np0"); 
+	int is_nic = strcmp(params->iface, "eno50np1"); 
 
 	if (is_veth == 0)
 	{
-		// unsigned long now = get_nsecs_realtime();
-		struct timespec now = get_nicclock();
-		// struct timespec now = get_realtime();
-
 		struct iphdr *outer_iphdr; 
 		struct iphdr encap_outer_iphdr; 
 		struct ethhdr *outer_eth_hdr; 
-		unsigned char out_eth_src[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc
+
+		// unsigned long now = get_nsec_nicclock();
+		// struct timespec now = get_nicclock();
+		struct timespec now = get_realtime();
+		timestamp_arr[time_index] = now;
+		slot_arr[time_index] = 1;
+		time_index++;
+
+		unsigned char out_eth_src[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xca, 0x21, 0xa1}; //98:f2:b3:ca:21:a1
+		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xca, 0x60, 0x81}; //98:f2:b3:ca:60:81
 
 		struct iphdr *inner_ip_hdr_tmp = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
@@ -1264,28 +1270,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
  
 		outer_eth_hdr = (struct ethhdr *) data;
 		__builtin_memcpy(outer_eth_hdr->h_source, out_eth_src, sizeof(outer_eth_hdr->h_source));
-
-		timestamp_arr[time_index] = now;
-		slot_arr[time_index] = 1;
-		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
-		__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
-
-		// __u32 t1ms = now / 1000000; // number of 1's of milliseconds 
-		// if (t1ms % 2 == 0 ) {
-		// 	timestamp_arr[time_index] = now;
-		// 	slot_arr[time_index] = 1;
-		// 	// printf("slot1 %ld \n", now); 
-		// 	unsigned char out_eth_dst[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xca, 0x21, 0xa1}; //node3
-		// 	__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
-		// } else {
-		// 	timestamp_arr[time_index] = now;
-		// 	slot_arr[time_index] = 2;
-		// 	// printf("slot2 %ld \n", now);
-		// 	unsigned char out_eth_dst[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xcc, 0x43, 0xd1}; //node5
-		// 	__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
-		// }
-		time_index++;
-
+    	__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
 		outer_eth_hdr->h_proto = htons(ETH_P_IP);
 
 		outer_iphdr = (struct iphdr *)(data +
@@ -1322,12 +1307,14 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
             return false;
 		}
 
+		// unsigned long now = get_nsecs_realtime();
 		// unsigned long now = get_nsec_nicclock();
-		struct timespec now = get_nicclock();
-		// struct timespec now = get_realtime();
+		// struct timespec now = get_nicclock();
+		struct timespec now = get_realtime();
 		timestamp_arr[time_index] = now;
 		slot_arr[time_index] = 2;
 		time_index++;
+		// printf("node3 %ld \n", now); 
 
 		void *cutoff_pos = greh + 1;
 		int cutoff_len = (int)(cutoff_pos - data);
@@ -1338,6 +1325,19 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		u8 *new_data = xsk_umem__get_data(params->bp->addr, inner_eth_start_addr);
 		memcpy(xsk_umem__get_data(params->bp->addr, addr), new_data, new_len);
+
+		//only for clock testing purpose
+		// u8 *pkt_data = xsk_umem__get_data(params->bp->addr, addr);
+
+		// struct ethhdr *test_eth = (struct ethhdr *) pkt_data;
+		// unsigned char veth_dst_mac[ETH_ALEN+1] = { 0xa6, 0x04, 0x7d, 0x52, 0x0d, 0xde};  //a6:04:7d:52:0d:de
+		// __builtin_memcpy(test_eth->h_dest, veth_dst_mac, sizeof(test_eth->h_dest));
+
+		// struct iphdr *test_ip_hdr = (struct iphdr *)(pkt_data +
+		// 				sizeof(struct ethhdr));
+		// test_ip_hdr->daddr = htonl(0xc0a80103); //192.168.1.3
+
+		// printf("node3 received \n");
 		
 		return new_len;
 	}
@@ -1423,7 +1423,7 @@ int main(int argc, char **argv)
     n_ports = 2; //0 and 1 (veth and nic)
     port_params[0].iface = "veth1";
 	port_params[0].iface_queue = 0;
-    port_params[1].iface = "enp65s0f0np0";
+    port_params[1].iface = "eno50np1";
 	port_params[1].iface_queue = 0;
 
     n_threads = 1; //only 1 thread
@@ -1501,15 +1501,13 @@ int main(int argc, char **argv)
 	/* Threads completion. */
 	// printf("Quit.\n");
 
-	/* output each array element's value */
-
 	int z;
 	for (z = 0; z < time_index; z++ ) {
 		// printf("node1-%d	 %ld\n", slot_arr[z], timestamp_arr[z].tv_nsec);
 
 		char buff[100];
 		strftime(buff, sizeof buff, "%D %T", gmtime(&timestamp_arr[z].tv_sec));
-		printf("node1-%d,%ld,%ld,%s\n", slot_arr[z], timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec, buff);
+		printf("node3-%d,%ld,%ld,%s\n", slot_arr[z], timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec, buff);
 
 		// char buff[100];
 		// strftime(buff, sizeof buff, "%D %T", gmtime(&timestamp_arr[z].tv_sec));

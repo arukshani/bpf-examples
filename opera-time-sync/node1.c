@@ -1137,13 +1137,13 @@ struct hdr_cursor {
 // 	}
 // }
 
-// static unsigned long get_nsecs_realtime(void)
-// {
-// 	struct timespec ts;
+static unsigned long get_nsecs_realtime(void)
+{
+	struct timespec ts;
 
-// 	clock_gettime(CLOCK_REALTIME, &ts);
-// 	return ts.tv_sec * 1000000000UL + ts.tv_nsec;
-// }
+	clock_gettime(CLOCK_REALTIME, &ts);
+	return ts.tv_sec * 1000000000UL + ts.tv_nsec;
+}
 
 // static clockid_t get_clockid(int fd)
 // {
@@ -1214,8 +1214,8 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 	if (is_veth == 0)
 	{
-		// unsigned long now = get_nsecs_realtime();
-		struct timespec now = get_nicclock();
+		unsigned long now = get_nsecs_realtime();
+		// struct timespec now = get_nicclock();
 		// struct timespec now = get_realtime();
 
 		struct iphdr *outer_iphdr; 
@@ -1267,23 +1267,23 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		timestamp_arr[time_index] = now;
 		slot_arr[time_index] = 1;
-		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
-		__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
+		// unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
+		// __builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
 
-		// __u32 t1ms = now / 1000000; // number of 1's of milliseconds 
-		// if (t1ms % 2 == 0 ) {
-		// 	timestamp_arr[time_index] = now;
-		// 	slot_arr[time_index] = 1;
-		// 	// printf("slot1 %ld \n", now); 
-		// 	unsigned char out_eth_dst[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xca, 0x21, 0xa1}; //node3
-		// 	__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
-		// } else {
-		// 	timestamp_arr[time_index] = now;
-		// 	slot_arr[time_index] = 2;
-		// 	// printf("slot2 %ld \n", now);
-		// 	unsigned char out_eth_dst[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xcc, 0x43, 0xd1}; //node5
-		// 	__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
-		// }
+		__u32 t1ms = now / 1000000; // number of 1's of milliseconds 
+		if (t1ms % 2 == 0 ) {
+			timestamp_arr[time_index] = now;
+			slot_arr[time_index] = 1;
+			// printf("slot1 %ld \n", now); 
+			unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c node2
+			__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
+		} else {
+			timestamp_arr[time_index] = now;
+			slot_arr[time_index] = 2;
+			// printf("slot2 %ld \n", now);
+			unsigned char out_eth_dst[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xcc, 0x43, 0xd1}; //node3
+			__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
+		}
 		time_index++;
 
 		outer_eth_hdr->h_proto = htons(ETH_P_IP);
