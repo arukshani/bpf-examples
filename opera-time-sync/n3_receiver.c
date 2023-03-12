@@ -116,7 +116,7 @@
 // // #include "../lib/xdp-tools/headers/xdp/libxdp.h"
 
 #include <linux/ptp_clock.h>
-#define DEVICE "/dev/ptp1"
+#define DEVICE "/dev/ptp3"
 
 #ifndef CLOCK_INVALID
 #define CLOCK_INVALID -1
@@ -863,8 +863,8 @@ static void load_xdp_program(void)
 
 	//Physical NIC
     struct config nic_cfg = {
-		.ifindex = 3,
-		.ifname = "eno50np1",
+		.ifindex = 4,
+		.ifname = "enp65s0f0np0",
 		.xsk_if_queue = 0,
 		.xsk_poll_mode = true,
 		.filename = "nic_kern.o",
@@ -1211,23 +1211,23 @@ long time_index = 0;
 static int process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr)
 {
 	int is_veth = strcmp(params->iface, "veth1"); 
-	int is_nic = strcmp(params->iface, "eno50np1"); 
+	int is_nic = strcmp(params->iface, "enp65s0f0np0"); 
 
 	if (is_veth == 0)
 	{
-		struct iphdr *outer_iphdr; 
-		struct iphdr encap_outer_iphdr; 
-		struct ethhdr *outer_eth_hdr; 
-
 		// unsigned long now = get_nsec_nicclock();
-		// struct timespec now = get_nicclock();
-		struct timespec now = get_realtime();
+		struct timespec now = get_nicclock();
+		// struct timespec now = get_realtime();
 		timestamp_arr[time_index] = now;
 		slot_arr[time_index] = 1;
 		time_index++;
 
-		unsigned char out_eth_src[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xca, 0x21, 0xa1}; //98:f2:b3:ca:21:a1
-		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xca, 0x60, 0x81}; //98:f2:b3:ca:60:81
+		struct iphdr *outer_iphdr; 
+		struct iphdr encap_outer_iphdr; 
+		struct ethhdr *outer_eth_hdr; 
+
+		unsigned char out_eth_src[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
+		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc
 
 		struct iphdr *inner_ip_hdr_tmp = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
@@ -1309,8 +1309,8 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		// unsigned long now = get_nsecs_realtime();
 		// unsigned long now = get_nsec_nicclock();
-		// struct timespec now = get_nicclock();
-		struct timespec now = get_realtime();
+		struct timespec now = get_nicclock();
+		// struct timespec now = get_realtime();
 		timestamp_arr[time_index] = now;
 		slot_arr[time_index] = 2;
 		time_index++;
@@ -1423,7 +1423,7 @@ int main(int argc, char **argv)
     n_ports = 2; //0 and 1 (veth and nic)
     port_params[0].iface = "veth1";
 	port_params[0].iface_queue = 0;
-    port_params[1].iface = "eno50np1";
+    port_params[1].iface = "enp65s0f0np0";
 	port_params[1].iface_queue = 0;
 
     n_threads = 1; //only 1 thread
@@ -1507,7 +1507,7 @@ int main(int argc, char **argv)
 
 		char buff[100];
 		strftime(buff, sizeof buff, "%D %T", gmtime(&timestamp_arr[z].tv_sec));
-		printf("node3-%d,%ld,%ld,%s\n", slot_arr[z], timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec, buff);
+		printf("node2-%d,%ld,%ld,%s\n", slot_arr[z], timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec, buff);
 
 		// char buff[100];
 		// strftime(buff, sizeof buff, "%D %T", gmtime(&timestamp_arr[z].tv_sec));
