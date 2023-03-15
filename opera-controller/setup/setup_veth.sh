@@ -15,4 +15,5 @@ sudo ip netns exec blue ip link set veth0 mtu 3400
 
 sudo ip link set enp65s0f0np0 mtu 3490
 sudo ip link set veth1 mtu 3400
+sudo ethtool -L enp65s0f0np0 combined 1
 
