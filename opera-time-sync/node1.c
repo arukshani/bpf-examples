@@ -902,6 +902,7 @@ static int quit;
 
 static void signal_handler(int sig)
 {
+	// printf("signal_handler");
 	quit = 1;
 }
 
@@ -1137,13 +1138,13 @@ struct hdr_cursor {
 // 	}
 // }
 
-static unsigned long get_nsecs_realtime(void)
-{
-	struct timespec ts;
+// static unsigned long get_nsecs_realtime(void)
+// {
+// 	struct timespec ts;
 
-	clock_gettime(CLOCK_REALTIME, &ts);
-	return ts.tv_sec * 1000000000UL + ts.tv_nsec;
-}
+// 	clock_gettime(CLOCK_REALTIME, &ts);
+// 	return ts.tv_sec * 1000000000UL + ts.tv_nsec;
+// }
 
 // static clockid_t get_clockid(int fd)
 // {
@@ -1179,6 +1180,11 @@ static clockid_t get_nic_clock_id(void)
 // 	return ts.tv_sec * 1000000000UL + ts.tv_nsec;
 // }
 
+static unsigned long get_nsec(struct timespec *ts)
+{
+    return ts->tv_sec * 1000000000UL + ts->tv_nsec;
+}
+
 static struct timespec get_realtime(void)
 {
 	struct timespec ts;
@@ -1198,6 +1204,8 @@ static struct timespec get_nicclock(void)
 struct timespec timestamp_arr[10050];
 unsigned int slot_arr[10050];
 long time_index = 0;
+__u32 t1ms;
+struct timespec now;
 
 //Header structure of GRE tap packet:
     // Ethernet type of GRE encapsulated packet is ETH_P_TEB (gretap)
@@ -1214,10 +1222,6 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 	if (is_veth == 0)
 	{
-		unsigned long now = get_nsecs_realtime();
-		// struct timespec now = get_nicclock();
-		// struct timespec now = get_realtime();
-
 		struct iphdr *outer_iphdr; 
 		struct iphdr encap_outer_iphdr; 
 		struct ethhdr *outer_eth_hdr; 
@@ -1265,23 +1269,39 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		outer_eth_hdr = (struct ethhdr *) data;
 		__builtin_memcpy(outer_eth_hdr->h_source, out_eth_src, sizeof(outer_eth_hdr->h_source));
 
-		timestamp_arr[time_index] = now;
-		slot_arr[time_index] = 1;
+		// timestamp_arr[time_index] = now;
+		// slot_arr[time_index] = 1;
 		// unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
 		// __builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
 
-		__u32 t1ms = now / 1000000; // number of 1's of milliseconds 
+		// struct timespec now = get_nicclock();
+		// // struct timespec now = get_realtime();
+        // unsigned long now_ns = get_nsec(&now);
+		// __u32 t1ms = now_ns / 1000000; // number of 1's of milliseconds 
+		// if (t1ms % 2 == 0 ) {
+		// 	timestamp_arr[time_index] = now;
+		// 	slot_arr[time_index] = 0;
+		// 	// printf("slot1 %ld \n", now); 
+		// 	unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c node2
+		// 	__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
+		// } else {
+		// 	timestamp_arr[time_index] = now;
+		// 	slot_arr[time_index] = 1;
+		// 	// printf("slot2 %ld \n", now);
+		// 	unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x4c}; //0c:42:a1:dd:58:4c node3
+		// 	__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
+		// }
+		// time_index++;
+
+		timestamp_arr[time_index] = now;
+
 		if (t1ms % 2 == 0 ) {
-			timestamp_arr[time_index] = now;
-			slot_arr[time_index] = 1;
-			// printf("slot1 %ld \n", now); 
+			slot_arr[time_index] = 0;
 			unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c node2
 			__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
 		} else {
-			timestamp_arr[time_index] = now;
-			slot_arr[time_index] = 2;
-			// printf("slot2 %ld \n", now);
-			unsigned char out_eth_dst[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xcc, 0x43, 0xd1}; //node3
+			slot_arr[time_index] = 1;
+			unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x4c}; //0c:42:a1:dd:58:4c node3
 			__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
 		}
 		time_index++;
@@ -1323,11 +1343,11 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		}
 
 		// unsigned long now = get_nsec_nicclock();
-		struct timespec now = get_nicclock();
+		// struct timespec now = get_nicclock();
 		// struct timespec now = get_realtime();
-		timestamp_arr[time_index] = now;
-		slot_arr[time_index] = 2;
-		time_index++;
+		// timestamp_arr[time_index] = now;
+		// slot_arr[time_index] = 2;
+		// time_index++;
 
 		void *cutoff_pos = greh + 1;
 		int cutoff_len = (int)(cutoff_pos - data);
@@ -1402,6 +1422,14 @@ thread_func(void *arg)
 	}
 
 	return NULL;
+}
+
+static void read_time()
+{
+	// struct timespec now = get_realtime();
+	now = get_nicclock();
+	unsigned long now_ns = get_nsec(&now);
+	t1ms = now_ns / 1000000; // number of 1's of milliseconds 
 }
 
 int main(int argc, char **argv)
@@ -1492,9 +1520,23 @@ int main(int argc, char **argv)
 	signal(SIGTERM, signal_handler);
 	signal(SIGABRT, signal_handler);
 
-	for ( ; !quit; ) {
-		sleep(1);
+	time_t secs = 120; // 2 minutes (can be retrieved from user's input)
+
+	time_t startTime = time(NULL);
+	while (time(NULL) - startTime < secs)
+	{
+		read_time();
 	}
+
+	// for ( ; !quit; ) {
+	// 	read_time();
+	// }
+
+	// printf("Quit.\n");
+
+	// for ( ; !quit; ) {
+	// 	sleep(1);
+	// }
 
 	// sleep(10);
 
@@ -1507,16 +1549,16 @@ int main(int argc, char **argv)
 	for (z = 0; z < time_index; z++ ) {
 		// printf("node1-%d	 %ld\n", slot_arr[z], timestamp_arr[z].tv_nsec);
 
+        unsigned long now_ns = get_nsec(&timestamp_arr[z]);
 		char buff[100];
 		strftime(buff, sizeof buff, "%D %T", gmtime(&timestamp_arr[z].tv_sec));
-		printf("node1-%d,%ld,%ld,%s\n", slot_arr[z], timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec, buff);
-
-		// char buff[100];
-		// strftime(buff, sizeof buff, "%D %T", gmtime(&timestamp_arr[z].tv_sec));
-		// printf("Current time: %s.%09ld UTC\n", buff, timestamp_arr[z].tv_nsec);
-
-		// printf("%lld.%.9ld seconds have elapsed! \n", (long long) timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec);
-  		// printf("\nOR \n%d seconds and %ld nanoseconds have elapsed! \n", timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec);
+        if (slot_arr[z] == 0)
+        {
+            printf("node1->node2,%ld,%ld,%ld,%s\n", timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec, now_ns, buff);
+        } else if (slot_arr[z] == 1)
+        {
+            printf("node1->node3,%ld,%ld,%ld,%s\n", timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec, now_ns, buff);
+        }
 	}
 
 	for (i = 0; i < n_threads; i++)
