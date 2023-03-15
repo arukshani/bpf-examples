@@ -28,4 +28,8 @@ arp -s 192.168.1.2 86:99:55:ab:89:0f
 
 //In server
 arp -s 192.168.1.1 fe:65:a9:a9:ad:64
+
+sudo kill -6 pid //for SIGABRT
+// SIGINT 2
+// SIGTERM 15
 ```
