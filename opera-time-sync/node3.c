@@ -116,7 +116,7 @@
 // // #include "../lib/xdp-tools/headers/xdp/libxdp.h"
 
 #include <linux/ptp_clock.h>
-#define DEVICE "/dev/ptp1"
+#define DEVICE "/dev/ptp3"
 
 #ifndef CLOCK_INVALID
 #define CLOCK_INVALID -1
@@ -863,8 +863,8 @@ static void load_xdp_program(void)
 
 	//Physical NIC
     struct config nic_cfg = {
-		.ifindex = 3,
-		.ifname = "eno50np1",
+		.ifindex = 4,
+		.ifname = "enp65s0f0np0",
 		.xsk_if_queue = 0,
 		.xsk_poll_mode = true,
 		.filename = "nic_kern.o",
@@ -1180,6 +1180,11 @@ static clockid_t get_nic_clock_id(void)
 // 	return ts.tv_sec * 1000000000UL + ts.tv_nsec;
 // }
 
+static unsigned long get_nsec(struct timespec *ts)
+{
+    return ts->tv_sec * 1000000000UL + ts->tv_nsec;
+}
+
 static struct timespec get_realtime(void)
 {
 	struct timespec ts;
@@ -1199,6 +1204,7 @@ static struct timespec get_nicclock(void)
 struct timespec timestamp_arr[10050];
 unsigned int slot_arr[10050];
 long time_index = 0;
+struct timespec now;
 
 //Header structure of GRE tap packet:
     // Ethernet type of GRE encapsulated packet is ETH_P_TEB (gretap)
@@ -1211,7 +1217,7 @@ long time_index = 0;
 static int process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr)
 {
 	int is_veth = strcmp(params->iface, "veth1"); 
-	int is_nic = strcmp(params->iface, "eno50np1"); 
+	int is_nic = strcmp(params->iface, "enp65s0f0np0"); 
 
 	if (is_veth == 0)
 	{
@@ -1221,13 +1227,13 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		// unsigned long now = get_nsec_nicclock();
 		// struct timespec now = get_nicclock();
-		struct timespec now = get_realtime();
-		timestamp_arr[time_index] = now;
-		slot_arr[time_index] = 1;
-		time_index++;
+		// struct timespec now = get_realtime();
+		// timestamp_arr[time_index] = now;
+		// slot_arr[time_index] = 1;
+		// time_index++;
 
-		unsigned char out_eth_src[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xca, 0x21, 0xa1}; //98:f2:b3:ca:21:a1
-		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x98, 0xf2, 0xb3, 0xca, 0x60, 0x81}; //98:f2:b3:ca:60:81
+		unsigned char out_eth_src[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x4c};
+		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; 
 
 		struct iphdr *inner_ip_hdr_tmp = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
@@ -1310,9 +1316,9 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		// unsigned long now = get_nsecs_realtime();
 		// unsigned long now = get_nsec_nicclock();
 		// struct timespec now = get_nicclock();
-		struct timespec now = get_realtime();
+		// struct timespec now = get_realtime();
 		timestamp_arr[time_index] = now;
-		slot_arr[time_index] = 2;
+		slot_arr[time_index] = 3;
 		time_index++;
 		// printf("node3 %ld \n", now); 
 
@@ -1327,15 +1333,15 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		memcpy(xsk_umem__get_data(params->bp->addr, addr), new_data, new_len);
 
 		//only for clock testing purpose
-		// u8 *pkt_data = xsk_umem__get_data(params->bp->addr, addr);
+		u8 *pkt_data = xsk_umem__get_data(params->bp->addr, addr);
 
-		// struct ethhdr *test_eth = (struct ethhdr *) pkt_data;
-		// unsigned char veth_dst_mac[ETH_ALEN+1] = { 0xa6, 0x04, 0x7d, 0x52, 0x0d, 0xde};  //a6:04:7d:52:0d:de
-		// __builtin_memcpy(test_eth->h_dest, veth_dst_mac, sizeof(test_eth->h_dest));
+		struct ethhdr *test_eth = (struct ethhdr *) pkt_data;
+		unsigned char veth_dst_mac[ETH_ALEN+1] = { 0x22, 0xe8, 0x7f, 0x3c, 0xc8, 0x1b};  //22:e8:7f:3c:c8:1b
+		__builtin_memcpy(test_eth->h_dest, veth_dst_mac, sizeof(test_eth->h_dest));
 
-		// struct iphdr *test_ip_hdr = (struct iphdr *)(pkt_data +
-		// 				sizeof(struct ethhdr));
-		// test_ip_hdr->daddr = htonl(0xc0a80103); //192.168.1.3
+		struct iphdr *test_ip_hdr = (struct iphdr *)(pkt_data +
+						sizeof(struct ethhdr));
+		test_ip_hdr->daddr = htonl(0xc0a80103); //192.168.1.3
 
 		// printf("node3 received \n");
 		
@@ -1404,6 +1410,12 @@ thread_func(void *arg)
 	return NULL;
 }
 
+static void read_time()
+{
+	//now = get_realtime();
+	now = get_nicclock();
+}
+
 int main(int argc, char **argv)
 {
     // printf(" hello %ld", sizeof(u64 *));
@@ -1423,7 +1435,7 @@ int main(int argc, char **argv)
     n_ports = 2; //0 and 1 (veth and nic)
     port_params[0].iface = "veth1";
 	port_params[0].iface_queue = 0;
-    port_params[1].iface = "eno50np1";
+    port_params[1].iface = "enp65s0f0np0";
 	port_params[1].iface_queue = 0;
 
     n_threads = 1; //only 1 thread
@@ -1492,9 +1504,21 @@ int main(int argc, char **argv)
 	signal(SIGTERM, signal_handler);
 	signal(SIGABRT, signal_handler);
 
-	for ( ; !quit; ) {
-		sleep(1);
+	time_t secs = 120; // 2 minutes (can be retrieved from user's input)
+
+	time_t startTime = time(NULL);
+	while (time(NULL) - startTime < secs)
+	{
+		read_time();
 	}
+
+	// for ( ; !quit; ) {
+	// 	read_time();
+	// }
+
+	// for ( ; !quit; ) {
+	// 	sleep(1);
+	// }
 
 	// sleep(10);
 
@@ -1505,9 +1529,10 @@ int main(int argc, char **argv)
 	for (z = 0; z < time_index; z++ ) {
 		// printf("node1-%d	 %ld\n", slot_arr[z], timestamp_arr[z].tv_nsec);
 
+		unsigned long now_ns = get_nsec(&timestamp_arr[z]);
 		char buff[100];
 		strftime(buff, sizeof buff, "%D %T", gmtime(&timestamp_arr[z].tv_sec));
-		printf("node3-%d,%ld,%ld,%s\n", slot_arr[z], timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec, buff);
+		printf("node3-receive,%ld,%ld,%ld,%s\n", timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec, now_ns, buff);
 
 		// char buff[100];
 		// strftime(buff, sizeof buff, "%D %T", gmtime(&timestamp_arr[z].tv_sec));
