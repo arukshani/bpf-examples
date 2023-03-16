@@ -152,7 +152,7 @@ struct bpool_params {
  * to share the same UMEM area, which is used as the buffer pool memory.
  */
 #ifndef MAX_BURST_RX
-#define MAX_BURST_RX 64
+#define MAX_BURST_RX 1
 #endif
 
 #ifndef MAX_BURST_TX
@@ -486,6 +486,29 @@ bcache_prod(struct bcache *bc, u64 buffer)
 	// printf("AFTER prod slab FULL bp->n_slabs_available %lld \n", bp->n_slabs_available);
 }
 
+static void apply_setsockopt(struct xsk_socket *xsk)
+{
+	int sock_opt;
+
+	// if (!opt_busy_poll)
+	// 	return;
+
+	sock_opt = 1;
+	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_PREFER_BUSY_POLL,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		printf("Error!!!");
+
+	sock_opt = 20;
+	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_BUSY_POLL,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		printf("Error!!!");
+
+	sock_opt = 1;
+	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_BUSY_POLL_BUDGET,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		printf("Error!!!");
+}
+
 
 static struct port *
 port_init(struct port_params *params)
@@ -529,6 +552,7 @@ port_init(struct port_params *params)
 					   &p->umem_cq,
 					   &params->xsk_cfg);
 
+	apply_setsockopt(p->xsk);
 	// printf("xsk_socket__create_shared returns %d\n", status) ;
 
 	// status = xsk_socket__create(&p->xsk,
@@ -1201,8 +1225,8 @@ static struct timespec get_nicclock(void)
 }
 
 // unsigned long timestamp_arr[10050];
-struct timespec timestamp_arr[10050];
-unsigned int slot_arr[10050];
+struct timespec timestamp_arr[20050];
+unsigned int slot_arr[20050];
 long time_index = 0;
 __u32 t1ms;
 struct timespec now;
@@ -1520,7 +1544,7 @@ int main(int argc, char **argv)
 	signal(SIGTERM, signal_handler);
 	signal(SIGABRT, signal_handler);
 
-	time_t secs = 120; // 2 minutes (can be retrieved from user's input)
+	time_t secs = 30; // 2 minutes (can be retrieved from user's input)
 
 	time_t startTime = time(NULL);
 	while (time(NULL) - startTime < secs)
@@ -1534,6 +1558,7 @@ int main(int argc, char **argv)
 
 	// printf("Quit.\n");
 
+	// read_time();
 	// for ( ; !quit; ) {
 	// 	sleep(1);
 	// }
@@ -1544,6 +1569,8 @@ int main(int argc, char **argv)
 	// printf("Quit.\n");
 
 	/* output each array element's value */
+
+	// printf("Number of packets sent: %ld \n", time_index);
 
 	int z;
 	for (z = 0; z < time_index; z++ ) {
