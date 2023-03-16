@@ -116,6 +116,7 @@
 // // #include "../lib/xdp-tools/headers/xdp/libxdp.h"
 
 #include <linux/ptp_clock.h>
+#include "csum.h"
 #define DEVICE "/dev/ptp3"
 
 #ifndef CLOCK_INVALID
@@ -152,7 +153,7 @@ struct bpool_params {
  * to share the same UMEM area, which is used as the buffer pool memory.
  */
 #ifndef MAX_BURST_RX
-#define MAX_BURST_RX 64
+#define MAX_BURST_RX 1
 #endif
 
 #ifndef MAX_BURST_TX
@@ -486,6 +487,31 @@ bcache_prod(struct bcache *bc, u64 buffer)
 	// printf("AFTER prod slab FULL bp->n_slabs_available %lld \n", bp->n_slabs_available);
 }
 
+static void apply_setsockopt(struct xsk_socket *xsk)
+{
+	int sock_opt;
+
+	// if (!opt_busy_poll)
+	// 	return;
+
+	sock_opt = 1;
+	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_PREFER_BUSY_POLL,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		// exit_with_error(errno);
+		printf("Error!!!");
+
+	sock_opt = 20;
+	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_BUSY_POLL,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		printf("Error!!!");
+
+	sock_opt = 1;
+	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_BUSY_POLL_BUDGET,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		printf("Error!!!");
+}
+
+
 
 static struct port *
 port_init(struct port_params *params)
@@ -529,6 +555,7 @@ port_init(struct port_params *params)
 					   &p->umem_cq,
 					   &params->xsk_cfg);
 
+	apply_setsockopt(p->xsk);
 	// printf("xsk_socket__create_shared returns %d\n", status) ;
 
 	// status = xsk_socket__create(&p->xsk,
@@ -1023,75 +1050,75 @@ port_tx_burst(struct port *p, struct burst_tx *b)
  * This function code has been taken from
  * Linux kernel lib/checksum.c
  */
-static inline unsigned short from32to16(unsigned int x)
-{
-	/* add up 16-bit and 16-bit for 16+c bit */
-	x = (x & 0xffff) + (x >> 16);
-	/* add up carry.. */
-	x = (x & 0xffff) + (x >> 16);
-	return x;
-}
+// static inline unsigned short from32to16(unsigned int x)
+// {
+// 	/* add up 16-bit and 16-bit for 16+c bit */
+// 	x = (x & 0xffff) + (x >> 16);
+// 	/* add up carry.. */
+// 	x = (x & 0xffff) + (x >> 16);
+// 	return x;
+// }
 
 /*
  * This function code has been taken from
  * Linux kernel lib/checksum.c
  */
-static unsigned int do_csum(const unsigned char *buff, int len)
-{
-	unsigned int result = 0;
-	int odd;
+// static unsigned int do_csum(const unsigned char *buff, int len)
+// {
+// 	unsigned int result = 0;
+// 	int odd;
 
-	if (len <= 0)
-		goto out;
-	odd = 1 & (unsigned long)buff;
-	if (odd) {
-#ifdef __LITTLE_ENDIAN
-		result += (*buff << 8);
-#else
-		result = *buff;
-#endif
-		len--;
-		buff++;
-	}
-	if (len >= 2) {
-		if (2 & (unsigned long)buff) {
-			result += *(unsigned short *)buff;
-			len -= 2;
-			buff += 2;
-		}
-		if (len >= 4) {
-			const unsigned char *end = buff +
-						   ((unsigned int)len & ~3);
-			unsigned int carry = 0;
+// 	if (len <= 0)
+// 		goto out;
+// 	odd = 1 & (unsigned long)buff;
+// 	if (odd) {
+// #ifdef __LITTLE_ENDIAN
+// 		result += (*buff << 8);
+// #else
+// 		result = *buff;
+// #endif
+// 		len--;
+// 		buff++;
+// 	}
+// 	if (len >= 2) {
+// 		if (2 & (unsigned long)buff) {
+// 			result += *(unsigned short *)buff;
+// 			len -= 2;
+// 			buff += 2;
+// 		}
+// 		if (len >= 4) {
+// 			const unsigned char *end = buff +
+// 						   ((unsigned int)len & ~3);
+// 			unsigned int carry = 0;
 
-			do {
-				unsigned int w = *(unsigned int *)buff;
+// 			do {
+// 				unsigned int w = *(unsigned int *)buff;
 
-				buff += 4;
-				result += carry;
-				result += w;
-				carry = (w > result);
-			} while (buff < end);
-			result += carry;
-			result = (result & 0xffff) + (result >> 16);
-		}
-		if (len & 2) {
-			result += *(unsigned short *)buff;
-			buff += 2;
-		}
-	}
-	if (len & 1)
-#ifdef __LITTLE_ENDIAN
-		result += *buff;
-#else
-		result += (*buff << 8);
-#endif
-	result = from32to16(result);
-	if (odd)
-		result = ((result >> 8) & 0xff) | ((result & 0xff) << 8);
-out:
-	return result;
-}
+// 				buff += 4;
+// 				result += carry;
+// 				result += w;
+// 				carry = (w > result);
+// 			} while (buff < end);
+// 			result += carry;
+// 			result = (result & 0xffff) + (result >> 16);
+// 		}
+// 		if (len & 2) {
+// 			result += *(unsigned short *)buff;
+// 			buff += 2;
+// 		}
+// 	}
+// 	if (len & 1)
+// #ifdef __LITTLE_ENDIAN
+// 		result += *buff;
+// #else
+// 		result += (*buff << 8);
+// #endif
+// 	result = from32to16(result);
+// 	if (odd)
+// 		result = ((result >> 8) & 0xff) | ((result & 0xff) << 8);
+// out:
+// 	return result;
+// }
 
 /*
  *	This is a version of ip_compute_csum() optimized for IP headers,
@@ -1099,10 +1126,10 @@ out:
  *	This function code has been taken from
  *	Linux kernel lib/checksum.c
  */
-static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
-{
-	return (__sum16)~do_csum(iph, ihl * 4);
-}
+// static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
+// {
+// 	return (__sum16)~do_csum(iph, ihl * 4);
+// }
 
 struct gre_hdr {
 	__be16 flags;
@@ -1201,8 +1228,8 @@ static struct timespec get_nicclock(void)
 }
 
 // unsigned long timestamp_arr[10050];
-struct timespec timestamp_arr[10050];
-unsigned int slot_arr[10050];
+struct timespec timestamp_arr[20050];
+unsigned int slot_arr[20050];
 long time_index = 0;
 struct timespec now;
 
@@ -1341,7 +1368,10 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		struct iphdr *test_ip_hdr = (struct iphdr *)(pkt_data +
 						sizeof(struct ethhdr));
+		uint32_t oldAddr = test_ip_hdr->daddr;
 		test_ip_hdr->daddr = htonl(0xc0a80103); //192.168.1.3
+		test_ip_hdr->check = csum_diff4(oldAddr, test_ip_hdr->daddr, test_ip_hdr->check);
+		
 
 		// printf("node3 received \n");
 		
@@ -1504,7 +1534,7 @@ int main(int argc, char **argv)
 	signal(SIGTERM, signal_handler);
 	signal(SIGABRT, signal_handler);
 
-	time_t secs = 120; // 2 minutes (can be retrieved from user's input)
+	time_t secs = 30; // 2 minutes (can be retrieved from user's input)
 
 	time_t startTime = time(NULL);
 	while (time(NULL) - startTime < secs)
@@ -1516,6 +1546,7 @@ int main(int argc, char **argv)
 	// 	read_time();
 	// }
 
+	// read_time();
 	// for ( ; !quit; ) {
 	// 	sleep(1);
 	// }
@@ -1525,6 +1556,8 @@ int main(int argc, char **argv)
 	/* Threads completion. */
 	// printf("Quit.\n");
 
+	// printf("Number of packets received: %ld \n", time_index);
+
 	int z;
 	for (z = 0; z < time_index; z++ ) {
 		// printf("node1-%d	 %ld\n", slot_arr[z], timestamp_arr[z].tv_nsec);
@@ -1533,13 +1566,6 @@ int main(int argc, char **argv)
 		char buff[100];
 		strftime(buff, sizeof buff, "%D %T", gmtime(&timestamp_arr[z].tv_sec));
 		printf("node3-receive,%ld,%ld,%ld,%s\n", timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec, now_ns, buff);
-
-		// char buff[100];
-		// strftime(buff, sizeof buff, "%D %T", gmtime(&timestamp_arr[z].tv_sec));
-		// printf("Current time: %s.%09ld UTC\n", buff, timestamp_arr[z].tv_nsec);
-
-		// printf("%lld.%.9ld seconds have elapsed! \n", (long long) timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec);
-  		// printf("\nOR \n%d seconds and %ld nanoseconds have elapsed! \n", timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec);
 	}
 
 	for (i = 0; i < n_threads; i++)
