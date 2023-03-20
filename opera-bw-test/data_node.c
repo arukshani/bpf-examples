@@ -1309,7 +1309,8 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		outer_eth_hdr = (struct ethhdr *) data;
 		__builtin_memcpy(outer_eth_hdr->h_source, out_eth_src, sizeof(outer_eth_hdr->h_source));
 
-		u32 dest_ip_index = find(htonl(inner_ip_hdr_tmp->daddr));
+		u32 dest_ip_index = find(inner_ip_hdr_tmp->daddr);
+		// printf("dest_ip_index dest2 = %d\n", dest_ip_index);
 		int port_val;
     	getRouteElement(A, dest_ip_index, topo, &port_val);
 		struct mac_addr dest_mac_val;
@@ -1573,7 +1574,7 @@ int main(int argc, char **argv)
     insert(dest1, 0); //dest,index for dest ip
     insert(dest2, 1); //dest,index for dest ip
     // if (find(dest2) != -1)
-	// 	printf("Value of Key dest2 = %d\n", find(dest2));
+	// 	printf("192.168.1.2 dest2 = %d %d\n", dest1, find(dest2));
     //+++++++++++++++++++++IP++++++++++++++++++++++
 
     //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
