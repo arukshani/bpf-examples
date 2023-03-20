@@ -117,6 +117,7 @@
 
 #include <linux/ptp_clock.h>
 #include "data_structures.h"
+#include "common_funcs.h"
 
 #define DEVICE "/dev/ptp3"
 
@@ -1264,7 +1265,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		struct iphdr *outer_iphdr; 
 		struct iphdr encap_outer_iphdr; 
 		struct ethhdr *outer_eth_hdr; 
-		unsigned char out_eth_src[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc
+		// unsigned char out_eth_src[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc
 
 		struct iphdr *inner_ip_hdr_tmp = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
@@ -1308,10 +1309,16 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		outer_eth_hdr = (struct ethhdr *) data;
 		__builtin_memcpy(outer_eth_hdr->h_source, out_eth_src, sizeof(outer_eth_hdr->h_source));
 
+		u32 dest_ip_index = find(htonl(inner_ip_hdr_tmp->daddr));
+		int port_val;
+    	getRouteElement(A, dest_ip_index, topo, &port_val);
+		struct mac_addr dest_mac_val;
+		getMacElement(B, port_val, topo, &dest_mac_val);
+
 		// timestamp_arr[time_index] = now;
 		// slot_arr[time_index] = 1;
-		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
-		__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
+		// unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
+		__builtin_memcpy(outer_eth_hdr->h_dest, dest_mac_val.bytes, sizeof(outer_eth_hdr->h_dest));
 
 		// timestamp_arr[time_index] = now;
 
@@ -1550,6 +1557,9 @@ int main(int argc, char **argv)
     // printf("Key = %d\nKey value = %d\n", kv[0].ipaddr, kv[0].value);
     // printf("Key = %d\nKey value = %d\n", kv[1].ipaddr, kv[1].value);
 
+	//+++++++source mac++++++++++++++
+	getMACAddress(0, out_eth_src);
+
     //+++++++++++++++++++++IP++++++++++++++++++++++
      // Space allocation
 	arr = (struct HashNode**)malloc(sizeof(struct HashNode*)
@@ -1568,7 +1578,6 @@ int main(int argc, char **argv)
 
     //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
 
-    route_matrix * A;
     A = newRouteMatrix(2, 2);
     setRouteElement(A, 0, 0, 0); //ip, topo, port
     setRouteElement(A, 0, 1, 0); //ip, topo, port
@@ -1578,9 +1587,7 @@ int main(int argc, char **argv)
     // getRouteElement(A, 0, 1, &val);
     // printf("%d \n", val);
    
-    mac_matrix * B;
     B = newMacMatrix(2, 2);
-
     unsigned char mac1[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc
     struct mac_addr dest_mac1;
     __builtin_memcpy(dest_mac1.bytes, mac1, sizeof(mac1));
@@ -1603,13 +1610,13 @@ int main(int argc, char **argv)
 	signal(SIGTERM, signal_handler);
 	signal(SIGABRT, signal_handler);
 
-	// time_t secs = 30; // 2 minutes (can be retrieved from user's input)
+	time_t secs = 30; // 2 minutes (can be retrieved from user's input)
 
-	// time_t startTime = time(NULL);
-	// while (time(NULL) - startTime < secs)
-	// {
-	// 	read_time();
-	// }
+	time_t startTime = time(NULL);
+	while (time(NULL) - startTime < secs)
+	{
+		read_time();
+	}
 
 	// for ( ; !quit; ) {
 	// 	read_time();
@@ -1618,9 +1625,9 @@ int main(int argc, char **argv)
 	// printf("Quit.\n");
 
 	// read_time();
-	for ( ; !quit; ) {
-		sleep(1);
-	}
+	// for ( ; !quit; ) {
+	// 	sleep(1);
+	// }
 
 	// sleep(10);
 
