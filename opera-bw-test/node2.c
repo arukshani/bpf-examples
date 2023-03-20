@@ -152,7 +152,7 @@ struct bpool_params {
  * to share the same UMEM area, which is used as the buffer pool memory.
  */
 #ifndef MAX_BURST_RX
-#define MAX_BURST_RX 64
+#define MAX_BURST_RX 1
 #endif
 
 #ifndef MAX_BURST_TX
@@ -486,6 +486,29 @@ bcache_prod(struct bcache *bc, u64 buffer)
 	// printf("AFTER prod slab FULL bp->n_slabs_available %lld \n", bp->n_slabs_available);
 }
 
+static void apply_setsockopt(struct xsk_socket *xsk)
+{
+	int sock_opt;
+
+	// if (!opt_busy_poll)
+	// 	return;
+
+	sock_opt = 1;
+	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_PREFER_BUSY_POLL,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		printf("Error!!!");
+
+	sock_opt = 20;
+	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_BUSY_POLL,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		printf("Error!!!");
+
+	sock_opt = 1;
+	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_BUSY_POLL_BUDGET,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		printf("Error!!!");
+}
+
 
 static struct port *
 port_init(struct port_params *params)
@@ -528,6 +551,7 @@ port_init(struct port_params *params)
 					   &p->umem_fq,
 					   &p->umem_cq,
 					   &params->xsk_cfg);
+	apply_setsockopt(p->xsk);
 
 	// printf("xsk_socket__create_shared returns %d\n", status) ;
 
