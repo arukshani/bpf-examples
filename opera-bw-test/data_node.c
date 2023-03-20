@@ -1315,6 +1315,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
     	getRouteElement(A, dest_ip_index, topo, &port_val);
 		struct mac_addr dest_mac_val;
 		getMacElement(B, port_val, topo, &dest_mac_val);
+		printf("topo = %d\n", topo);
 
 		// timestamp_arr[time_index] = now;
 		// slot_arr[time_index] = 1;
@@ -1369,6 +1370,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 			printf("inner eth proto is not ETH_P_IP %x \n", inner_eth->h_proto);
             return false;
 		}
+		printf("from NIC \n");
 
 		// unsigned long now = get_nsec_nicclock();
 		// struct timespec now = get_nicclock();
