@@ -17,6 +17,7 @@ typedef struct {
 //   __u32 rows;
   int cols;
   struct mac_addr * data;
+  // unsigned char * data[ETH_ALEN+1];
 } mac_matrix;
 
 struct mac_addr {
@@ -73,9 +74,9 @@ route_matrix * newRouteMatrix(int rows, int cols) {
   // allocate a double array of length rows * cols
   m->data = (int *) malloc(rows*cols*sizeof(int));
   // set all data to 0
-  int i;
-  for (i = 0; i < rows*cols; i++)
-    m->data[i] = 0;
+  // int i;
+  // for (i = 0; i < rows*cols; i++)
+  //   m->data[i] = 0;
 
   return m;
 }
@@ -144,9 +145,9 @@ mac_matrix * newMacMatrix(int rows, int cols) {
   // allocate a double array of length rows * cols
   m->data = (struct mac_addr *) malloc(rows*cols*sizeof(struct mac_addr));
   // set all data to 0
-//   int i;
-//   for (i = 0; i < rows*cols; i++)
-//     m->data[i] = 0;
+  // int i;
+  // for (i = 0; i < rows*cols; i++)
+  //   m->data[i] = 0;
 
   return m;
 }
