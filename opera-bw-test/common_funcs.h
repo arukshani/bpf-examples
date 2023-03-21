@@ -49,10 +49,10 @@ int getMACAddress(int iNetType, unsigned char chMAC[6]) {
   if (0 == ioctl(fd, SIOCGIFHWADDR, &s)) {
     memcpy(chMAC, s.ifr_hwaddr.sa_data, 6);
     close(fd);
-    // int i;
-    // for (i = 0; i < 6; ++i)
-    //   printf(" %02x", (unsigned char) s.ifr_addr.sa_data[i]);
-    // puts("\n");
+    int i;
+    for (i = 0; i < 6; ++i)
+      printf(" %02x", (unsigned char) s.ifr_addr.sa_data[i]);
+    puts("\n");
     return 0;
   }
   return 1;
