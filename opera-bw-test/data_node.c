@@ -1464,7 +1464,7 @@ static void read_time()
 	unsigned long current_time_ns = get_nsec(&now);
 	// t1ms = now_ns / 1000000; // number of 1's of milliseconds 
 	time_into_cycle_ns = current_time_ns % cycle_time_ns;
-	topo = time_into_cycle_ns / slot_time_ns;
+	topo = (time_into_cycle_ns / slot_time_ns) + 1;
 }
 
 int main(int argc, char **argv)
@@ -1518,51 +1518,6 @@ int main(int argc, char **argv)
 	printf("All ports created successfully.\n");
 	// clkid = get_nic_clock_id();
 
-	/* Threads. */
-	for (i = 0; i < n_threads; i++) {
-		struct thread_data *t = &thread_data[i];
-		u32 n_ports_per_thread = n_ports / n_threads, j;
-
-		for (j = 0; j < n_ports_per_thread; j++) {
-			t->ports_rx[j] = ports[i * n_ports_per_thread + j];
-			t->ports_tx[j] = ports[i * n_ports_per_thread +
-				(j + 1) % n_ports_per_thread];
-			printf("t->ports_rx n_buffers_cons %lld, \n", t->ports_rx[j]->bc->n_buffers_cons);
-		}
-
-		t->n_ports_rx = n_ports_per_thread;
-
-		print_thread(i);
-	}
-
-	for (i = 0; i < n_threads; i++) {
-		int status;
-
-		status = pthread_create(&threads[i],
-					NULL,
-					thread_func,
-					&thread_data[i]);
-		if (status) {
-			printf("Thread %d creation failed.\n", i);
-			return -1;
-		}
-	}
-	printf("All threads created successfully.\n");
-
-    // int number_of_keys = 2;
-    // struct key_value *kv = malloc(sizeof(struct key_value) * number_of_keys);
-    // if (kv == NULL) {
-    //     perror("Malloc");
-    //     exit(EXIT_FAILURE);
-    // }
-    // kv[0].ipaddr = htonl(0xc0a80102); //192.168.1.2
-    // kv[0].value = 0;
-    // kv[1].ipaddr = htonl(0xc0a80101); //192.168.1.1
-    // kv[1].value = 1;
-
-    // printf("Key = %d\nKey value = %d\n", kv[0].ipaddr, kv[0].value);
-    // printf("Key = %d\nKey value = %d\n", kv[1].ipaddr, kv[1].value);
-
 	//+++++++source mac++++++++++++++
 	getMACAddress(0, out_eth_src);
 
@@ -1612,6 +1567,38 @@ int main(int argc, char **argv)
     // printf("%d \n", val);
 
     //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
+
+	/* Threads. */
+	for (i = 0; i < n_threads; i++) {
+		struct thread_data *t = &thread_data[i];
+		u32 n_ports_per_thread = n_ports / n_threads, j;
+
+		for (j = 0; j < n_ports_per_thread; j++) {
+			t->ports_rx[j] = ports[i * n_ports_per_thread + j];
+			t->ports_tx[j] = ports[i * n_ports_per_thread +
+				(j + 1) % n_ports_per_thread];
+			printf("t->ports_rx n_buffers_cons %lld, \n", t->ports_rx[j]->bc->n_buffers_cons);
+		}
+
+		t->n_ports_rx = n_ports_per_thread;
+
+		print_thread(i);
+	}
+
+	for (i = 0; i < n_threads; i++) {
+		int status;
+
+		status = pthread_create(&threads[i],
+					NULL,
+					thread_func,
+					&thread_data[i]);
+		if (status) {
+			printf("Thread %d creation failed.\n", i);
+			return -1;
+		}
+	}
+	printf("All threads created successfully.\n");
+
 	
 	/* Print statistics. */
 	signal(SIGINT, signal_handler);
