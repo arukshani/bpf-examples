@@ -1265,7 +1265,6 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		struct iphdr *outer_iphdr; 
 		struct iphdr encap_outer_iphdr; 
 		struct ethhdr *outer_eth_hdr; 
-		// unsigned char out_eth_src[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc
 
 		struct iphdr *inner_ip_hdr_tmp = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
@@ -1321,22 +1320,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
       	// 	printf(" %02x", (unsigned char) dest_mac_val.bytes[i]);
     	// puts("\n");
 
-		// unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc
-		// __builtin_memcpy(outer_eth_hdr->h_dest,out_eth_dst, sizeof(outer_eth_hdr->h_dest));
 		__builtin_memcpy(outer_eth_hdr->h_dest, dest_mac_val.bytes, sizeof(outer_eth_hdr->h_dest));
-
-		// timestamp_arr[time_index] = now;
-
-		// if (t1ms % 2 == 0 ) {
-		// 	slot_arr[time_index] = 0;
-		// 	unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c node2
-		// 	__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
-		// } else {
-		// 	slot_arr[time_index] = 1;
-		// 	unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x4c}; //0c:42:a1:dd:58:4c node3
-		// 	__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
-		// }
-		// time_index++;
 
 		outer_eth_hdr->h_proto = htons(ETH_P_IP);
 
@@ -1350,8 +1334,6 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		gre_hdr->proto = bpf_htons(ETH_P_TEB);
 		gre_hdr->flags = 1;
-
-        // printf("Encap GRE packet recevied from veth0 \n");
 
 		return new_len;
 		
@@ -1373,26 +1355,34 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 			printf("inner eth proto is not ETH_P_IP %x \n", inner_eth->h_proto);
             return false;
 		}
-		// printf("from NIC \n");
 
-		// unsigned long now = get_nsec_nicclock();
-		// struct timespec now = get_nicclock();
-		// struct timespec now = get_realtime();
-		// timestamp_arr[time_index] = now;
-		// slot_arr[time_index] = 2;
-		// time_index++;
+		struct iphdr *inner_ip_hdr = (struct iphdr *)(inner_eth + 1);
+		if (src_ip != (inner_ip_hdr->saddr)) {
+			printf("Not destined for local node \n");
+			//send it back out NIC
+			u32 dest_ip_index = find(inner_ip_hdr->daddr);
+			int port_val;
+    		getRouteElement(A, dest_ip_index, topo, &port_val);
+			struct mac_addr dest_mac_val;
+			getMacElement(B, port_val, topo, &dest_mac_val);
+			__builtin_memcpy(eth->h_dest, dest_mac_val.bytes, sizeof(eth->h_dest));
+			__builtin_memcpy(eth->h_source, out_eth_src, sizeof(eth->h_source));
+			return len;
 
-		void *cutoff_pos = greh + 1;
-		int cutoff_len = (int)(cutoff_pos - data);
-		int new_len = len - cutoff_len;
+		} else {
+			//send it to local veth
+			void *cutoff_pos = greh + 1;
+			int cutoff_len = (int)(cutoff_pos - data);
+			int new_len = len - cutoff_len;
 
-		int offset = 0 + cutoff_len;
-		u64 inner_eth_start_addr = addr + offset;
+			int offset = 0 + cutoff_len;
+			u64 inner_eth_start_addr = addr + offset;
 
-		u8 *new_data = xsk_umem__get_data(params->bp->addr, inner_eth_start_addr);
-		memcpy(xsk_umem__get_data(params->bp->addr, addr), new_data, new_len);
-		
-		return new_len;
+			u8 *new_data = xsk_umem__get_data(params->bp->addr, inner_eth_start_addr);
+			memcpy(xsk_umem__get_data(params->bp->addr, addr), new_data, new_len);
+			
+			return new_len;
+		}
 	}
 
     return false;
@@ -1518,8 +1508,9 @@ int main(int argc, char **argv)
 	printf("All ports created successfully.\n");
 	// clkid = get_nic_clock_id();
 
-	//+++++++source mac++++++++++++++
+	//+++++++Source MAC and IP++++++++++++++
 	getMACAddress(0, out_eth_src);
+	src_ip = getIpAddress(0);
 
     //+++++++++++++++++++++IP++++++++++++++++++++++
      // Space allocation
@@ -1529,42 +1520,31 @@ int main(int argc, char **argv)
 	for (int i = 0; i < capacity; i++)
 		arr[i] = NULL;
     
-    u32 dest1 = htonl(0xc0a80101); //192.168.1.1
-    u32 dest2 = htonl(0xc0a80102);  //192.168.1.2
+    u32 dest1 = htonl(0xc0a80104); //192.168.1.4
     insert(dest1, 1); //dest,index for dest ip
-    insert(dest2, 2); //dest,index for dest ip
-    // if (find(dest2) != -1)
-	// 	printf("192.168.1.2 dest2 = %d %d\n", dest1, find(dest2));
+    
     //+++++++++++++++++++++IP++++++++++++++++++++++
 
     //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
 
-    A = newRouteMatrix(2, 2);
+    A = newRouteMatrix(1, 2);
     setRouteElement(A, 1, 1, 1); //ip, topo, port
-    setRouteElement(A, 1, 2, 1); //ip, topo, port
-    setRouteElement(A, 2, 1, 2); //ip, topo, port
-    setRouteElement(A, 2, 2, 2); //ip, topo, port
-    // int val;
-    // getRouteElement(A, 0, 1, &val);
-    // printf("%d \n", val);
+    setRouteElement(A, 1, 2, 2); //ip, topo, port
    
     B = newMacMatrix(2, 2);
 	
-    unsigned char mac1[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc
-    struct mac_addr dest_mac1;
-    __builtin_memcpy(dest_mac1.bytes, mac1, sizeof(mac1));
+    unsigned char node2_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c node2 
+    struct mac_addr dest_n2_mac;
+    __builtin_memcpy(dest_n2_mac.bytes, node2_mac, sizeof(node2_mac));
 
-    unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
-    struct mac_addr dest_mac2;
-    __builtin_memcpy(dest_mac2.bytes, mac2, sizeof(mac2));
+    unsigned char node3_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x4c}; //0c:42:a1:dd:58:4c node3
+    struct mac_addr dest_n3_mac;
+    __builtin_memcpy(dest_n3_mac.bytes, node3_mac, sizeof(node3_mac));
 
-    setMacElement(B, 1, 1, dest_mac1); //port, topo, mac
-    setMacElement(B, 1, 2, dest_mac1); //port, topo, mac
-    setMacElement(B, 2, 1, dest_mac2); //port, topo, mac
-    setMacElement(B, 2, 2, dest_mac2); //port, topo, mac
-    // struct mac_addr mac_val;
-    // getMacElement(B, 0, 1, &mac_val);
-    // printf("%d \n", val);
+    setMacElement(B, 1, 1, dest_n2_mac); //port, topo, mac
+    setMacElement(B, 1, 2, dest_n3_mac); //port, topo, mac
+    setMacElement(B, 2, 1, dest_n2_mac); //port, topo, mac
+    setMacElement(B, 2, 2, dest_n3_mac); //port, topo, mac
 
     //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
 
@@ -1605,7 +1585,7 @@ int main(int argc, char **argv)
 	signal(SIGTERM, signal_handler);
 	signal(SIGABRT, signal_handler);
 
-	time_t secs = 30; // 2 minutes (can be retrieved from user's input)
+	time_t secs = 60; // 2 minutes (can be retrieved from user's input)
 
 	time_t startTime = time(NULL);
 	while (time(NULL) - startTime < secs)
