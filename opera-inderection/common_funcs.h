@@ -111,4 +111,4 @@ uint32_t getIpAddress(int iNetType) {
 }
 
 unsigned char out_eth_src[ETH_ALEN+1];
-int src_ip;
+uint32_t src_ip;
