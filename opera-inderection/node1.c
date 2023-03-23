@@ -1358,7 +1358,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		struct iphdr *inner_ip_hdr = (struct iphdr *)(inner_eth + 1);
 		if (src_ip != (inner_ip_hdr->saddr)) {
-			printf("Not destined for local node \n");
+			// printf("Not destined for local node \n");
 			//send it back out NIC
 			u32 dest_ip_index = find(inner_ip_hdr->daddr);
 			int port_val;
@@ -1367,7 +1367,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 			getMacElement(B, port_val, topo, &dest_mac_val);
 			__builtin_memcpy(eth->h_dest, dest_mac_val.bytes, sizeof(eth->h_dest));
 			__builtin_memcpy(eth->h_source, out_eth_src, sizeof(eth->h_source));
-			return len;
+			return 1; //indicates that packet should go back out through NIC
 
 		} else {
 			//send it to local veth
@@ -1430,6 +1430,14 @@ thread_func(void *arg)
 						     addr);
 
 			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
+
+			//Needs to send packet back out NIC
+			if (new_len == 1) {
+				new_len = brx->len[j];
+				int x = (i + 1) & (t->n_ports_rx - 1);
+				port_tx = t->ports_tx[x];
+				btx = &t->burst_tx[x];
+			}
 
 			btx->addr[btx->n_pkts] = brx->addr[j];
 			// btx->len[btx->n_pkts] = brx->len[j];
