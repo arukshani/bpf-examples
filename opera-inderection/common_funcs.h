@@ -66,7 +66,7 @@ int getMACAddress(int iNetType, unsigned char chMAC[6]) {
            char *chIP - IP Address string
    Return: 0: success / -1: Failure
     */
-int getIpAddress(int iNetType) {
+uint32_t getIpAddress(int iNetType) {
 //   struct ifreq ifr;
 //   int sock = 0;
  
@@ -101,7 +101,8 @@ int getIpAddress(int iNetType) {
 
   /* display result */
   printf("%s\n", inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
-  int ip_addr = (((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr).s_addr;
+  uint32_t ip_addr = inet_addr(inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
+  // uint32_t ip_addr = (((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr).s_addr;
   printf("Source IP Address: %d\n", ip_addr);
 
   close(fd);
