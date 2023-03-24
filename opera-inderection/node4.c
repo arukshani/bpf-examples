@@ -1314,7 +1314,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
     	getRouteElement(A, dest_ip_index, topo, &port_val);
 		struct mac_addr dest_mac_val;
 		getMacElement(B, port_val, topo, &dest_mac_val);
-		// printf("dest_ip_index, port_val, topo = %d , %d , %d\n", dest_ip_index, port_val, dest_ip_index);
+		// printf("dest_ip_index, port_val, topo = %d , %d , %d\n", dest_ip_index, port_val, topo);
 		// int i;
 		// for (i = 0; i < 6; ++i)
       	// 	printf(" %02x", (unsigned char) dest_mac_val.bytes[i]);
@@ -1357,7 +1357,11 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		}
 
 		struct iphdr *inner_ip_hdr = (struct iphdr *)(inner_eth + 1);
-		if (src_ip != (inner_ip_hdr->saddr)) {
+		// printf("src_ip: %d , inner_ip_hdr->saddr: %d \n", src_ip, inner_ip_hdr->daddr); 
+		// printf("IP address is %pI4\n", &outer_ip_hdr->saddr);
+		
+
+		if (src_ip != inner_ip_hdr->daddr) {
 			// printf("Not destined for local node \n");
 			//send it back out NIC
 			u32 dest_ip_index = find(inner_ip_hdr->daddr);
@@ -1371,6 +1375,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		} else {
 			//send it to local veth
+			// printf("Destined for local node \n");
 			void *cutoff_pos = greh + 1;
 			int cutoff_len = (int)(cutoff_pos - data);
 			int new_len = len - cutoff_len;
@@ -1433,6 +1438,7 @@ thread_func(void *arg)
 
 			//Needs to send packet back out NIC
 			if (new_len == 1) {
+				// printf("Needs to send packet back out NIC");
 				new_len = brx->len[j];
 				int x = (i + 1) & (t->n_ports_rx - 1);
 				port_tx = t->ports_tx[x];
