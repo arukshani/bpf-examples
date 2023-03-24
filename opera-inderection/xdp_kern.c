@@ -5,6 +5,7 @@
 #include <bpf/bpf_endian.h>
 #include "xdpsock.h"
 #include "parsing_helpers.h"
+#define DEBUG
 
 // struct {
 // 	__uint(type, BPF_MAP_TYPE_XSKMAP);
@@ -79,9 +80,9 @@ static __always_inline int parse_gre_hdr(struct hdr_cursor *nh,
     nh->pos += hdrsize;
     *grehdr = greh;
     h_proto = greh->proto;
-	#ifdef DEBUG
-		bpf_printk("GRE flags=0x%x proto=%x", greh->flags, greh->proto);
-	#endif
+	// #ifdef DEBUG
+	// 	bpf_printk("GRE flags=0x%x proto=%x", greh->flags, greh->proto);
+	// #endif
     return h_proto;
 }
 
@@ -122,8 +123,13 @@ int xdp_sock_prog(struct xdp_md *ctx)
             // if (bpf_map_lookup_elem(&xsks_map, &index))
             //     return bpf_redirect_map(&xsks_map, index, 0);
             // gre_protocol = parse_gre_hdr(&nh, data_end, &gre_hdr);
-            u32 dst_node4 = bpf_ntohs(0xc0a80104);
-            u32 dst_node1 = bpf_ntohs(0xc0a80101);
+            u32 dst_node4 = 67217600;
+            u32 dst_node1 = 16885952; 
+            // #ifdef DEBUG
+            //     bpf_printk("dst_node4=%d", dst_node4);
+            //     bpf_printk("dst_node1=%d", dst_node1);
+            //     bpf_printk("iphdr->daddr=%d", iphdr->daddr);
+            // #endif
             if (dst_node4 == (iphdr->daddr)) {
                 unsigned char node4_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5b, 0x28}; //0c:42:a1:dd:5b:28 node4
                 __builtin_memcpy(eth->h_dest, node4_mac, sizeof(eth->h_dest));
