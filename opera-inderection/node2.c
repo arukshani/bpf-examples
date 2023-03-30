@@ -1344,17 +1344,17 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 						sizeof(struct ethhdr));
 		struct gre_hdr *greh = (struct gre_hdr *) (outer_ip_hdr + 1);
 		
-		if (ntohs(eth->h_proto) != ETH_P_IP || outer_ip_hdr->protocol != IPPROTO_GRE || 
-					ntohs(greh->proto) != ETH_P_TEB)
-		{
-			printf("not a GRE packet \n");
-			return false;
-		}
+		// if (ntohs(eth->h_proto) != ETH_P_IP || outer_ip_hdr->protocol != IPPROTO_GRE || 
+		// 			ntohs(greh->proto) != ETH_P_TEB)
+		// {
+		// 	printf("not a GRE packet \n");
+		// 	return false;
+		// }
 		struct ethhdr *inner_eth = (struct ethhdr *) (greh +  1);
-		if (ntohs(inner_eth->h_proto) != ETH_P_IP) {
-			printf("inner eth proto is not ETH_P_IP %x \n", inner_eth->h_proto);
-            return false;
-		}
+		// if (ntohs(inner_eth->h_proto) != ETH_P_IP) {
+		// 	printf("inner eth proto is not ETH_P_IP %x \n", inner_eth->h_proto);
+        //     return false;
+		// }
 
 		struct iphdr *inner_ip_hdr = (struct iphdr *)(inner_eth + 1);
 		if (src_ip != (inner_ip_hdr->daddr)) {
@@ -1541,7 +1541,7 @@ int main(int argc, char **argv)
     A = newRouteMatrix(2, 2);
     setRouteElement(A, 1, 1, 1); //ip, topo, port
     setRouteElement(A, 1, 2, 1); //ip, topo, port
-    setRouteElement(A, 2, 2, 2); //ip, topo, port
+    setRouteElement(A, 2, 1, 2); //ip, topo, port
     setRouteElement(A, 2, 2, 2); //ip, topo, port
    
     B = newMacMatrix(2, 2);
@@ -1550,7 +1550,8 @@ int main(int argc, char **argv)
     struct mac_addr dest_n1_mac;
     __builtin_memcpy(dest_n1_mac.bytes, node1_mac, sizeof(node1_mac));
 
-    unsigned char node4_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5b, 0x28}; //0c:42:a1:dd:5b:28 node4
+	unsigned char node4_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x4c}; //0c:42:a1:dd:58:4c node3
+    // unsigned char node4_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5b, 0x28}; //0c:42:a1:dd:5b:28 node4
     struct mac_addr dest_n4_mac;
     __builtin_memcpy(dest_n4_mac.bytes, node4_mac, sizeof(node4_mac));
 
@@ -1598,7 +1599,7 @@ int main(int argc, char **argv)
 	signal(SIGTERM, signal_handler);
 	signal(SIGABRT, signal_handler);
 
-	time_t secs = 60; // 2 minutes (can be retrieved from user's input)
+	time_t secs = 120; // 2 minutes (can be retrieved from user's input)
 
 	time_t startTime = time(NULL);
 	while (time(NULL) - startTime < secs)
