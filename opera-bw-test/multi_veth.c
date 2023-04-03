@@ -52,7 +52,7 @@
 #include <sys/timex.h>
 #include <sys/types.h>
 #include <unistd.h>
-
+#include <assert.h>
 
 // #include "../common/common_params.h"
 // #include "../common/common_user_bpf_xdp.h"
@@ -116,6 +116,9 @@
 // // #include "../lib/xdp-tools/headers/xdp/libxdp.h"
 
 #include <linux/ptp_clock.h>
+#include "data_structures.h"
+#include "common_funcs.h"
+
 #define DEVICE "/dev/ptp3"
 
 #ifndef CLOCK_INVALID
@@ -779,7 +782,7 @@ static void remove_xdp_program(void)
 	}
 }
 
-static struct xdp_program *xdp_prog[2];
+static struct xdp_program *xdp_prog[3];
 // static enum xdp_attach_mode opt_attach_mode = XDP_MODE_NATIVE;
 
 static int lookup_bpf_map(int prog_fd)
@@ -836,18 +839,18 @@ static int lookup_bpf_map(int prog_fd)
 }
 
 
-static void enter_xsks_into_map(u32 index)
+static void enter_xsks_into_map(u32 index, u32 xdp_prog_index)
 {
 	int i, xsks_map;
 
-	xsks_map = lookup_bpf_map(xdp_program__fd(xdp_prog[index]));
+	xsks_map = lookup_bpf_map(xdp_program__fd(xdp_prog[xdp_prog_index]));
 	if (xsks_map < 0) {
 		fprintf(stderr, "ERROR: no xsks map found: %s\n",
 			strerror(xsks_map));
 			exit(EXIT_FAILURE);
 	}
 
-	printf("Update bpf map for xdp_prog[%d] %s, \n", index, port_params[index].iface);
+	printf("Update bpf map for xdp_prog[%d] %s, \n", xdp_prog_index, port_params[index].iface);
 
 	int fd = xsk_socket__fd(ports[index]->xsk);
 	int key, ret;
@@ -895,10 +898,20 @@ static void load_xdp_program(void)
 		.progsec = "xdp_sock_1"
 	};
 
-	struct config cfgs[2] = {veth_cfg, nic_cfg};
+	//Outer veth 
+    struct config veth_cfg_2 = {
+		.ifindex = 8,
+		.ifname = "veth3",
+		.xsk_if_queue = 0,
+		.xsk_poll_mode = true,
+		.filename = "veth_kern.o",
+		.progsec = "xdp_sock_0"
+	};
+
+	struct config cfgs[3] = {veth_cfg, nic_cfg, veth_cfg_2};
 
 	int i;
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < 3; i++) {
 
 		char errmsg[STRERR_BUFSIZE];
 		int err;
@@ -1176,6 +1189,7 @@ struct hdr_cursor {
 // 	return (((unsigned int) ~fd) << 3) | CLOCKFD;
 // }
 
+//++++++++++++++++++++++TIME RELATED+++++++++++++++++++++++++++++
 clockid_t clkid;
 static clockid_t get_nic_clock_id(void)
 {
@@ -1230,6 +1244,18 @@ unsigned int slot_arr[20050];
 long time_index = 0;
 __u32 t1ms;
 struct timespec now;
+uint64_t time_into_cycle_ns;
+uint8_t topo;
+uint64_t slot_time_ns = 1000000;	// 1 ms
+uint64_t cycle_time_ns = 2000000;	// 2 ms
+
+//++++++++++++++++++++++END TIME RELATED+++++++++++++++++++++++++++++
+
+// struct key_value
+// {
+//     __u32 ipaddr;
+//     int value;
+// };
 
 //Header structure of GRE tap packet:
     // Ethernet type of GRE encapsulated packet is ETH_P_TEB (gretap)
@@ -1249,7 +1275,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		struct iphdr *outer_iphdr; 
 		struct iphdr encap_outer_iphdr; 
 		struct ethhdr *outer_eth_hdr; 
-		unsigned char out_eth_src[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc
+		// unsigned char out_eth_src[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc
 
 		struct iphdr *inner_ip_hdr_tmp = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
@@ -1293,10 +1319,21 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		outer_eth_hdr = (struct ethhdr *) data;
 		__builtin_memcpy(outer_eth_hdr->h_source, out_eth_src, sizeof(outer_eth_hdr->h_source));
 
-		// timestamp_arr[time_index] = now;
-		// slot_arr[time_index] = 1;
-		unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
-		__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
+		u32 dest_ip_index = find(inner_ip_hdr_tmp->daddr);
+		// printf("dest_ip_index dest2 = %d\n", dest_ip_index);
+		int port_val;
+    	getRouteElement(A, dest_ip_index, topo, &port_val);
+		struct mac_addr dest_mac_val;
+		getMacElement(B, port_val, topo, &dest_mac_val);
+		// printf("dest_ip_index, port_val, topo = %d , %d , %d\n", dest_ip_index, port_val, dest_ip_index);
+		// int i;
+		// for (i = 0; i < 6; ++i)
+      	// 	printf(" %02x", (unsigned char) dest_mac_val.bytes[i]);
+    	// puts("\n");
+
+		// unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc
+		// __builtin_memcpy(outer_eth_hdr->h_dest,out_eth_dst, sizeof(outer_eth_hdr->h_dest));
+		__builtin_memcpy(outer_eth_hdr->h_dest, dest_mac_val.bytes, sizeof(outer_eth_hdr->h_dest));
 
 		// timestamp_arr[time_index] = now;
 
@@ -1346,6 +1383,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 			printf("inner eth proto is not ETH_P_IP %x \n", inner_eth->h_proto);
             return false;
 		}
+		// printf("from NIC \n");
 
 		// unsigned long now = get_nsec_nicclock();
 		// struct timespec now = get_nicclock();
@@ -1433,8 +1471,10 @@ static void read_time()
 {
 	// struct timespec now = get_realtime();
 	now = get_nicclock();
-	unsigned long now_ns = get_nsec(&now);
-	t1ms = now_ns / 1000000; // number of 1's of milliseconds 
+	unsigned long current_time_ns = get_nsec(&now);
+	// t1ms = now_ns / 1000000; // number of 1's of milliseconds 
+	time_into_cycle_ns = current_time_ns % cycle_time_ns;
+	topo = (time_into_cycle_ns / slot_time_ns) + 1;
 }
 
 int main(int argc, char **argv)
@@ -1453,18 +1493,19 @@ int main(int argc, char **argv)
 
 	load_xdp_program();
 	
-    n_ports = 2; //0 and 1 (veth and nic)
+    n_ports = 4; //0 and 1 (veth and nic)
     port_params[0].iface = "veth1";
 	port_params[0].iface_queue = 0;
     port_params[1].iface = "enp65s0f0np0";
 	port_params[1].iface_queue = 0;
-    port_params[3].iface = "veth2";
-	port_params[3].iface_queue = 0;
-    port_params[4].iface = "enp65s0f0np0";
-	port_params[4].iface_queue = 1;
+	port_params[2].iface = "veth3";
+	port_params[2].iface_queue = 0;
+    port_params[3].iface = "enp65s0f0np0";
+	port_params[3].iface_queue = 1;
 
-    n_threads = 1; //only 1 thread
+    n_threads = 2; //only 1 thread
     thread_data[0].cpu_core_id = 10; //cat /proc/cpuinfo | grep 'core id'
+	thread_data[1].cpu_core_id = 9; //cat /proc/cpuinfo | grep 'core id'
 
     /* Buffer pool initialization. */
 	bp = bpool_init(&bpool_params, &umem_cfg);
@@ -1486,11 +1527,66 @@ int main(int argc, char **argv)
 			return -1;
 		}
 		print_port(i);
-		enter_xsks_into_map(i);
+		int xdp_prog_index = i;
+		if (i == 3) {
+			xdp_prog_index = 1;
+		}
+		enter_xsks_into_map(i,xdp_prog_index);
+		
 		// printf("af port_init %d, \n", ports[i]->bc->n_buffers_cons);
 	}
 	printf("All ports created successfully.\n");
 	// clkid = get_nic_clock_id();
+
+	//+++++++source mac++++++++++++++
+	getMACAddress(0, out_eth_src);
+
+    //+++++++++++++++++++++IP++++++++++++++++++++++
+     // Space allocation
+	arr = (struct HashNode**)malloc(sizeof(struct HashNode*)
+									* capacity);
+	// Assign NULL initially
+	for (int i = 0; i < capacity; i++)
+		arr[i] = NULL;
+    
+    u32 dest1 = htonl(0xc0a80101); //192.168.1.1
+    u32 dest2 = htonl(0xc0a80102);  //192.168.1.2
+    insert(dest1, 1); //dest,index for dest ip
+    insert(dest2, 2); //dest,index for dest ip
+    // if (find(dest2) != -1)
+	// 	printf("192.168.1.2 dest2 = %d %d\n", dest1, find(dest2));
+    //+++++++++++++++++++++IP++++++++++++++++++++++
+
+    //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
+
+    A = newRouteMatrix(2, 2);
+    setRouteElement(A, 1, 1, 1); //ip, topo, port
+    setRouteElement(A, 1, 2, 1); //ip, topo, port
+    setRouteElement(A, 2, 1, 2); //ip, topo, port
+    setRouteElement(A, 2, 2, 2); //ip, topo, port
+    // int val;
+    // getRouteElement(A, 0, 1, &val);
+    // printf("%d \n", val);
+   
+    B = newMacMatrix(2, 2);
+	
+    unsigned char mac1[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
+    struct mac_addr dest_mac1;
+    __builtin_memcpy(dest_mac1.bytes, mac1, sizeof(mac1));
+
+    unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x45}; //0c:42:a1:dd:5a:45
+    struct mac_addr dest_mac2;
+    __builtin_memcpy(dest_mac2.bytes, mac2, sizeof(mac2));
+
+    setMacElement(B, 1, 1, dest_mac1); //port, topo, mac
+    setMacElement(B, 1, 2, dest_mac1); //port, topo, mac
+    setMacElement(B, 2, 1, dest_mac2); //port, topo, mac
+    setMacElement(B, 2, 2, dest_mac2); //port, topo, mac
+    // struct mac_addr mac_val;
+    // getMacElement(B, 0, 1, &mac_val);
+    // printf("%d \n", val);
+
+    //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
 
 	/* Threads. */
 	for (i = 0; i < n_threads; i++) {
@@ -1501,7 +1597,6 @@ int main(int argc, char **argv)
 			t->ports_rx[j] = ports[i * n_ports_per_thread + j];
 			t->ports_tx[j] = ports[i * n_ports_per_thread +
 				(j + 1) % n_ports_per_thread];
-			printf("t->ports_rx n_buffers_cons %lld, \n", t->ports_rx[j]->bc->n_buffers_cons);
 		}
 
 		t->n_ports_rx = n_ports_per_thread;
@@ -1522,20 +1617,20 @@ int main(int argc, char **argv)
 		}
 	}
 	printf("All threads created successfully.\n");
-	
 
+	
 	/* Print statistics. */
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
 	signal(SIGABRT, signal_handler);
 
-	// time_t secs = 30; // 2 minutes (can be retrieved from user's input)
+	time_t secs = 30; // 2 minutes (can be retrieved from user's input)
 
-	// time_t startTime = time(NULL);
-	// while (time(NULL) - startTime < secs)
-	// {
-	// 	read_time();
-	// }
+	time_t startTime = time(NULL);
+	while (time(NULL) - startTime < secs)
+	{
+		read_time();
+	}
 
 	// for ( ; !quit; ) {
 	// 	read_time();
@@ -1544,9 +1639,9 @@ int main(int argc, char **argv)
 	// printf("Quit.\n");
 
 	// read_time();
-	for ( ; !quit; ) {
-		sleep(1);
-	}
+	// for ( ; !quit; ) {
+	// 	sleep(1);
+	// }
 
 	// sleep(10);
 
@@ -1585,6 +1680,12 @@ int main(int argc, char **argv)
     bpool_free(bp);
 
 	remove_xdp_program();
+
+    // free(kv);
+    deleteRouteMatrix(A);
+    deleteMacMatrix(B);
+    free(arr);
+    free(dummy);
 
     return 0;
 }
