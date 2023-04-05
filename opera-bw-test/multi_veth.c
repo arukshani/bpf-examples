@@ -839,7 +839,7 @@ static int lookup_bpf_map(int prog_fd)
 }
 
 
-static void enter_xsks_into_map(u32 index, u32 xdp_prog_index)
+static void enter_xsks_into_map(u32 index, u32 xdp_prog_index, u32 key)
 {
 	int i, xsks_map;
 
@@ -853,9 +853,10 @@ static void enter_xsks_into_map(u32 index, u32 xdp_prog_index)
 	printf("Update bpf map for xdp_prog[%d] %s, \n", xdp_prog_index, port_params[index].iface);
 
 	int fd = xsk_socket__fd(ports[index]->xsk);
-	int key, ret;
-	i = 0;
-	key = i;
+	int ret;
+	// i = 0;
+	// i = xdp_prog_index;
+	// key = i;
 	ret = bpf_map_update_elem(xsks_map, &key, &fd, 0);
 	if (ret) {
 		fprintf(stderr, "ERROR: bpf_map_update_elem %d %d\n", i, ret);
@@ -888,16 +889,6 @@ static void load_xdp_program(void)
 		.progsec = "xdp_sock_0"
 	};
 
-	//Physical NIC
-    struct config nic_cfg = {
-		.ifindex = 4,
-		.ifname = "enp65s0f0np0",
-		.xsk_if_queue = 0,
-		.xsk_poll_mode = true,
-		.filename = "nic_kern.o",
-		.progsec = "xdp_sock_1"
-	};
-
 	//Outer veth 
     struct config veth_cfg_2 = {
 		.ifindex = 8,
@@ -908,7 +899,17 @@ static void load_xdp_program(void)
 		.progsec = "xdp_sock_0"
 	};
 
-	struct config cfgs[3] = {veth_cfg, nic_cfg, veth_cfg_2};
+	//Physical NIC
+    struct config nic_cfg = {
+		.ifindex = 4,
+		.ifname = "enp65s0f0np0",
+		.xsk_if_queue = 0,
+		.xsk_poll_mode = true,
+		.filename = "nic_kern.o",
+		.progsec = "xdp_sock_1"
+	};
+
+	struct config cfgs[3] = {veth_cfg, veth_cfg_2, nic_cfg};
 
 	int i;
 	for (i = 0; i < 3; i++) {
@@ -1054,6 +1055,9 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 	if (xsk_ring_prod__needs_wakeup(&p->txq))
 		sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
 	p->n_pkts_tx += n_pkts;
+	// printf("port_tx_burst \n");
+	// printf("tx %s \n", p->params.iface);
+	// printf("tx %d \n", p->params.iface_queue);
 }
 
 
@@ -1267,11 +1271,13 @@ uint64_t cycle_time_ns = 2000000;	// 2 ms
 	// payload
 static int process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr)
 {
-	int is_veth = strcmp(params->iface, "veth1"); 
+	int is_veth_1 = strcmp(params->iface, "veth1"); 
+	int is_veth_3 = strcmp(params->iface, "veth3");
 	int is_nic = strcmp(params->iface, "enp65s0f0np0"); 
 
-	if (is_veth == 0)
+	if (is_veth_1 == 0 || is_veth_3 == 0)
 	{
+		// printf("from veth \n");
 		struct iphdr *outer_iphdr; 
 		struct iphdr encap_outer_iphdr; 
 		struct ethhdr *outer_eth_hdr; 
@@ -1424,10 +1430,35 @@ thread_func(void *arg)
 	for (i = 0; !t->quit; i = (i + 1) & (t->n_ports_rx - 1)) {
 		// printf("port rx %d \n", i);
 		// printf("n_buffers_cons %d, \n", t->ports_rx[i]->bc->n_buffers_cons);
+
+		// rx0 -> tx2 (0+2)%4=2
+		// rx1 -> tx3 (1+2)%4=3
+		// rx2 -> tx0 or tx1 (2+2)%4=0
+		// rx3 -> tx0 or tx1 (3+2)%4=1
+
+		
+		int tx_index = (i + 1)%4;
 		struct port *port_rx = t->ports_rx[i];
-		struct port *port_tx = t->ports_tx[i];
-		struct burst_rx *brx = &t->burst_rx;
-		struct burst_tx *btx = &t->burst_tx[i];
+		struct port *port_tx = t->ports_tx[tx_index];
+
+		struct port *port_tx_extra;
+		int extra_index;
+		if (tx_index == 0) {
+			extra_index = 1;
+			port_tx_extra = t->ports_tx[extra_index];
+		}
+		if (tx_index == 1) {
+			extra_index = 0;
+			port_tx_extra = t->ports_tx[extra_index];
+		}
+
+		// struct port *port_rx = t->ports_rx[i];
+		// struct port *port_tx = t->ports_tx[i];
+		// struct burst_rx *brx = &t->burst_rx;
+		// struct burst_tx *btx = &t->burst_tx[i];
+
+		
+
 		u32 n_pkts, j;
 
 		// printf("RX \n");
@@ -1496,16 +1527,16 @@ int main(int argc, char **argv)
     n_ports = 4; //0 and 1 (veth and nic)
     port_params[0].iface = "veth1";
 	port_params[0].iface_queue = 0;
-    port_params[1].iface = "enp65s0f0np0";
+	port_params[1].iface = "veth3";
 	port_params[1].iface_queue = 0;
-	port_params[2].iface = "veth3";
+    port_params[2].iface = "enp65s0f0np0";
 	port_params[2].iface_queue = 0;
     port_params[3].iface = "enp65s0f0np0";
 	port_params[3].iface_queue = 1;
 
-    n_threads = 2; //only 1 thread
-    thread_data[0].cpu_core_id = 10; //cat /proc/cpuinfo | grep 'core id'
-	thread_data[1].cpu_core_id = 9; //cat /proc/cpuinfo | grep 'core id'
+    n_threads = 1; //only 1 thread
+    thread_data[0].cpu_core_id = 0; //cat /proc/cpuinfo | grep 'core id'
+	// thread_data[1].cpu_core_id = 1; //cat /proc/cpuinfo | grep 'core id'
 
     /* Buffer pool initialization. */
 	bp = bpool_init(&bpool_params, &umem_cfg);
@@ -1527,11 +1558,24 @@ int main(int argc, char **argv)
 			return -1;
 		}
 		print_port(i);
-		int xdp_prog_index = i;
-		if (i == 3) {
-			xdp_prog_index = 1;
+		int xdp_prog_index, key_val;
+		// if (i == 3) {
+		// 	xdp_prog_index = 1;
+		// }
+		if (i == 0) {
+			key_val = 0;
+			xdp_prog_index = i;
+		} else if (i == 1) {
+			key_val = 0;
+			xdp_prog_index = i;
+		} else if (i == 2) {
+			key_val = 0;
+			xdp_prog_index = i;
+		} else if (i == 3) {
+			key_val = 1;
+			xdp_prog_index = 2;
 		}
-		enter_xsks_into_map(i,xdp_prog_index);
+		enter_xsks_into_map(i, xdp_prog_index, key_val);
 		
 		// printf("af port_init %d, \n", ports[i]->bc->n_buffers_cons);
 	}
@@ -1549,39 +1593,39 @@ int main(int argc, char **argv)
 	for (int i = 0; i < capacity; i++)
 		arr[i] = NULL;
     
-    u32 dest1 = htonl(0xc0a80101); //192.168.1.1
+    // u32 dest1 = htonl(0xc0a80101); //192.168.1.1
     u32 dest2 = htonl(0xc0a80102);  //192.168.1.2
-    insert(dest1, 1); //dest,index for dest ip
-    insert(dest2, 2); //dest,index for dest ip
+    // insert(dest1, 1); //dest,index for dest ip
+    insert(dest2, 1); //dest,index for dest ip
     // if (find(dest2) != -1)
 	// 	printf("192.168.1.2 dest2 = %d %d\n", dest1, find(dest2));
     //+++++++++++++++++++++IP++++++++++++++++++++++
 
     //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
 
-    A = newRouteMatrix(2, 2);
+    A = newRouteMatrix(1, 2);
     setRouteElement(A, 1, 1, 1); //ip, topo, port
     setRouteElement(A, 1, 2, 1); //ip, topo, port
-    setRouteElement(A, 2, 1, 2); //ip, topo, port
-    setRouteElement(A, 2, 2, 2); //ip, topo, port
+    // setRouteElement(A, 2, 1, 2); //ip, topo, port
+    // setRouteElement(A, 2, 2, 2); //ip, topo, port
     // int val;
     // getRouteElement(A, 0, 1, &val);
     // printf("%d \n", val);
    
-    B = newMacMatrix(2, 2);
+    B = newMacMatrix(1, 2);
 	
-    unsigned char mac1[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
-    struct mac_addr dest_mac1;
-    __builtin_memcpy(dest_mac1.bytes, mac1, sizeof(mac1));
+    // unsigned char mac1[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
+    // struct mac_addr dest_mac1;
+    // __builtin_memcpy(dest_mac1.bytes, mac1, sizeof(mac1));
 
     unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x45}; //0c:42:a1:dd:5a:45
     struct mac_addr dest_mac2;
     __builtin_memcpy(dest_mac2.bytes, mac2, sizeof(mac2));
 
-    setMacElement(B, 1, 1, dest_mac1); //port, topo, mac
-    setMacElement(B, 1, 2, dest_mac1); //port, topo, mac
-    setMacElement(B, 2, 1, dest_mac2); //port, topo, mac
-    setMacElement(B, 2, 2, dest_mac2); //port, topo, mac
+    setMacElement(B, 1, 1, dest_mac2); //port, topo, mac
+    setMacElement(B, 1, 2, dest_mac2); //port, topo, mac
+    // setMacElement(B, 2, 1, dest_mac2); //port, topo, mac
+    // setMacElement(B, 2, 2, dest_mac2); //port, topo, mac
     // struct mac_addr mac_val;
     // getMacElement(B, 0, 1, &mac_val);
     // printf("%d \n", val);
@@ -1591,17 +1635,33 @@ int main(int argc, char **argv)
 	/* Threads. */
 	for (i = 0; i < n_threads; i++) {
 		struct thread_data *t = &thread_data[i];
-		u32 n_ports_per_thread = n_ports / n_threads, j;
 
-		for (j = 0; j < n_ports_per_thread; j++) {
-			t->ports_rx[j] = ports[i * n_ports_per_thread + j];
-			t->ports_tx[j] = ports[i * n_ports_per_thread +
-				(j + 1) % n_ports_per_thread];
-		}
+		// u32 n_ports_per_thread = n_ports / n_threads, j;
+		// for (j = 0; j < n_ports_per_thread; j++) {
+		// 	t->ports_rx[j] = ports[i * n_ports_per_thread + j];
+		// 	t->ports_tx[j] = ports[i * n_ports_per_thread +
+		// 		(j + 1) % n_ports_per_thread];
+		// }
+		// t->n_ports_rx = n_ports_per_thread;
 
-		t->n_ports_rx = n_ports_per_thread;
+		t->ports_rx[0] = ports[0]; //veth1 
+		t->ports_rx[1] = ports[1]; //veth3 
+		t->ports_rx[2] = ports[2]; //nic q0
+		t->ports_rx[3] = ports[3]; //nic q1
 
-		print_thread(i);
+		t->ports_tx[0] = ports[0]; //veth1 
+		t->ports_tx[1] = ports[1]; //veth3 
+		t->ports_tx[2] = ports[2]; //nic q0
+		t->ports_tx[3] = ports[3]; //nic q1
+
+		t->n_ports_rx = 4;
+		// rx0 -> tx2
+		// rx1 -> tx3
+
+		// rx2 -> tx0 or tx1
+		// rx3 -> tx0 or tx1
+
+		// print_thread(i);
 	}
 
 	for (i = 0; i < n_threads; i++) {
@@ -1624,7 +1684,7 @@ int main(int argc, char **argv)
 	signal(SIGTERM, signal_handler);
 	signal(SIGABRT, signal_handler);
 
-	time_t secs = 30; // 2 minutes (can be retrieved from user's input)
+	time_t secs = 120; // 2 minutes (can be retrieved from user's input)
 
 	time_t startTime = time(NULL);
 	while (time(NULL) - startTime < secs)
