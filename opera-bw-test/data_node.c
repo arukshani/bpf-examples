@@ -1531,37 +1531,37 @@ int main(int argc, char **argv)
     
     u32 dest1 = htonl(0xc0a80101); //192.168.1.1
     u32 dest2 = htonl(0xc0a80102);  //192.168.1.2
-    insert(dest1, 1); //dest,index for dest ip
-    insert(dest2, 2); //dest,index for dest ip
+    // insert(dest1, 1); //dest,index for dest ip
+    insert(dest2, 1); //dest,index for dest ip
     // if (find(dest2) != -1)
 	// 	printf("192.168.1.2 dest2 = %d %d\n", dest1, find(dest2));
     //+++++++++++++++++++++IP++++++++++++++++++++++
 
     //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
 
-    A = newRouteMatrix(2, 2);
+    A = newRouteMatrix(1, 2);
     setRouteElement(A, 1, 1, 1); //ip, topo, port
     setRouteElement(A, 1, 2, 1); //ip, topo, port
-    setRouteElement(A, 2, 1, 2); //ip, topo, port
-    setRouteElement(A, 2, 2, 2); //ip, topo, port
+    // setRouteElement(A, 2, 1, 2); //ip, topo, port
+    // setRouteElement(A, 2, 2, 2); //ip, topo, port
     // int val;
     // getRouteElement(A, 0, 1, &val);
     // printf("%d \n", val);
    
-    B = newMacMatrix(2, 2);
+    B = newMacMatrix(1, 2);
 	
-    unsigned char mac1[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc
-    struct mac_addr dest_mac1;
-    __builtin_memcpy(dest_mac1.bytes, mac1, sizeof(mac1));
+    // unsigned char mac1[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
+    // struct mac_addr dest_mac1;
+    // __builtin_memcpy(dest_mac1.bytes, mac1, sizeof(mac1));
 
-    unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
+    unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x45}; //0c:42:a1:dd:5a:45
     struct mac_addr dest_mac2;
     __builtin_memcpy(dest_mac2.bytes, mac2, sizeof(mac2));
 
-    setMacElement(B, 1, 1, dest_mac1); //port, topo, mac
-    setMacElement(B, 1, 2, dest_mac1); //port, topo, mac
-    setMacElement(B, 2, 1, dest_mac2); //port, topo, mac
-    setMacElement(B, 2, 2, dest_mac2); //port, topo, mac
+    setMacElement(B, 1, 1, dest_mac2); //port, topo, mac
+    setMacElement(B, 1, 2, dest_mac2); //port, topo, mac
+    // setMacElement(B, 2, 1, dest_mac2); //port, topo, mac
+    // setMacElement(B, 2, 2, dest_mac2); //port, topo, mac
     // struct mac_addr mac_val;
     // getMacElement(B, 0, 1, &mac_val);
     // printf("%d \n", val);

@@ -255,7 +255,7 @@ static const struct port_params port_params_default = {
 
 
 #ifndef MAX_PORTS
-#define MAX_PORTS 64
+#define MAX_PORTS 2
 #endif
 
 #ifndef MAX_THREADS
