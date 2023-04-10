@@ -682,28 +682,28 @@ print_port(u32 port_id)
 	       port_id, port->params.iface, port->params.iface_queue);
 }
 
-static void
-print_thread(u32 thread_id)
-{
-	struct thread_data *t = &thread_data[thread_id];
-	u32 i;
+// static void
+// print_thread(u32 thread_id)
+// {
+// 	struct thread_data *t = &thread_data[thread_id];
+// 	u32 i;
 
-	printf("Thread %u (CPU core %u): ",
-	       thread_id, t->cpu_core_id);
+// 	printf("Thread %u (CPU core %u): ",
+// 	       thread_id, t->cpu_core_id);
 
-	for (i = 0; i < t->n_ports_rx; i++) {
-		struct port *port_rx = t->ports_rx[i];
-		struct port *port_tx = t->ports_tx[i];
+// 	for (i = 0; i < t->n_ports_rx; i++) {
+// 		struct port *port_rx = t->ports_rx[i];
+// 		struct port *port_tx = t->ports_tx[i];
 
-		printf("(%s, %u) -> (%s, %u), ",
-		       port_rx->params.iface,
-		       port_rx->params.iface_queue,
-		       port_tx->params.iface,
-		       port_tx->params.iface_queue);
-	}
+// 		printf("(%s, %u) -> (%s, %u), ",
+// 		       port_rx->params.iface,
+// 		       port_rx->params.iface_queue,
+// 		       port_tx->params.iface,
+// 		       port_tx->params.iface_queue);
+// 	}
 
-	printf("\n");
-}
+// 	printf("\n");
+// }
 
 static void remove_xdp_program(void)
 {
@@ -1159,13 +1159,13 @@ static unsigned long get_nsec(struct timespec *ts)
     return ts->tv_sec * 1000000000UL + ts->tv_nsec;
 }
 
-static struct timespec get_realtime(void)
-{
-	struct timespec ts;
+// static struct timespec get_realtime(void)
+// {
+// 	struct timespec ts;
 
-	clock_gettime(CLOCK_REALTIME, &ts);
-	return ts;
-}
+// 	clock_gettime(CLOCK_REALTIME, &ts);
+// 	return ts;
+// }
 
 static struct timespec get_nicclock(void)
 {
@@ -1207,7 +1207,7 @@ int isMacEqual(unsigned char* addr1, unsigned char* addr2)
     // inner eth
 	// inner ip
 	// payload
-static int process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr, int *veth1_tx, int *veth3_tx)
+static int process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr)
 {
 	int is_veth_1 = strcmp(params->iface, "veth1"); 
 	int is_nic = strcmp(params->iface, "enp65s0f0np0"); 
@@ -1360,8 +1360,7 @@ thread_func_rx(void *arg)
 			u64 addr = xsk_umem__add_offset_to_addr(brx->addr[j]);
 			u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
 						     addr);
-			int veth1_tx, veth3_tx;
-			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j], &veth1_tx, &veth3_tx);
+			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 
 			btx->addr[btx->n_pkts] = brx->addr[j];
 			btx->len[btx->n_pkts] = new_len;
@@ -1385,7 +1384,6 @@ thread_func_tx(void *arg)
 {
 	struct thread_data *t = arg;
 	cpu_set_t cpu_cores;
-	u32 i;
 
 	CPU_ZERO(&cpu_cores);
 	CPU_SET(t->cpu_core_id, &cpu_cores);
@@ -1407,7 +1405,7 @@ thread_func_tx(void *arg)
 		// 	btx->n_pkts = 0;
 		// }
 	}
-
+	return NULL;
 }
 
 static void read_time()
@@ -1443,8 +1441,8 @@ int main(int argc, char **argv)
 	port_params[1].iface_queue = 0;
 
 	n_threads = 4;
-    int n_rx_threads = 2; //only 1 thread
-    int n_tx_threads = 2; //only 1 thread
+    // int n_rx_threads = 2; //only 1 thread
+    // int n_tx_threads = 2; //only 1 thread
     thread_data[0].cpu_core_id = 0; //cat /proc/cpuinfo | grep 'core id' //veth rx
 	thread_data[1].cpu_core_id = 1; //cat /proc/cpuinfo | grep 'core id' //nic rx
     thread_data[2].cpu_core_id = 2; //cat /proc/cpuinfo | grep 'core id' //veth tx
@@ -1526,8 +1524,8 @@ int main(int argc, char **argv)
 	t_tx_veth->ports_tx[0] = ports[0]; //veth tx
 	t_tx_nic->ports_tx[0] = ports[1]; //nic tx
 	
-	// t_veth->n_ports_rx = 1;
-	// t_nic->n_ports_rx = 1;
+	t_rx_veth->n_ports_rx = 1;
+	t_rx_nic->n_ports_rx = 1;
 
 	//+++FIFO QUEUE+++++
 	//veth->nic
