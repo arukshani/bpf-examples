@@ -255,7 +255,7 @@ static const struct port_params port_params_default = {
 
 
 #ifndef MAX_PORTS
-#define MAX_PORTS 64
+#define MAX_PORTS 2
 #endif
 
 #ifndef MAX_THREADS
@@ -1269,10 +1269,9 @@ int isMacEqual(unsigned char* addr1, unsigned char* addr2)
 static int process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr, int *veth1_tx, int *veth3_tx)
 {
 	int is_veth_1 = strcmp(params->iface, "veth1"); 
-	int is_veth_3 = strcmp(params->iface, "veth3");
 	int is_nic = strcmp(params->iface, "enp65s0f1np1"); 
 
-	if (is_veth_1 == 0 || is_veth_3 == 0)
+	if (is_veth_1 == 0)
 	{
 		// printf("from veth \n");
 		struct iphdr *outer_iphdr; 
@@ -1328,28 +1327,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
     	getRouteElement(A, dest_ip_index, topo, &port_val);
 		struct mac_addr dest_mac_val;
 		getMacElement(B, port_val, topo, &dest_mac_val);
-		// printf("dest_ip_index, port_val, topo = %d , %d , %d\n", dest_ip_index, port_val, dest_ip_index);
-		// int i;
-		// for (i = 0; i < 6; ++i)
-      	// 	printf(" %02x", (unsigned char) dest_mac_val.bytes[i]);
-    	// puts("\n");
-
-		// unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc
-		// __builtin_memcpy(outer_eth_hdr->h_dest,out_eth_dst, sizeof(outer_eth_hdr->h_dest));
 		__builtin_memcpy(outer_eth_hdr->h_dest, dest_mac_val.bytes, sizeof(outer_eth_hdr->h_dest));
-
-		// timestamp_arr[time_index] = now;
-
-		// if (t1ms % 2 == 0 ) {
-		// 	slot_arr[time_index] = 0;
-		// 	unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c node2
-		// 	__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
-		// } else {
-		// 	slot_arr[time_index] = 1;
-		// 	unsigned char out_eth_dst[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x4c}; //0c:42:a1:dd:58:4c node3
-		// 	__builtin_memcpy(outer_eth_hdr->h_dest, out_eth_dst, sizeof(outer_eth_hdr->h_dest));
-		// }
-		// time_index++;
 
 		outer_eth_hdr->h_proto = htons(ETH_P_IP);
 
@@ -1363,8 +1341,6 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		gre_hdr->proto = bpf_htons(ETH_P_TEB);
 		gre_hdr->flags = 1;
-
-        // printf("Encap GRE packet recevied from veth0 \n");
 
 		return new_len;
 		
@@ -1386,29 +1362,6 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 			printf("inner eth proto is not ETH_P_IP %x \n", inner_eth->h_proto);
             return false;
 		}
-		// printf("from NIC \n");
-		// int i;
-		// for (i = 0; i < 6; ++i)
-      	// 	printf(" %02x", (unsigned char) inner_eth->h_dest[i]);
-    	// puts("\n");
-		// int k;
-		// for (k = 0; k < 6; ++k)
-      	// 	printf(" %02x", (unsigned char) inner_eth->h_source[k]);
-    	// puts("\n");
-		unsigned char veth1_mac[ETH_ALEN+1] = { 0x02, 0x10, 0x30, 0x0e, 0x3b, 0xef}; //02:10:30:0e:3b:ef
-		unsigned char veth3_mac[ETH_ALEN+1] = { 0x0e, 0x7c, 0xc4, 0x3a, 0x39, 0x12}; //0e:7c:c4:3a:39:12
-		*veth1_tx = isMacEqual(inner_eth->h_dest, veth1_mac);
-		*veth3_tx = isMacEqual(inner_eth->h_dest, veth3_mac);
-		// int v1 = isMacEqual(inner_eth->h_dest, veth1_mac);
-		// int v3 = isMacEqual(inner_eth->h_dest, veth3_mac);
-		// printf("v1 %d , v3 %d \n", v1, v3);
-
-		// unsigned long now = get_nsec_nicclock();
-		// struct timespec now = get_nicclock();
-		// struct timespec now = get_realtime();
-		// timestamp_arr[time_index] = now;
-		// slot_arr[time_index] = 2;
-		// time_index++;
 
 		void *cutoff_pos = greh + 1;
 		int cutoff_len = (int)(cutoff_pos - data);
