@@ -1373,7 +1373,7 @@ thread_func_rx(void *arg)
 
             if (!spsc_queue_push(q, (void *) &btx)) {
 			    // printf("Queue push failed at count %lu, %d, free slots %d\n", count, 1<<20, spsc_queue_available(q));
-			    return NULL;
+			    printf("Queue push failed \n");
 		    }
 
 			// if (!ringbuf_is_full(rb)) {
@@ -1401,13 +1401,13 @@ thread_func_tx(void *arg)
 		struct spsc_queue *q = t->rb;
 
         void *pulled;
-        while (!spsc_queue_pull(q, (void **) &pulled)) {
-			//printf("Queue empty: %d\n", temp);
-			return NULL;
+       if(spsc_queue_pull(q, &pulled)) {
+			// printf("Queue Not Empty: \n");
+            struct burst_tx *btx = (struct burst_tx *)pulled;
+            // printf("btx_test addr %lld \n", btx->addr[0]);
+			// printf("btx_test len %d \n", btx->len[0]);
+            port_tx_burst(port_tx, btx);
 		}
-
-        struct burst_tx *btx = (struct burst_tx *)pulled;
-        port_tx_burst(port_tx, btx);
 		
 		// if (*pulled != fib) {
 		// 	printf("Pulled != fib\n");
@@ -1545,10 +1545,10 @@ int main(int argc, char **argv)
 
 	//+++FIFO QUEUE+++++
 	struct spsc_queue* rb_forward = NULL;
-	rb_forward = spsc_queue_init(rb_forward, 1<<24, &memtype_heap);
+	rb_forward = spsc_queue_init(rb_forward, 2048, &memtype_heap);
 
     struct spsc_queue* rb_backward = NULL;
-	rb_backward = spsc_queue_init(rb_backward, 1<<24, &memtype_heap);
+	rb_backward = spsc_queue_init(rb_backward, 2048, &memtype_heap);
 
 	t_rx_veth->rb = rb_forward;
 	t_tx_nic->rb = rb_forward;
