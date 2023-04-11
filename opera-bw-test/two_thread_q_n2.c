@@ -57,11 +57,73 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include "memory.h"
+#include "spsc_queue.h"
+
+// #include "../common/common_params.h"
+// #include "../common/common_user_bpf_xdp.h"
+// #include "../common/common_libbpf.h"
+///++++++++++
+
+// // SPDX-License-Identifier: GPL-2.0
+// /* Copyright(c) 2020 - 2022 Intel Corporation. */
+
+// // #define _GNU_SOURCE
+// #include <poll.h>
+// #include <pthread.h>
+// #include <signal.h>
+// #include <sched.h>
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include <string.h>
+// #include <sys/mman.h>
+// #include <sys/resource.h>
+// #include <sys/socket.h>
+// #include <sys/types.h>
+// #include <time.h>
+// #include <unistd.h>
+// #include <getopt.h>
+// #include <netinet/ether.h>
+// #include <net/if.h>
+
+// // // #include <linux/err.h>
+// #include <linux/if_link.h>
+// #include <linux/if_xdp.h>
+
+// #include <bpf/bpf.h>
+// #include <xdp/xsk.h>
+// // #include <xdp/libxdp.h>
+// // #include <bpf/bpf.h>
+// // #include <bpf/xsk.h>
+
+// /* SPDX-License-Identifier: GPL-2.0 */
+
+// #include <assert.h>
+// #include <errno.h>
+// #include <getopt.h>
+// #include <locale.h>
+// #include <poll.h>
+// #include <pthread.h>
+// #include <signal.h>
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include <string.h>
+// #include <time.h>
+// #include <unistd.h>
+
+// #include <sys/resource.h>
+
+// // #include <bpf/bpf.h>
+// // #include <bpf/xsk.h>
+
+// // #include "../common/common_params.h"
+// // #include "../common/common_user_bpf_xdp.h"
+// // #include "../common/common_libbpf.h"
+// // #include "../lib/xdp-tools/headers/xdp/libxdp.h"
+
 #include <linux/ptp_clock.h>
 #include "data_structures.h"
 #include "common_funcs.h"
-#include "memory.h"
-#include "spsc_queue.h"
 
 #define DEVICE "/dev/ptp3"
 
@@ -80,7 +142,6 @@ typedef __u64 u64;
 typedef __u32 u32;
 typedef __u16 u16;
 typedef __u8  u8;
-
 
 
 struct bpool_params {
@@ -104,7 +165,7 @@ struct bpool_params {
 #endif
 
 #ifndef MAX_BURST_TX
-#define MAX_BURST_TX 1
+#define MAX_BURST_TX 64
 #endif
 
 struct burst_rx {
@@ -221,7 +282,7 @@ static int n_ports;
  * Packet forwarding threads.
  */
 #ifndef MAX_PORTS_PER_THREAD
-#define MAX_PORTS_PER_THREAD 1
+#define MAX_PORTS_PER_THREAD 16
 #endif
 
 
@@ -232,11 +293,8 @@ struct thread_data {
 	u32 n_ports_rx;
 	struct burst_rx burst_rx;
 	struct burst_tx burst_tx[MAX_PORTS_PER_THREAD];
-	// struct burst_tx *burst_tx;
 	u32 cpu_core_id;
 	int quit;
-    struct spsc_queue *rb;
-	
 };
 
 static pthread_t threads[MAX_THREADS];
@@ -689,28 +747,28 @@ print_port(u32 port_id)
 	       port_id, port->params.iface, port->params.iface_queue);
 }
 
-// static void
-// print_thread(u32 thread_id)
-// {
-// 	struct thread_data *t = &thread_data[thread_id];
-// 	u32 i;
+static void
+print_thread(u32 thread_id)
+{
+	struct thread_data *t = &thread_data[thread_id];
+	u32 i;
 
-// 	printf("Thread %u (CPU core %u): ",
-// 	       thread_id, t->cpu_core_id);
+	printf("Thread %u (CPU core %u): ",
+	       thread_id, t->cpu_core_id);
 
-// 	for (i = 0; i < t->n_ports_rx; i++) {
-// 		struct port *port_rx = t->ports_rx[i];
-// 		struct port *port_tx = t->ports_tx[i];
+	for (i = 0; i < t->n_ports_rx; i++) {
+		struct port *port_rx = t->ports_rx[i];
+		struct port *port_tx = t->ports_tx[i];
 
-// 		printf("(%s, %u) -> (%s, %u), ",
-// 		       port_rx->params.iface,
-// 		       port_rx->params.iface_queue,
-// 		       port_tx->params.iface,
-// 		       port_tx->params.iface_queue);
-// 	}
+		printf("(%s, %u) -> (%s, %u), ",
+		       port_rx->params.iface,
+		       port_rx->params.iface_queue,
+		       port_tx->params.iface,
+		       port_tx->params.iface_queue);
+	}
 
-// 	printf("\n");
-// }
+	printf("\n");
+}
 
 static void remove_xdp_program(void)
 {
@@ -839,8 +897,8 @@ static void load_xdp_program(void)
 
 	//Physical NIC
     struct config nic_cfg = {
-		.ifindex = 4,
-		.ifname = "enp65s0f0np0",
+		.ifindex = 5,
+		.ifname = "enp65s0f1np1",
 		.xsk_if_queue = 0,
 		.xsk_poll_mode = true,
 		.filename = "nic_kern.o",
@@ -970,10 +1028,7 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 	xsk_ring_cons__release(&p->umem_cq, n_pkts);
 
 	/* TXQ. */
-	// n_pkts = b->n_pkts;
-	n_pkts = 1;
-	// printf("Fill tx desc for n_pkts %d \n", n_pkts);
-	// printf("Fill tx desc for n_pkts %d \n", n_pkts);
+	n_pkts = b->n_pkts;
 
 	for ( ; ; ) {
 		status = xsk_ring_prod__reserve(&p->txq, n_pkts, &pos);
@@ -985,6 +1040,9 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 			       NULL, 0);
 	}
 
+	// printf("Fill tx desc for n_pkts %ld \n", n_pkts);
+	// printf("Port tx burst \n");
+
 	for (i = 0; i < n_pkts; i++) {
 		xsk_ring_prod__tx_desc(&p->txq, pos + i)->addr = b->addr[i];
 		xsk_ring_prod__tx_desc(&p->txq, pos + i)->len = b->len[i];
@@ -994,6 +1052,9 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 	if (xsk_ring_prod__needs_wakeup(&p->txq))
 		sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
 	p->n_pkts_tx += n_pkts;
+	// printf("port_tx_burst \n");
+	// printf("tx %s \n", p->params.iface);
+	// printf("tx %d \n", p->params.iface_queue);
 }
 
 
@@ -1163,13 +1224,13 @@ static unsigned long get_nsec(struct timespec *ts)
     return ts->tv_sec * 1000000000UL + ts->tv_nsec;
 }
 
-// static struct timespec get_realtime(void)
-// {
-// 	struct timespec ts;
+static struct timespec get_realtime(void)
+{
+	struct timespec ts;
 
-// 	clock_gettime(CLOCK_REALTIME, &ts);
-// 	return ts;
-// }
+	clock_gettime(CLOCK_REALTIME, &ts);
+	return ts;
+}
 
 static struct timespec get_nicclock(void)
 {
@@ -1211,14 +1272,14 @@ int isMacEqual(unsigned char* addr1, unsigned char* addr2)
     // inner eth
 	// inner ip
 	// payload
-static int process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr)
+static int process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr, int *veth1_tx, int *veth3_tx)
 {
 	int is_veth_1 = strcmp(params->iface, "veth1"); 
-	int is_nic = strcmp(params->iface, "enp65s0f0np0"); 
+	int is_nic = strcmp(params->iface, "enp65s0f1np1"); 
 
 	if (is_veth_1 == 0)
 	{
-		// printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~from veth \n");
+		// printf("from veth \n");
 		struct iphdr *outer_iphdr; 
 		struct iphdr encap_outer_iphdr; 
 		struct ethhdr *outer_eth_hdr; 
@@ -1272,9 +1333,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
     	getRouteElement(A, dest_ip_index, topo, &port_val);
 		struct mac_addr dest_mac_val;
 		getMacElement(B, port_val, topo, &dest_mac_val);
-		
 		__builtin_memcpy(outer_eth_hdr->h_dest, dest_mac_val.bytes, sizeof(outer_eth_hdr->h_dest));
-
 
 		outer_eth_hdr->h_proto = htons(ETH_P_IP);
 
@@ -1289,13 +1348,10 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		gre_hdr->proto = bpf_htons(ETH_P_TEB);
 		gre_hdr->flags = 1;
 
-        // printf("Encap GRE packet recevied from veth0 \n");
-
 		return new_len;
 		
 	} else if (is_nic == 0)
 	{
-		// printf("from NIC \n");
 		struct ethhdr *eth = (struct ethhdr *) data;
 		struct iphdr *outer_ip_hdr = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
@@ -1322,7 +1378,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		u8 *new_data = xsk_umem__get_data(params->bp->addr, inner_eth_start_addr);
 		memcpy(xsk_umem__get_data(params->bp->addr, addr), new_data, new_len);
-		
+
 		return new_len;
 	}
 
@@ -1330,7 +1386,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 }
 
 static void *
-thread_func_rx(void *arg)
+thread_func(void *arg)
 {
 	
 	struct thread_data *t = arg;
@@ -1340,16 +1396,16 @@ thread_func_rx(void *arg)
 	CPU_ZERO(&cpu_cores);
 	CPU_SET(t->cpu_core_id, &cpu_cores);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
-	// clkid = get_nic_clock_id();
+	clkid = get_nic_clock_id();
 	
 	// for (i = 0; !t->quit; i = (i + 1) & (t->n_ports_rx - 1)) {
     while (!t->quit) {
 		
 		struct port *port_rx = t->ports_rx[0];
+		struct port *port_tx = t->ports_tx[0];
 		struct burst_rx *brx = &t->burst_rx;
-		// struct burst_tx *btx = &t->burst_tx[0];
-		// ringbuf_t *rb = t->rb;
-		struct spsc_queue *q = t->rb;
+		struct burst_tx *btx = &t->burst_tx[0];
+
 		u32 n_pkts, j;
 
 		/* RX. */
@@ -1358,29 +1414,23 @@ thread_func_rx(void *arg)
 		if (!n_pkts)
 			continue;
 
-		// printf("n_pkts %d \n", n_pkts);
 		/* Process & TX. */
 		for (j = 0; j < n_pkts; j++) {
 
 			u64 addr = xsk_umem__add_offset_to_addr(brx->addr[j]);
 			u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
 						     addr);
-			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
+			int veth1_tx, veth3_tx;
+			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j], &veth1_tx, &veth3_tx);
 
-			struct burst_tx btx;
-			btx.addr[0] = brx->addr[j];
-			btx.len[0] = new_len;
+			btx->addr[btx->n_pkts] = brx->addr[j];
+			btx->len[btx->n_pkts] = new_len;
+			btx->n_pkts++;
 
-            if (!spsc_queue_push(q, (void *) &btx)) {
-			    // printf("Queue push failed at count %lu, %d, free slots %d\n", count, 1<<20, spsc_queue_available(q));
-			    printf("Queue push failed \n");
-		    }
-
-			// if (!ringbuf_is_full(rb)) {
-			// 	int output = ringbuf_sp_enqueue(rb, (void *) &btx);
-
-			// } 
-			
+			if (btx->n_pkts == 1) {
+				port_tx_burst(port_tx, btx);
+				btx->n_pkts = 0;
+			}
 		}
 	}
 
@@ -1388,46 +1438,82 @@ thread_func_rx(void *arg)
 }
 
 static void *
-thread_func_tx(void *arg)
+thread_func_nic_rx(void *arg)
 {
+	
 	struct thread_data *t = arg;
 	cpu_set_t cpu_cores;
+	u32 i;
 
 	CPU_ZERO(&cpu_cores);
 	CPU_SET(t->cpu_core_id, &cpu_cores);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
-	while (!t->quit) {
-		struct port *port_tx = t->ports_tx[0];
-		struct spsc_queue *q = t->rb;
+	clkid = get_nic_clock_id();
+	
+	for (i = 0; !t->quit; i = (i + 1) & (t->n_ports_rx - 1)) {
+		// printf("port rx %d \n", i);
+		// printf("n_buffers_cons %d, \n", t->ports_rx[i]->bc->n_buffers_cons);
 
-        void *pulled;
-        // if(!spsc_queue_pull(q, &pulled)) {
-		// 	printf("Empty Queue: \n");
-		// }else {
-        //     printf("Queue Not Empty: \n");
-        //     struct burst_tx *btx = (struct burst_tx *)pulled;
-        //     port_tx_burst(port_tx, btx);
-        // }
-        if(spsc_queue_pull(q, &pulled)) {
-			// printf("Queue Not Empty: \n");
-            struct burst_tx *btx = (struct burst_tx *)pulled;
-            // printf("btx_test addr %lld \n", btx->addr[0]);
-			// printf("btx_test len %d \n", btx->len[0]);
-            port_tx_burst(port_tx, btx);
-		}
+		//rx2 -> tx0 or tx1
+		struct port *port_rx = t->ports_rx[i];
+		struct port *port_tx_veth1 = t->ports_tx[0];
+		struct port *port_tx_veth3 = t->ports_tx[1];
+		struct burst_rx *brx = &t->burst_rx;
+		struct burst_tx *btx_veth1 = &t->burst_tx[0];
+		struct burst_tx *btx_veth3 = &t->burst_tx[1];
+
+		// struct port *port_rx = t->ports_rx[i];
+		// struct port *port_tx = t->ports_tx[i];
+		// struct burst_rx *brx = &t->burst_rx;
+		// struct burst_tx *btx = &t->burst_tx[i];
+
+		u32 n_pkts, j;
+
+		// printf("RX \n");
+		/* RX. */
+		n_pkts = port_rx_burst(port_rx, brx, i);
 		
-		// if (*pulled != fib) {
-		// 	printf("Pulled != fib\n");
-		// 	return -1;
-		// }	
+		// printf("bp->n_slabs_available %ld \n", port_rx->bc->bp->n_slabs_available);
+		// break;
 
-		// while(!ringbuf_is_empty(rb)) {
-		// 	void *obj;
-		// 	ringbuf_sc_dequeue(rb, &obj);
-		// 	struct burst_tx *btx = (struct burst_tx *)obj;
-		// 	port_tx_burst(port_tx, btx);
-   	 	// }
+		// printf("n_pkts %d \n", n_pkts);
+		if (!n_pkts)
+			continue;
+
+		/* Process & TX. */
+		for (j = 0; j < n_pkts; j++) {
+
+			// printf("bp->n_slabs_available %ld \n", port_rx->bc->bp->n_slabs_available);
+
+			u64 addr = xsk_umem__add_offset_to_addr(brx->addr[j]);
+			u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
+						     addr);
+			int veth1_tx, veth3_tx;
+			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j], &veth1_tx, &veth3_tx);
+			// printf("veth1 %d , veth3 %d \n", veth1_tx, veth3_tx);
+
+			if(veth1_tx == 1) {
+				// printf("Dest veth1 \n");
+				btx_veth1->addr[btx_veth1->n_pkts] = brx->addr[j];
+				btx_veth1->len[btx_veth1->n_pkts] = new_len;
+				btx_veth1->n_pkts++;
+				if (btx_veth1->n_pkts == 1) {
+					port_tx_burst(port_tx_veth1, btx_veth1);
+					btx_veth1->n_pkts = 0;
+				}
+			} else if(veth3_tx == 1) {
+				// printf("Dest veth3 \n");
+				btx_veth3->addr[btx_veth3->n_pkts] = brx->addr[j];
+				btx_veth3->len[btx_veth3->n_pkts] = new_len;
+				btx_veth3->n_pkts++;
+				if (btx_veth3->n_pkts == 1) {
+					port_tx_burst(port_tx_veth3, btx_veth3);
+					btx_veth3->n_pkts = 0;
+				}
+			}
+		}
 	}
+
 	return NULL;
 }
 
@@ -1460,16 +1546,14 @@ int main(int argc, char **argv)
     n_ports = 2; //0 and 1 (veth and nic)
     port_params[0].iface = "veth1";
 	port_params[0].iface_queue = 0;
-    port_params[1].iface = "enp65s0f0np0";
+    port_params[1].iface = "enp65s0f1np1";
 	port_params[1].iface_queue = 0;
+    // port_params[3].iface = "enp65s0f0np0";
+	// port_params[3].iface_queue = 1;
 
-	n_threads = 4;
-    // int n_rx_threads = 2; //only 1 thread
-    // int n_tx_threads = 2; //only 1 thread
-    thread_data[0].cpu_core_id = 0; //cat /proc/cpuinfo | grep 'core id' //veth rx
-	thread_data[1].cpu_core_id = 1; //cat /proc/cpuinfo | grep 'core id' //nic rx
-    thread_data[2].cpu_core_id = 2; //cat /proc/cpuinfo | grep 'core id' //veth tx
-	thread_data[3].cpu_core_id = 3; //cat /proc/cpuinfo | grep 'core id' //nic tx
+    n_threads = 2; //only 1 thread
+    thread_data[0].cpu_core_id = 0; //cat /proc/cpuinfo | grep 'core id'
+	thread_data[1].cpu_core_id = 1; //cat /proc/cpuinfo | grep 'core id'
 
     /* Buffer pool initialization. */
 	bp = bpool_init(&bpool_params, &umem_cfg);
@@ -1492,6 +1576,9 @@ int main(int argc, char **argv)
 		}
 		print_port(i);
 		int xdp_prog_index, key_val;
+		// if (i == 3) {
+		// 	xdp_prog_index = 1;
+		// }
 		if (i == 0) {
 			key_val = 0;
 			xdp_prog_index = i;
@@ -1501,9 +1588,10 @@ int main(int argc, char **argv)
 		} 
 		enter_xsks_into_map(i, xdp_prog_index, key_val);
 		
+		// printf("af port_init %d, \n", ports[i]->bc->n_buffers_cons);
 	}
 	printf("All ports created successfully.\n");
-	clkid = get_nic_clock_id();
+	// clkid = get_nic_clock_id();
 
 	//+++++++source mac++++++++++++++
 	getMACAddress(0, out_eth_src);
@@ -1516,9 +1604,12 @@ int main(int argc, char **argv)
 	for (int i = 0; i < capacity; i++)
 		arr[i] = NULL;
     
-    u32 dest2 = htonl(0xc0a80102);  //192.168.1.2
-    insert(dest2, 1); //dest,index for dest ip
-   
+    u32 dest1 = htonl(0xc0a80101); //192.168.1.1
+    // u32 dest2 = htonl(0xc0a80102);  //192.168.1.2
+    insert(dest1, 1); //dest,index for dest ip
+    // insert(dest2, 1); //dest,index for dest ip
+    // if (find(dest2) != -1)
+	// 	printf("192.168.1.2 dest2 = %d %d\n", dest1, find(dest2));
     //+++++++++++++++++++++IP++++++++++++++++++++++
 
     //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
@@ -1526,76 +1617,53 @@ int main(int argc, char **argv)
     A = newRouteMatrix(1, 2);
     setRouteElement(A, 1, 1, 1); //ip, topo, port
     setRouteElement(A, 1, 2, 1); //ip, topo, port
+    // setRouteElement(A, 2, 1, 2); //ip, topo, port
+    // setRouteElement(A, 2, 2, 2); //ip, topo, port
+    // int val;
+    // getRouteElement(A, 0, 1, &val);
+    // printf("%d \n", val);
    
     B = newMacMatrix(1, 2);
+	
+    unsigned char mac1[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x8c}; //0c:42:a1:dd:5a:8c
+    struct mac_addr dest_mac1;
+    __builtin_memcpy(dest_mac1.bytes, mac1, sizeof(mac1));
 
-    unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x45}; //0c:42:a1:dd:5a:45
-    struct mac_addr dest_mac2;
-    __builtin_memcpy(dest_mac2.bytes, mac2, sizeof(mac2));
+    // unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x45}; //0c:42:a1:dd:5a:45
+    // struct mac_addr dest_mac2;
+    // __builtin_memcpy(dest_mac2.bytes, mac2, sizeof(mac2));
 
-    setMacElement(B, 1, 1, dest_mac2); //port, topo, mac
-    setMacElement(B, 1, 2, dest_mac2); //port, topo, mac
+    setMacElement(B, 1, 1, dest_mac1); //port, topo, mac
+    setMacElement(B, 1, 2, dest_mac1); //port, topo, mac
     
-	struct thread_data *t_rx_veth = &thread_data[0];
-	struct thread_data *t_rx_nic = &thread_data[1];
-    struct thread_data *t_tx_veth = &thread_data[2];
-	struct thread_data *t_tx_nic = &thread_data[3];
+	struct thread_data *t_veth = &thread_data[0];
+	struct thread_data *t_nic = &thread_data[1];
 
-	t_rx_veth->ports_rx[0] = ports[0]; //veth1 rx
-	t_rx_nic->ports_rx[0] = ports[1]; //nic q0 rx
+	t_veth->ports_rx[0] = ports[0]; //veth1 
+	t_veth->ports_tx[0] = ports[1]; //nic q0
 
-	t_tx_veth->ports_tx[0] = ports[0]; //veth tx
-	t_tx_nic->ports_tx[0] = ports[1]; //nic tx
+	t_nic->ports_rx[0] = ports[1]; //nic q0
+	t_nic->ports_tx[0] = ports[0]; //veth1 
 	
-	t_rx_veth->n_ports_rx = 1;
-	t_rx_nic->n_ports_rx = 1;
+	t_veth->n_ports_rx = 1;
+	t_nic->n_ports_rx = 1;
 
-	//+++FIFO QUEUE+++++
-	struct spsc_queue* rb_forward = NULL;
-	rb_forward = spsc_queue_init(rb_forward, 2048, &memtype_heap);
-
-    struct spsc_queue* rb_backward = NULL;
-	rb_backward = spsc_queue_init(rb_backward, 2048, &memtype_heap);
-
-	t_rx_veth->rb = rb_forward;
-	t_tx_nic->rb = rb_forward;
-	t_rx_nic->rb = rb_backward;
-	t_tx_veth->rb = rb_backward;
-	
-	int status_veth_rx, status_nic_rx, status_veth_tx, status_nic_tx;
-	status_veth_rx = pthread_create(&threads[0],
+	int status_veth, status_nic;
+	status_veth = pthread_create(&threads[0],
 				NULL,
-				thread_func_rx,
+				thread_func,
 				&thread_data[0]);
-	if (status_veth_rx) {
+	if (status_veth) {
 		printf("Thread1 %d creation failed.\n", i);
 		return -1;
 	}
 
-	status_nic_rx = pthread_create(&threads[1],
+	status_nic = pthread_create(&threads[1],
 				NULL,
-				thread_func_rx,
+				thread_func,
 				&thread_data[1]);
-	if (status_nic_rx) {
+	if (status_nic) {
 		printf("Thread2 %d creation failed.\n", i);
-		return -1;
-	}
-
-	status_veth_tx = pthread_create(&threads[2],
-				NULL,
-				thread_func_tx,
-				&thread_data[2]);
-	if (status_veth_tx) {
-		printf("Thread3 %d creation failed.\n", i);
-		return -1;
-	}
-
-	status_nic_tx = pthread_create(&threads[3],
-				NULL,
-				thread_func_tx,
-				&thread_data[3]);
-	if (status_nic_tx) {
-		printf("Thread4 %d creation failed.\n", i);
 		return -1;
 	}
 
@@ -1607,7 +1675,7 @@ int main(int argc, char **argv)
 	signal(SIGTERM, signal_handler);
 	signal(SIGABRT, signal_handler);
 
-	time_t secs = 60; // 2 minutes (can be retrieved from user's input)
+	time_t secs = 120; // 2 minutes (can be retrieved from user's input)
 
 	time_t startTime = time(NULL);
 	while (time(NULL) - startTime < secs)
@@ -1633,17 +1701,6 @@ int main(int argc, char **argv)
     deleteMacMatrix(B);
     free(arr);
     free(dummy);
-
-    int ret1 = spsc_queue_destroy(rb_forward);
-	if (ret1)
-		printf("Failed to destroy queue: %d\n", ret1);
-
-    int ret2 = spsc_queue_destroy(rb_backward);
-	if (ret2)
-		printf("Failed to destroy queue: %d\n", ret2);
-	
-	// free(&rb_forward);
-    // free(&rb_backward);
 
     return 0;
 }
