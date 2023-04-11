@@ -99,7 +99,7 @@ struct bpool_params {
 #endif
 
 #ifndef MAX_BURST_TX
-#define MAX_BURST_TX 64
+#define MAX_BURST_TX 1
 #endif
 
 struct burst_rx {
@@ -216,7 +216,7 @@ static int n_ports;
  * Packet forwarding threads.
  */
 #ifndef MAX_PORTS_PER_THREAD
-#define MAX_PORTS_PER_THREAD 16
+#define MAX_PORTS_PER_THREAD 1
 #endif
 
 
@@ -227,6 +227,7 @@ struct thread_data {
 	u32 n_ports_rx;
 	struct burst_rx burst_rx;
 	struct burst_tx burst_tx[MAX_PORTS_PER_THREAD];
+	// struct burst_tx *burst_tx;
 	u32 cpu_core_id;
 	int quit;
 	ringbuf_t *rb;
@@ -963,7 +964,9 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 	xsk_ring_cons__release(&p->umem_cq, n_pkts);
 
 	/* TXQ. */
-	n_pkts = b->n_pkts;
+	// n_pkts = b->n_pkts;
+	n_pkts = 1;
+	// printf("Fill tx desc for n_pkts %d \n", n_pkts);
 
 	for ( ; ; ) {
 		status = xsk_ring_prod__reserve(&p->txq, n_pkts, &pos);
@@ -975,10 +978,9 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 			       NULL, 0);
 	}
 
-	// printf("Fill tx desc for n_pkts %ld \n", n_pkts);
-	// printf("Port tx burst \n");
-
 	for (i = 0; i < n_pkts; i++) {
+		printf("b->addr[i] %d \n", b->addr[i]);
+		printf("b->len[i] %d \n", b->len[i]);
 		xsk_ring_prod__tx_desc(&p->txq, pos + i)->addr = b->addr[i];
 		xsk_ring_prod__tx_desc(&p->txq, pos + i)->len = b->len[i];
 	}
@@ -987,9 +989,6 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 	if (xsk_ring_prod__needs_wakeup(&p->txq))
 		sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
 	p->n_pkts_tx += n_pkts;
-	// printf("port_tx_burst \n");
-	// printf("tx %s \n", p->params.iface);
-	// printf("tx %d \n", p->params.iface_queue);
 }
 
 
@@ -1214,7 +1213,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 	if (is_veth_1 == 0)
 	{
-		// printf("from veth \n");
+		printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~from veth \n");
 		struct iphdr *outer_iphdr; 
 		struct iphdr encap_outer_iphdr; 
 		struct ethhdr *outer_eth_hdr; 
@@ -1291,6 +1290,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		
 	} else if (is_nic == 0)
 	{
+		printf("from NIC \n");
 		struct ethhdr *eth = (struct ethhdr *) data;
 		struct iphdr *outer_ip_hdr = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
@@ -1341,9 +1341,8 @@ thread_func_rx(void *arg)
     while (!t->quit) {
 		
 		struct port *port_rx = t->ports_rx[0];
-		// struct port *port_tx = t->ports_tx[0];
 		struct burst_rx *brx = &t->burst_rx;
-		struct burst_tx *btx = &t->burst_tx[0];
+		// struct burst_tx *btx = &t->burst_tx[0];
 		ringbuf_t *rb = t->rb;
 
 		u32 n_pkts, j;
@@ -1354,6 +1353,7 @@ thread_func_rx(void *arg)
 		if (!n_pkts)
 			continue;
 
+		// printf("n_pkts %d \n", n_pkts);
 		/* Process & TX. */
 		for (j = 0; j < n_pkts; j++) {
 
@@ -1362,17 +1362,31 @@ thread_func_rx(void *arg)
 						     addr);
 			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 
-			btx->addr[btx->n_pkts] = brx->addr[j];
-			btx->len[btx->n_pkts] = new_len;
-			btx->n_pkts++;
-
-			for (int k = 0; !ringbuf_is_full(rb); k++)
-        		ringbuf_sp_enqueue(rb, *(void **) &btx);
-
-			// if (btx->n_pkts == 1) {
-			// 	port_tx_burst(port_tx, btx);
-			// 	btx->n_pkts = 0;
-			// }
+			// struct burst_tx *btx = &t->burst_tx[0];
+			// btx->addr[0] = brx->addr[j];
+			// btx->len[0] = new_len;
+			// btx->n_pkts++;
+			struct burst_tx btx;
+			btx.addr[0] = brx->addr[j];
+			btx.len[0] = new_len;
+			// btx.n_pkts++;
+			printf("brx addr %lld \n", brx->addr[j]);
+			printf("brx len %d \n", new_len);
+			// if (btx.n_pkts == 1 && !ringbuf_is_full(rb)) {
+			if (!ringbuf_is_full(rb)) {
+				printf("push desc \n");
+				// ringbuf_sp_enqueue(rb, &btx);
+				ringbuf_sp_enqueue(rb, (void *) &btx);
+				// ringbuf_sp_enqueue(rb, *(void **) &new_len);
+				//testing
+				void *obj;
+				ringbuf_sc_dequeue(rb, &obj);
+				// int test_len = *(int *) &obj;
+				// printf("btx_test len %d \n", test_len);
+				struct burst_tx *btx_test = (struct burst_tx *)obj;
+				printf("btx_test addr %lld \n", btx_test->addr[0]);
+				printf("btx_test len %d \n", btx_test->len[0]);
+			}
 		}
 	}
 
@@ -1393,10 +1407,13 @@ thread_func_tx(void *arg)
 		ringbuf_t *rb = t->rb;
 		// struct burst_tx *btx = &t->burst_tx[0];
 
-		for (int i = 0; !ringbuf_is_empty(rb); i++) {
+		// for (int i = 0; !ringbuf_is_empty(rb); i++) {
+		while(!ringbuf_is_empty(rb)) {
+			// printf("Ring buf not empty! \n");
 			void *obj;
 			ringbuf_sc_dequeue(rb, &obj);
 			struct burst_tx *btx = (struct burst_tx *) &obj;
+			// printf("Packet length %d \n", btx->len[0]);
 			port_tx_burst(port_tx, btx);
    	 	}
 
@@ -1590,7 +1607,7 @@ int main(int argc, char **argv)
 	signal(SIGTERM, signal_handler);
 	signal(SIGABRT, signal_handler);
 
-	time_t secs = 120; // 2 minutes (can be retrieved from user's input)
+	time_t secs = 60; // 2 minutes (can be retrieved from user's input)
 
 	time_t startTime = time(NULL);
 	while (time(NULL) - startTime < secs)
