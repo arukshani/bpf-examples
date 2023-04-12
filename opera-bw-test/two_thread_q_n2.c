@@ -295,6 +295,7 @@ struct thread_data {
 	struct burst_tx burst_tx[MAX_PORTS_PER_THREAD];
 	u32 cpu_core_id;
 	int quit;
+	struct spsc_queue *rb;
 };
 
 static pthread_t threads[MAX_THREADS];
@@ -1405,6 +1406,7 @@ thread_func(void *arg)
 		struct port *port_tx = t->ports_tx[0];
 		struct burst_rx *brx = &t->burst_rx;
 		struct burst_tx *btx = &t->burst_tx[0];
+        struct spsc_queue *q = t->rb;
 
 		u32 n_pkts, j;
 
@@ -1427,8 +1429,25 @@ thread_func(void *arg)
 			btx->len[btx->n_pkts] = new_len;
 			btx->n_pkts++;
 
+            struct burst_tx btx_push;
+			btx_push.addr[0] = brx->addr[j];
+			btx_push.len[0] = new_len;
+
 			if (btx->n_pkts == 1) {
-				port_tx_burst(port_tx, btx);
+                if (!spsc_queue_push(q, (void *) &btx_push)) {
+                    // printf("Queue push failed at count %lu, %d, free slots %d\n", count, 1<<20, spsc_queue_available(q));
+                    printf("Queue push failed \n");
+		        }
+                void *pulled;
+                if(spsc_queue_pull(q, &pulled)) {
+                    struct burst_tx *btx_pull = (struct burst_tx *)pulled;
+                    btx_pull->n_pkts = btx->n_pkts;
+
+                    // printf("btx_test addr %lld \n", btx_pull->addr[0]);
+                    // printf("btx_test len %d \n", btx_pull->len[0]);
+                    port_tx_burst(port_tx, btx_pull);
+		        }
+				// port_tx_burst(port_tx, btx);
 				btx->n_pkts = 0;
 			}
 		}
@@ -1451,16 +1470,15 @@ thread_func_nic_rx(void *arg)
 	clkid = get_nic_clock_id();
 	
 	for (i = 0; !t->quit; i = (i + 1) & (t->n_ports_rx - 1)) {
-		// printf("port rx %d \n", i);
-		// printf("n_buffers_cons %d, \n", t->ports_rx[i]->bc->n_buffers_cons);
 
-		//rx2 -> tx0 or tx1
 		struct port *port_rx = t->ports_rx[i];
 		struct port *port_tx_veth1 = t->ports_tx[0];
 		struct port *port_tx_veth3 = t->ports_tx[1];
 		struct burst_rx *brx = &t->burst_rx;
 		struct burst_tx *btx_veth1 = &t->burst_tx[0];
 		struct burst_tx *btx_veth3 = &t->burst_tx[1];
+
+        struct spsc_queue *q = t->rb;
 
 		// struct port *port_rx = t->ports_rx[i];
 		// struct port *port_tx = t->ports_tx[i];
@@ -1493,24 +1511,41 @@ thread_func_nic_rx(void *arg)
 			// printf("veth1 %d , veth3 %d \n", veth1_tx, veth3_tx);
 
 			if(veth1_tx == 1) {
-				// printf("Dest veth1 \n");
 				btx_veth1->addr[btx_veth1->n_pkts] = brx->addr[j];
 				btx_veth1->len[btx_veth1->n_pkts] = new_len;
 				btx_veth1->n_pkts++;
+
+                struct burst_tx btx_push;
+                btx_push.addr[0] = brx->addr[j];
+                btx_push.len[0] = new_len;
+
 				if (btx_veth1->n_pkts == 1) {
-					port_tx_burst(port_tx_veth1, btx_veth1);
+                    if (!spsc_queue_push(q, (void *) &btx_push)) {
+                    // printf("Queue push failed at count %lu, %d, free slots %d\n", count, 1<<20, spsc_queue_available(q));
+                    printf("Queue push failed \n");
+		            }
+                    void *pulled;
+                    if(spsc_queue_pull(q, &pulled)) {
+                        struct burst_tx *btx_pull = (struct burst_tx *)pulled;
+                        btx_pull->n_pkts = btx_veth1->n_pkts;
+
+                        // printf("btx_test addr %lld \n", btx_pull->addr[0]);
+                        // printf("btx_test len %d \n", btx_pull->len[0]);
+                        port_tx_burst(port_tx_veth1, btx_pull);
+                    }
+					// port_tx_burst(port_tx_veth1, btx_veth1);
 					btx_veth1->n_pkts = 0;
 				}
-			} else if(veth3_tx == 1) {
-				// printf("Dest veth3 \n");
-				btx_veth3->addr[btx_veth3->n_pkts] = brx->addr[j];
-				btx_veth3->len[btx_veth3->n_pkts] = new_len;
-				btx_veth3->n_pkts++;
-				if (btx_veth3->n_pkts == 1) {
-					port_tx_burst(port_tx_veth3, btx_veth3);
-					btx_veth3->n_pkts = 0;
-				}
-			}
+			} 
+            // else if(veth3_tx == 1) {
+			// 	btx_veth3->addr[btx_veth3->n_pkts] = brx->addr[j];
+			// 	btx_veth3->len[btx_veth3->n_pkts] = new_len;
+			// 	btx_veth3->n_pkts++;
+			// 	if (btx_veth3->n_pkts == 1) {
+			// 		port_tx_burst(port_tx_veth3, btx_veth3);
+			// 		btx_veth3->n_pkts = 0;
+			// 	}
+			// }
 		}
 	}
 
@@ -1648,6 +1683,15 @@ int main(int argc, char **argv)
 	t_veth->n_ports_rx = 1;
 	t_nic->n_ports_rx = 1;
 
+	struct spsc_queue* rb_forward = NULL;
+	rb_forward = spsc_queue_init(rb_forward, 2048, &memtype_heap);
+
+    struct spsc_queue* rb_backward = NULL;
+	rb_backward = spsc_queue_init(rb_backward, 2048, &memtype_heap);
+
+	t_veth->rb = rb_forward;
+    t_nic->rb = rb_backward;
+
 	int status_veth, status_nic;
 	status_veth = pthread_create(&threads[0],
 				NULL,
@@ -1701,6 +1745,14 @@ int main(int argc, char **argv)
     deleteMacMatrix(B);
     free(arr);
     free(dummy);
+
+	int ret1 = spsc_queue_destroy(rb_forward);
+	if (ret1)
+		printf("Failed to destroy queue: %d\n", ret1);
+
+    int ret2 = spsc_queue_destroy(rb_backward);
+	if (ret2)
+		printf("Failed to destroy queue: %d\n", ret2);
 
     return 0;
 }
