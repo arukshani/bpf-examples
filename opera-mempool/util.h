@@ -7,7 +7,19 @@ typedef __u8  u8;
 #define MAX_PORTS 2
 #endif
 
+#ifndef MAX_THREADS
+#define MAX_THREADS 4
+#endif
+
 #define STRERR_BUFSIZE          1024
+
+struct thread_data {
+	struct port *ports_rx;
+	struct port *ports_tx;
+	u32 n_ports_rx;
+	u32 cpu_core_id;
+	int quit;
+};
 
 struct bpool_params {
 	u32 n_buffers;
@@ -109,6 +121,10 @@ static struct xdp_program *xdp_prog[2];
 static int n_ports;
 static int n_threads;
 static struct bpool *bp;
+static struct thread_data thread_data[MAX_THREADS];
+static int n_threads;
+clockid_t clkid;
+unsigned char out_eth_src[ETH_ALEN+1];
 
 //Outer veth 
 struct config veth_cfg = {

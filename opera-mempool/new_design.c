@@ -55,197 +55,11 @@
 #include <linux/ptp_clock.h>
 #include "util.h"
 #include "xdp_stuff.h"
+#include "clock_stuff.h"
+#include "routing_stuff.h"
+#include "data_structures.h"
+#include "mempool_stuff.h"
 
-static void
-print_port(u32 port_id)
-{
-	struct port *port = ports[port_id];
-
-	printf("Port %u: interface = %s, queue = %u\n",
-	       port_id, port->params.iface, port->params.iface_queue);
-}
-
-static inline u64
-bcache_cons(struct port *p)
-{
-	u64 n_buffers_cons = p->n_buffers_cons - 1;
-	u64 buffer;
-
-	buffer = p->slab_cons[n_buffers_cons];
-	p->n_buffers_cons = n_buffers_cons;
-	return buffer;
-}
-
-static void
-port_free(struct port *p)
-{
-	if (!p)
-		return;
-
-	/* To keep this example simple, the code to free the buffers from the
-	 * socket's receive and transmit queues, as well as from the UMEM fill
-	 * and completion queues, is not included.
-	 */
-
-	if (p->xsk)
-		xsk_socket__delete(p->xsk);
-
-	free(p);
-}
-
-static struct port *
-port_init(struct port_params *params)
-{
-	struct port *p;
-	u32 umem_fq_size, pos = 0;
-	int status, i;
-
-	/* Memory allocation and initialization. */
-	p = calloc(sizeof(struct port), 1);
-	if (!p)
-		return NULL;
-
-	memcpy(&p->params, params, sizeof(p->params));
-	umem_fq_size = params->bp->umem_cfg.fill_size;
-
-    u64 n_slabs_available;
-    n_slabs_available = params->bp->n_slabs_available;
-    n_slabs_available--;
-    p->slab_cons = params->bp->slabs[n_slabs_available];
-    u64 n_buffers_per_slab = params->bp->params.n_buffers_per_slab;
-    p->n_buffers_cons = n_buffers_per_slab;
-
-	/* xsk socket. */
-	status = xsk_socket__create_shared(&p->xsk,
-					   params->iface,
-					   params->iface_queue,
-					   params->bp->umem,
-					   &p->rxq,
-					   &p->txq,
-					   &p->umem_fq,
-					   &p->umem_cq,
-					   &params->xsk_cfg);
-
-	apply_setsockopt(p->xsk);
-	
-	if (status) {
-		printf("ERROR in xsk_socket__create_shared \n");
-		port_free(p);
-		return NULL;
-	}
-	
-	/* umem fq. */
-	xsk_ring_prod__reserve(&p->umem_fq, umem_fq_size, &pos);
-
-	for (i = 0; i < umem_fq_size; i++)
-		*xsk_ring_prod__fill_addr(&p->umem_fq, pos + i) = bcache_cons(p);
-
-	xsk_ring_prod__submit(&p->umem_fq, umem_fq_size);
-	p->umem_fq_initialized = 1;
-
-	return p;
-}
-
-static void
-bpool_free(struct bpool *bp)
-{
-	if (!bp)
-		return;
-
-	xsk_umem__delete(bp->umem);
-	munmap(bp->addr, bp->params.n_buffers * bp->params.buffer_size);
-	free(bp);
-}
-
-static struct bpool *
-bpool_init(struct bpool_params *params,
-	   struct xsk_umem_config *umem_cfg)
-{
-    struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
-    u64 n_slabs, n_buffers;
-    u64 slabs_size;
-    u64 buffers_size;
-    u64 total_size, i;
-    struct bpool *bp;
-	u8 *p;
-	int status;
-
-    /* mmap prep. */
-	if (setrlimit(RLIMIT_MEMLOCK, &r))
-		return NULL;
-    
-    /* bpool internals dimensioning. */
-	n_slabs = (params->n_buffers + params->n_buffers_per_slab - 1) /
-		params->n_buffers_per_slab;
-    n_buffers = n_slabs * params->n_buffers_per_slab;
-    slabs_size = n_slabs * sizeof(u64 *);
-    buffers_size = n_buffers * sizeof(u64);
-    total_size = sizeof(struct bpool) + slabs_size  + buffers_size;
-
-    printf("n_slabs %lld \n", n_slabs);
-    printf("n_buffers %lld \n", n_buffers);
-    printf("slabs_size %lld \n", slabs_size);
-    printf("buffers_size %lld \n", buffers_size);
-    printf("total_size %lld \n", total_size);
-
-    /* bpool memory allocation. */
-	p = calloc(total_size, sizeof(u8)); //store the address of the bool memory block
-	if (!p)
-		return NULL;
-
-    /* bpool memory initialization. */
-	bp = (struct bpool *)p; //address of bpool
-	memcpy(&bp->params, params, sizeof(*params));
-
-    bp->params.n_buffers = n_buffers;
-    bp->slabs = (u64 **)&p[sizeof(struct bpool)];
-    bp->buffers = (u64 *)&p[sizeof(struct bpool) + slabs_size];
-    bp->n_slabs = n_slabs;
-    bp->n_buffers = n_buffers;
-
-    for (i = 0; i < n_slabs; i++)
-		bp->slabs[i] = &bp->buffers[i * params->n_buffers_per_slab];
-	bp->n_slabs_available = n_slabs;
-
-    for (i = 0; i < n_buffers; i++)
-		bp->buffers[i] = i * params->buffer_size;
-
-    /* mmap. */
-	bp->addr = mmap(NULL,
-			n_buffers * params->buffer_size,
-			PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS | params->mmap_flags,
-			-1,
-			0);
-	if (bp->addr == MAP_FAILED) {
-		free(p);
-		return NULL;
-	}
-
-    /* umem. */
-	status = xsk_umem__create(&bp->umem,
-				  bp->addr,
-				  bp->params.n_buffers * bp->params.buffer_size,
-				  &bp->umem_fq,
-				  &bp->umem_cq,
-				  umem_cfg);
-    
-    if (status) {
-		munmap(bp->addr, bp->params.n_buffers * bp->params.buffer_size);
-		free(p);
-		return NULL;
-	}
-	memcpy(&bp->umem_cfg, umem_cfg, sizeof(*umem_cfg));
-
-    printf("bp->params.n_buffers %d \n", bp->params.n_buffers);
-    printf("bp->params.buffer_size %d \n", bp->params.buffer_size);
-    printf("total_size umem %d \n", bp->params.n_buffers * bp->params.buffer_size);
-    printf("bp->n_slabs %lld \n", bp->n_slabs);
-    printf("bp->n_buffers %lld \n", bp->n_buffers);
-    printf("params->n_buffers_per_slab %d \n", params->n_buffers_per_slab);
-
-    return bp;
-}
 
 int main(int argc, char **argv)
 {
@@ -293,6 +107,41 @@ int main(int argc, char **argv)
     }
 
     printf("All ports created successfully.\n");
+
+	clkid = get_nic_clock_id();
+	
+	getMACAddress(0, out_eth_src); //source mac
+	arr = (struct HashNode**)malloc(sizeof(struct HashNode*) * capacity);
+	// Assign NULL initially
+	for (int i = 0; i < capacity; i++)
+		arr[i] = NULL;
+	u32 dest2 = htonl(0xc0a80102);  //192.168.1.2
+    insert(dest2, 1); //dest,index for dest ip
+	A = newRouteMatrix(1, 2);
+    setRouteElement(A, 1, 1, 1); //ip, topo, port
+    setRouteElement(A, 1, 2, 1); //ip, topo, port
+    B = newMacMatrix(1, 2);
+	unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x45}; //0c:42:a1:dd:5a:45
+    struct mac_addr dest_mac2;
+    __builtin_memcpy(dest_mac2.bytes, mac2, sizeof(mac2));
+    setMacElement(B, 1, 1, dest_mac2); //port, topo, mac
+    setMacElement(B, 1, 2, dest_mac2); //port, topo, mac
+
+	n_threads = 4;
+	thread_data[0].cpu_core_id = 0; //cat /proc/cpuinfo | grep 'core id' //veth rx
+	thread_data[1].cpu_core_id = 1; //cat /proc/cpuinfo | grep 'core id' //nic rx
+    thread_data[2].cpu_core_id = 2; //cat /proc/cpuinfo | grep 'core id' //veth tx
+	thread_data[3].cpu_core_id = 3; //cat /proc/cpuinfo | grep 'core id' //nic tx
+
+	struct thread_data *t_rx_veth = &thread_data[0];
+	struct thread_data *t_rx_nic = &thread_data[1];
+    struct thread_data *t_tx_veth = &thread_data[2];
+	struct thread_data *t_tx_nic = &thread_data[3];
+
+	t_rx_veth->ports_rx = ports[0]; //veth1 rx
+	t_rx_nic->ports_rx = ports[1]; //nic q0 rx
+	t_tx_veth->ports_tx = ports[0]; //veth tx
+	t_tx_nic->ports_tx = ports[1]; //nic tx
 
     bpool_free(bp);
 
