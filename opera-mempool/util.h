@@ -1,3 +1,5 @@
+#include "ringbuffer.h"
+
 typedef __u64 u64;
 typedef __u32 u32;
 typedef __u16 u16;
@@ -13,11 +15,38 @@ typedef __u8  u8;
 
 #define STRERR_BUFSIZE          1024
 
+#ifndef MAX_BURST_RX
+#define MAX_BURST_RX 1
+#endif
+
+#ifndef MAX_BURST_TX
+#define MAX_BURST_TX 1
+#endif
+
+struct gre_hdr {
+	__be16 flags;
+	__be16 proto;
+} __attribute__((packed));
+
+struct burst_rx {
+	u64 addr[MAX_BURST_RX];
+	u32 len[MAX_BURST_RX];
+};
+
+struct burst_tx {
+	u64 addr[MAX_BURST_TX];
+	u32 len[MAX_BURST_TX];
+	u32 n_pkts;
+};
+
 struct thread_data {
 	struct port *ports_rx;
 	struct port *ports_tx;
 	u32 n_ports_rx;
+	struct burst_rx burst_rx;
+	struct burst_tx burst_tx;
 	u32 cpu_core_id;
+	ringbuf_t *rb;
 	int quit;
 };
 
@@ -122,9 +151,17 @@ static int n_ports;
 static int n_threads;
 static struct bpool *bp;
 static struct thread_data thread_data[MAX_THREADS];
+static pthread_t threads[MAX_THREADS];
 static int n_threads;
 clockid_t clkid;
 unsigned char out_eth_src[ETH_ALEN+1];
+static int quit;
+
+struct timespec now;
+uint64_t time_into_cycle_ns;
+uint8_t topo;
+uint64_t slot_time_ns = 1000000;	// 1 ms
+uint64_t cycle_time_ns = 2000000;	// 2 ms
 
 //Outer veth 
 struct config veth_cfg = {

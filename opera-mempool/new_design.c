@@ -59,7 +59,7 @@
 #include "routing_stuff.h"
 #include "data_structures.h"
 #include "mempool_stuff.h"
-
+#include "pkt_process.h"
 
 int main(int argc, char **argv)
 {
@@ -143,9 +143,96 @@ int main(int argc, char **argv)
 	t_tx_veth->ports_tx = ports[0]; //veth tx
 	t_tx_nic->ports_tx = ports[1]; //nic tx
 
+	//+++FIFO QUEUE+++++
+	//veth->nic
+	ringbuf_t *rb_forward = ringbuf_create((1 << 6));
+	if (!rb_forward) {
+        printf("Fail to create ring buffer.\n");
+        return -1;
+    }
+	//nic->veth
+	ringbuf_t *rb_backward = ringbuf_create((1 << 6));
+	if (!rb_backward) {
+        printf("Fail to create ring buffer.\n");
+        return -1;
+    }
+
+	t_rx_veth->rb = rb_forward;
+	t_tx_nic->rb = rb_forward;
+	t_rx_nic->rb = rb_backward;
+	t_tx_veth->rb = rb_backward;
+
+	int status_veth_rx = pthread_create(&threads[0],
+				NULL,
+				thread_func_rx,
+				&thread_data[0]);
+	if (status_veth_rx) {
+		printf("Thread1 %d creation failed.\n", i);
+		return -1;
+	}
+
+	int status_nic_rx = pthread_create(&threads[1],
+				NULL,
+				thread_func_rx,
+				&thread_data[1]);
+	if (status_nic_rx) {
+		printf("Thread2 %d creation failed.\n", i);
+		return -1;
+	}
+
+	int status_veth_tx = pthread_create(&threads[2],
+				NULL,
+				thread_func_tx,
+				&thread_data[2]);
+	if (status_veth_tx) {
+		printf("Thread3 %d creation failed.\n", i);
+		return -1;
+	}
+
+	int status_nic_tx = pthread_create(&threads[3],
+				NULL,
+				thread_func_tx,
+				&thread_data[3]);
+	if (status_nic_tx) {
+		printf("Thread4 %d creation failed.\n", i);
+		return -1;
+	}
+
+	printf("All threads created successfully.\n");
+
+	
+	/* Print statistics. */
+	signal(SIGINT, signal_handler);
+	signal(SIGTERM, signal_handler);
+	signal(SIGABRT, signal_handler);
+
+	time_t secs = 60; // 2 minutes (can be retrieved from user's input)
+
+	time_t startTime = time(NULL);
+	while (time(NULL) - startTime < secs)
+	{
+		read_time();
+	}
+
+	for (i = 0; i < n_threads; i++)
+		thread_data[i].quit = 1;
+
+	for (i = 0; i < n_threads; i++)
+		pthread_join(threads[i], NULL);
+
+	for (i = 0; i < n_ports; i++)
+		port_free(ports[i]);
+
     bpool_free(bp);
 
     remove_xdp_program();
+
+	deleteRouteMatrix(A);
+    deleteMacMatrix(B);
+    free(arr);
+    free(dummy);
+	ringbuf_free(rb_forward);
+	ringbuf_free(rb_backward);
 
     return 0;
 }
