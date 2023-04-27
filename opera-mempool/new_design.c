@@ -121,7 +121,7 @@ int main(int argc, char **argv)
     setRouteElement(A, 1, 1, 1); //ip, topo, port
     setRouteElement(A, 1, 2, 1); //ip, topo, port
     B = newMacMatrix(1, 2);
-	unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x45}; //0c:42:a1:dd:5a:45
+	unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x20}; //0c:42:a1:dd:58:20
     struct mac_addr dest_mac2;
     __builtin_memcpy(dest_mac2.bytes, mac2, sizeof(mac2));
     setMacElement(B, 1, 1, dest_mac2); //port, topo, mac
@@ -144,18 +144,11 @@ int main(int argc, char **argv)
 	t_tx_nic->ports_tx = ports[1]; //nic tx
 
 	//+++FIFO QUEUE+++++
-	//veth->nic
-	ringbuf_t *rb_forward = ringbuf_create((1 << 6));
-	if (!rb_forward) {
-        printf("Fail to create ring buffer.\n");
-        return -1;
-    }
-	//nic->veth
-	ringbuf_t *rb_backward = ringbuf_create((1 << 6));
-	if (!rb_backward) {
-        printf("Fail to create ring buffer.\n");
-        return -1;
-    }
+	struct spsc_queue* rb_forward = NULL;
+	rb_forward = spsc_queue_init(rb_forward, 2048, &memtype_heap);
+
+    struct spsc_queue* rb_backward = NULL;
+	rb_backward = spsc_queue_init(rb_backward, 2048, &memtype_heap);
 
 	t_rx_veth->rb = rb_forward;
 	t_tx_nic->rb = rb_forward;
@@ -231,8 +224,13 @@ int main(int argc, char **argv)
     deleteMacMatrix(B);
     free(arr);
     free(dummy);
-	ringbuf_free(rb_forward);
-	ringbuf_free(rb_backward);
+	int ret1 = spsc_queue_destroy(rb_forward);
+	if (ret1)
+		printf("Failed to destroy queue: %d\n", ret1);
+
+    int ret2 = spsc_queue_destroy(rb_backward);
+	if (ret2)
+		printf("Failed to destroy queue: %d\n", ret2);
 
     return 0;
 }

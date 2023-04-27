@@ -59,23 +59,17 @@ thread_func_tx(void *arg)
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
 	while (!t->quit) {
 		struct port *port_tx = t->ports_tx;
-		ringbuf_t *rb = t->rb;
+		struct spsc_queue *q = t->rb;
+		void *pulled;
 		// struct burst_tx *btx = &t->burst_tx[0];
 
-		// for (int i = 0; !ringbuf_is_empty(rb); i++) {
-		while(!ringbuf_is_empty(rb)) {
-			// printf("Ring buf not empty! \n");
-			void *obj;
-			ringbuf_sc_dequeue(rb, &obj);
-			struct burst_tx *btx = (struct burst_tx *) &obj;
-			// printf("Packet length %d \n", btx->len[0]);
-			port_tx_burst(port_tx, btx);
-   	 	}
-
-		// if (btx->n_pkts == 1) {
-		// 	port_tx_burst(port_tx, btx);
-		// 	btx->n_pkts = 0;
-		// }
+		if(spsc_queue_pull(q, &pulled)) {
+			// printf("Queue Not Empty: \n");
+            struct burst_tx *btx = (struct burst_tx *)pulled;
+            // printf("btx_test addr %lld \n", btx->addr[0]);
+			// printf("btx_test len %d \n", btx->len[0]);
+            port_tx_burst(port_tx, btx);
+		}
 	}
 	return NULL;
 }
@@ -289,7 +283,7 @@ thread_func_rx(void *arg)
 		
 		struct port *port_rx = t->ports_rx;
 		struct burst_rx *brx = &t->burst_rx;
-		ringbuf_t *rb = t->rb;
+		struct spsc_queue *q = t->rb;
 
 		u32 n_pkts, j;
 
@@ -308,31 +302,14 @@ thread_func_rx(void *arg)
 						     addr);
 			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 
-			// struct burst_tx *btx = &t->burst_tx[0];
-			// btx->addr[0] = brx->addr[j];
-			// btx->len[0] = new_len;
-			// btx->n_pkts++;
 			struct burst_tx btx;
-			btx.addr[0] = brx->addr[j];
-			btx.len[0] = new_len;
-			// btx.n_pkts++;
-			printf("brx addr %lld \n", brx->addr[j]);
-			printf("brx len %d \n", new_len);
-			// if (btx.n_pkts == 1 && !ringbuf_is_full(rb)) {
-			if (!ringbuf_is_full(rb)) {
-				printf("push desc \n");
-				// ringbuf_sp_enqueue(rb, &btx);
-				ringbuf_sp_enqueue(rb, (void *) &btx);
-				// ringbuf_sp_enqueue(rb, *(void **) &new_len);
-				//testing
-				// void *obj;
-				// ringbuf_sc_dequeue(rb, &obj);
-				// int test_len = *(int *) &obj;
-				// printf("btx_test len %d \n", test_len);
-				// struct burst_tx *btx_test = (struct burst_tx *)obj;
-				// printf("btx_test addr %lld \n", btx_test->addr[0]);
-				// printf("btx_test len %d \n", btx_test->len[0]);
-			}
+			btx.addr[j] = brx->addr[j];
+			btx.len[j] = new_len;
+
+			if (!spsc_queue_push(q, (void *) &btx)) {
+			    // printf("Queue push failed at count %lu, %d, free slots %d\n", count, 1<<20, spsc_queue_available(q));
+			    printf("Queue push failed \n");
+		    }
 		}
 	}
 

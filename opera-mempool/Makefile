@@ -4,6 +4,8 @@ USER_TARGETS   := new_design
 BPF_TARGETS    := veth_kern
 BPF_TARGETS    += nic_kern
 
+# Define C-code objects USER_TARGETS needs
+USER_TARGETS_OBJS := spsc_queue.o memory.o
 
 LDLIBS += -lpthread
 

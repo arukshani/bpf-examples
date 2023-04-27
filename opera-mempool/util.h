@@ -1,4 +1,4 @@
-#include "ringbuffer.h"
+#include "spsc_queue.h"
 
 typedef __u64 u64;
 typedef __u32 u32;
@@ -46,7 +46,7 @@ struct thread_data {
 	struct burst_rx burst_rx;
 	struct burst_tx burst_tx;
 	u32 cpu_core_id;
-	ringbuf_t *rb;
+	struct spsc_queue *rb;
 	int quit;
 };
 
