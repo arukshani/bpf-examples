@@ -42,11 +42,11 @@ thread_func_fq_veth(void *arg)
 
 			if (rcvd > 0) {
 				for (i = 0; i < rcvd; i++)
-					*xsk_ring_prod__fill_addr(&port_veth->umem_fq, idx_fq++) =
-						*xsk_ring_cons__comp_addr(&port_nic->umem_cq, idx_cq++);
+					*xsk_ring_prod__fill_addr(&port_veth->umem_fq, idx_fq + i) =
+						*xsk_ring_cons__comp_addr(&port_nic->umem_cq, idx_cq + i);
 
-				xsk_ring_prod__submit(&port_veth->umem_fq, rcvd);
 				xsk_ring_cons__release(&port_nic->umem_cq, rcvd);
+				xsk_ring_prod__submit(&port_veth->umem_fq, rcvd);
 			}
 		}
 	}
@@ -94,11 +94,11 @@ thread_func_fq_nic(void *arg)
 
 			if (rcvd > 0) {
 				for (i = 0; i < rcvd; i++)
-					*xsk_ring_prod__fill_addr(&port_nic->umem_fq, idx_fq++) =
-						*xsk_ring_cons__comp_addr(&port_veth->umem_cq, idx_cq++);
+					*xsk_ring_prod__fill_addr(&port_nic->umem_fq, idx_fq + i) =
+						*xsk_ring_cons__comp_addr(&port_veth->umem_cq, idx_cq + i);
 
-				xsk_ring_prod__submit(&port_nic->umem_fq, rcvd);
 				xsk_ring_cons__release(&port_veth->umem_cq, rcvd);
+				xsk_ring_prod__submit(&port_nic->umem_fq, rcvd);
 			}
 		}
 	}
