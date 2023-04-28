@@ -72,7 +72,7 @@ struct port_params {
 };
 
 static const struct bpool_params bpool_params_default = {
-	.n_buffers = 64 * 1024,
+	.n_buffers = XSK_RING_PROD__DEFAULT_NUM_DESCS * 4,
 	.buffer_size = XSK_UMEM__DEFAULT_FRAME_SIZE,
 	.mmap_flags = 0,
 	.n_buffers_per_slab = XSK_RING_PROD__DEFAULT_NUM_DESCS * 2 
