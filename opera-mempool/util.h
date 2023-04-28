@@ -39,6 +39,13 @@ struct burst_tx {
 	u32 n_pkts;
 };
 
+struct thread_cleanup {
+	struct port *port_veth;
+	struct port *port_nic;
+	u32 cpu_core_id;
+	int quit;
+};
+
 struct thread_data {
 	struct port *ports_rx;
 	struct port *ports_tx;
@@ -148,14 +155,19 @@ static struct port_params port_params[MAX_PORTS];
 static struct port *ports[MAX_PORTS];
 static struct xdp_program *xdp_prog[2];
 static int n_ports;
-static int n_threads;
 static struct bpool *bp;
-static struct thread_data thread_data[MAX_THREADS];
-static pthread_t threads[MAX_THREADS];
-static int n_threads;
+
 clockid_t clkid;
 unsigned char out_eth_src[ETH_ALEN+1];
 static int quit;
+
+static struct thread_data thread_data[MAX_THREADS];
+static pthread_t threads[MAX_THREADS];
+static int n_threads;
+
+static struct thread_cleanup thread_cleanup[2];
+static pthread_t cleanup_threads[2];
+static int n_cleanup_threads;
 
 struct timespec now;
 uint64_t time_into_cycle_ns;

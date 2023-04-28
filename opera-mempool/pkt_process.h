@@ -1,4 +1,94 @@
 
+//++++++++++++++CQ++++++++++++++++++++++++++++++++++++++++++
+static void *
+thread_func_fq_veth(void *arg)
+{
+	
+	struct thread_cleanup *t = arg;
+	cpu_set_t cpu_cores;
+	// u32 i;
+
+	CPU_ZERO(&cpu_cores);
+	CPU_SET(t->cpu_core_id, &cpu_cores);
+	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
+	printf("VEEEEEETHHHHH.\n");
+
+    while (!t->quit) {
+		struct port *port_veth = t->port_veth;
+		struct port *port_nic = t->port_nic;
+
+		u32 idx_cq = 0, idx_fq = 0;
+
+		unsigned int rcvd = 1;
+		u32 n_pkts = 1;
+		n_pkts = xsk_ring_cons__peek(&port_nic->umem_cq, n_pkts, &idx_cq);
+
+		printf("n_pkts %d \n", n_pkts);
+
+		if (n_pkts > 0) {
+			unsigned int i;
+			// int ret;
+
+			rcvd = xsk_ring_prod__reserve(&port_veth->umem_fq, rcvd, &idx_fq);
+			// if (ret != rcvd)
+			// 	break;
+
+			if (rcvd > 0) {
+				for (i = 0; i < rcvd; i++)
+					*xsk_ring_prod__fill_addr(&port_veth->umem_fq, idx_fq++) =
+						*xsk_ring_cons__comp_addr(&port_nic->umem_cq, idx_cq++);
+
+				xsk_ring_prod__submit(&port_veth->umem_fq, rcvd);
+				xsk_ring_cons__release(&port_nic->umem_cq, rcvd);
+			}
+		}
+	}
+	return NULL;
+}
+
+static void *
+thread_func_fq_nic(void *arg)
+{
+	printf("NICCCCCCCCC.\n");
+	struct thread_cleanup *t = arg;
+	cpu_set_t cpu_cores;
+	// u32 i;
+
+	CPU_ZERO(&cpu_cores);
+	CPU_SET(t->cpu_core_id, &cpu_cores);
+	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
+	
+    while (!t->quit) {
+		struct port *port_veth = t->port_veth;
+		struct port *port_nic = t->port_nic;
+
+		u32 idx_cq = 0, idx_fq = 0;
+
+		unsigned int rcvd = 1;
+		u32 n_pkts = 1;
+		n_pkts = xsk_ring_cons__peek(&port_veth->umem_cq, n_pkts, &idx_cq);
+		if (n_pkts > 0) {
+			unsigned int i;
+			// int ret;
+
+			rcvd = xsk_ring_prod__reserve(&port_nic->umem_fq, rcvd, &idx_fq);
+			// if (ret != rcvd)
+			// 	break;
+			
+			if (rcvd > 0) {
+				for (i = 0; i < rcvd; i++)
+					*xsk_ring_prod__fill_addr(&port_nic->umem_fq, idx_fq++) =
+						*xsk_ring_cons__comp_addr(&port_veth->umem_cq, idx_cq++);
+
+				xsk_ring_prod__submit(&port_nic->umem_fq, rcvd);
+				xsk_ring_cons__release(&port_veth->umem_cq, rcvd);
+			}
+		}
+
+	}
+	return NULL;
+}
+
 //++++++++++++++TX++++++++++++++++++++++++++++++++++++++++++
 
 static inline void
@@ -36,8 +126,8 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 	}
 
 	for (i = 0; i < n_pkts; i++) {
-		printf("b->addr[i] %lld \n", b->addr[i]);
-		printf("b->len[i] %d \n", b->len[i]);
+		// printf("b->addr[i] %lld \n", b->addr[i]);
+		// printf("b->len[i] %d \n", b->len[i]);
 		xsk_ring_prod__tx_desc(&p->txq, pos + i)->addr = b->addr[i];
 		xsk_ring_prod__tx_desc(&p->txq, pos + i)->len = b->len[i];
 	}
@@ -91,7 +181,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 	if (is_veth_1 == 0)
 	{
-		printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~from veth \n");
+		// printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~from veth \n");
 		struct iphdr *outer_iphdr; 
 		struct iphdr encap_outer_iphdr; 
 		struct ethhdr *outer_eth_hdr; 
@@ -168,7 +258,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		
 	} else if (is_nic == 0)
 	{
-		printf("from NIC \n");
+		// printf("from NIC \n");
 		struct ethhdr *eth = (struct ethhdr *) data;
 		struct iphdr *outer_ip_hdr = (struct iphdr *)(data +
 						sizeof(struct ethhdr));

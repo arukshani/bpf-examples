@@ -193,7 +193,32 @@ int main(int argc, char **argv)
 
 	printf("All threads created successfully.\n");
 
-	
+	n_cleanup_threads = 2;
+	thread_cleanup[0].cpu_core_id = 4; 
+	thread_cleanup[1].cpu_core_id = 5; 
+	struct thread_cleanup *t_fq_veth = &thread_cleanup[0];
+	struct thread_cleanup *t_fq_nic = &thread_cleanup[1];
+	t_fq_veth->port_veth = ports[0]; //veth1 
+	t_fq_nic->port_nic = ports[1]; //nic q0 
+	int status_veth_fq = pthread_create(&cleanup_threads[0],
+				NULL,
+				thread_func_fq_veth,
+				&thread_cleanup[0]);
+	if (status_veth_fq) {
+		printf("Thread1 %d creation failed.\n", i);
+		return -1;
+	}
+	// int status_nic_fq = pthread_create(&cleanup_threads[1],
+	// 			NULL,
+	// 			thread_func_fq_nic,
+	// 			&thread_cleanup[1]);
+	// if (status_nic_fq) {
+	// 	printf("Thread1 %d creation failed.\n", i);
+	// 	return -1;
+	// }
+
+	printf("All cleanup threads created successfully.\n");
+
 	/* Print statistics. */
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
@@ -212,6 +237,12 @@ int main(int argc, char **argv)
 
 	for (i = 0; i < n_threads; i++)
 		pthread_join(threads[i], NULL);
+
+	for (i = 0; i < n_cleanup_threads; i++)
+		thread_cleanup[i].quit = 1;
+
+	for (i = 0; i < n_cleanup_threads; i++)
+		pthread_join(cleanup_threads[i], NULL);
 
 	for (i = 0; i < n_ports; i++)
 		port_free(ports[i]);
