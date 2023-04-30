@@ -162,9 +162,12 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 		xsk_ring_prod__tx_desc(&p->txq, pos + i)->len = b->len[0];
 	}
 
+	free(b);
+
 	xsk_ring_prod__submit(&p->txq, n_pkts);
 	if (xsk_ring_prod__needs_wakeup(&p->txq))
 		sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
+	
 	// p->n_pkts_tx += n_pkts;
 }
 
@@ -200,7 +203,7 @@ thread_func_tx(void *arg)
 			ringbuf_sc_dequeue(q, &obj);
 			struct burst_tx *btx = (struct burst_tx*)obj;
 			// printf("POP addr %lld \n", btx->addr[0]);
-			// port_tx_burst(port_tx, btx_test);
+			port_tx_burst(port_tx, btx);
    	 	}
 	}
 	return NULL;
@@ -456,6 +459,8 @@ thread_func_rx(void *arg)
 				// struct burst_tx *btx_test = (struct burst_tx *)obj;
 				// printf("btx_test addr %lld \n", btx_test->addr[0]);
 				// printf("btx_test len %d \n", btx_test->len[0]);
+			} else {
+				printf("Can't enqueue. Ring is full \n");
 			}
 
 		}

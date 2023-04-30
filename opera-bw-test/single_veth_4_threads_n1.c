@@ -979,8 +979,8 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 	}
 
 	for (i = 0; i < n_pkts; i++) {
-		printf("b->addr[i] %d \n", b->addr[i]);
-		printf("b->len[i] %d \n", b->len[i]);
+		// printf("b->addr[i] %d \n", b->addr[i]);
+		// printf("b->len[i] %d \n", b->len[i]);
 		xsk_ring_prod__tx_desc(&p->txq, pos + i)->addr = b->addr[i];
 		xsk_ring_prod__tx_desc(&p->txq, pos + i)->len = b->len[i];
 	}
@@ -1213,7 +1213,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 	if (is_veth_1 == 0)
 	{
-		printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~from veth \n");
+		// printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~from veth \n");
 		struct iphdr *outer_iphdr; 
 		struct iphdr encap_outer_iphdr; 
 		struct ethhdr *outer_eth_hdr; 
@@ -1366,26 +1366,26 @@ thread_func_rx(void *arg)
 			// btx->addr[0] = brx->addr[j];
 			// btx->len[0] = new_len;
 			// btx->n_pkts++;
-			struct burst_tx btx;
-			btx.addr[0] = brx->addr[j];
-			btx.len[0] = new_len;
+			struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
+			btx->addr[0] = brx->addr[j];
+			btx->len[0] = new_len;
 			// btx.n_pkts++;
 			printf("brx addr %lld \n", brx->addr[j]);
-			printf("brx len %d \n", new_len);
+			// printf("brx len %d \n", new_len);
 			// if (btx.n_pkts == 1 && !ringbuf_is_full(rb)) {
 			if (!ringbuf_is_full(rb)) {
-				printf("push desc \n");
+				// printf("push desc \n");
 				// ringbuf_sp_enqueue(rb, &btx);
-				ringbuf_sp_enqueue(rb, (void *) &btx);
+				ringbuf_sp_enqueue(rb, btx);
 				// ringbuf_sp_enqueue(rb, *(void **) &new_len);
 				//testing
-				void *obj;
-				ringbuf_sc_dequeue(rb, &obj);
-				// int test_len = *(int *) &obj;
-				// printf("btx_test len %d \n", test_len);
-				struct burst_tx *btx_test = (struct burst_tx *)obj;
-				printf("btx_test addr %lld \n", btx_test->addr[0]);
-				printf("btx_test len %d \n", btx_test->len[0]);
+				// void *obj;
+				// ringbuf_sc_dequeue(rb, &obj);
+				// // int test_len = *(int *) &obj;
+				// // printf("btx_test len %d \n", test_len);
+				// struct burst_tx *btx_test = (struct burst_tx *)obj;
+				// printf("btx_test addr %lld \n", btx_test->addr[0]);
+				// printf("btx_test len %d \n", btx_test->len[0]);
 			}
 		}
 	}
@@ -1413,7 +1413,7 @@ thread_func_tx(void *arg)
 			void *obj;
 			ringbuf_sc_dequeue(rb, &obj);
 			struct burst_tx *btx = (struct burst_tx *) &obj;
-			// printf("Packet length %d \n", btx->len[0]);
+			printf("Packet addr %d \n", btx->addr[0]);
 			port_tx_burst(port_tx, btx);
    	 	}
 
@@ -1523,7 +1523,7 @@ int main(int argc, char **argv)
    
     B = newMacMatrix(1, 2);
 
-    unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5a, 0x45}; //0c:42:a1:dd:5a:45
+    unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x20}; //0c:42:a1:dd:58:20
     struct mac_addr dest_mac2;
     __builtin_memcpy(dest_mac2.bytes, mac2, sizeof(mac2));
 

@@ -205,22 +205,22 @@ int main(int argc, char **argv)
 	// if (t_fq_veth->port_veth == NULL) {
 	// 	printf("veth port is NULL \n");
 	// }
-	// int status_veth_fq = pthread_create(&cleanup_threads[0],
-	// 			NULL,
-	// 			thread_func_fq_veth,
-	// 			&thread_cleanup[0]);
-	// if (status_veth_fq) {
-	// 	printf("Thread1 %d creation failed.\n", i);
-	// 	return -1;
-	// }
-	// int status_nic_fq = pthread_create(&cleanup_threads[1],
-	// 			NULL,
-	// 			thread_func_fq_nic,
-	// 			&thread_cleanup[1]);
-	// if (status_nic_fq) {
-	// 	printf("Thread1 %d creation failed.\n", i);
-	// 	return -1;
-	// }
+	int status_veth_fq = pthread_create(&cleanup_threads[0],
+				NULL,
+				thread_func_fq_veth,
+				&thread_cleanup[0]);
+	if (status_veth_fq) {
+		printf("Thread1 %d creation failed.\n", i);
+		return -1;
+	}
+	int status_nic_fq = pthread_create(&cleanup_threads[1],
+				NULL,
+				thread_func_fq_nic,
+				&thread_cleanup[1]);
+	if (status_nic_fq) {
+		printf("Thread1 %d creation failed.\n", i);
+		return -1;
+	}
 
 	printf("All cleanup threads created successfully.\n");
 
