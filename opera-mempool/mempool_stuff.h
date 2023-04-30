@@ -78,9 +78,12 @@ port_init(struct port_params *params)
 	
 	/* umem fq. */
 	xsk_ring_prod__reserve(&p->umem_fq, umem_fq_size, &pos);
+	// printf("INIT FQ POS: %d \n", pos);
 
-	for (i = 0; i < umem_fq_size; i++)
+	for (i = 0; i < umem_fq_size; i++) {
+		// printf("INIT FQ POS: %d \n", pos + i);
 		*xsk_ring_prod__fill_addr(&p->umem_fq, pos + i) = bcache_cons(p);
+	}
 
 	xsk_ring_prod__submit(&p->umem_fq, umem_fq_size);
 	p->umem_fq_initialized = 1;

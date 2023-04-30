@@ -1,4 +1,7 @@
-#include "spsc_queue.h"
+// #include "memory.h"
+// #include "spsc_queue.h"
+#include "ringbuffer.h"
+
 
 typedef __u64 u64;
 typedef __u32 u32;
@@ -29,15 +32,14 @@ struct gre_hdr {
 } __attribute__((packed));
 
 struct burst_rx {
-	u64 addr[MAX_BURST_RX];
-	u32 len[MAX_BURST_RX];
-};
+	__u64 addr[MAX_BURST_RX];
+	__u32 len[MAX_BURST_RX];
+}__attribute__((packed));
 
 struct burst_tx {
-	u64 addr[MAX_BURST_TX];
-	u32 len[MAX_BURST_TX];
-	u32 n_pkts;
-};
+	__u64 addr[MAX_BURST_TX];
+	__u32 len[MAX_BURST_TX];
+}__attribute__((packed));
 
 struct thread_cleanup {
 	struct port *port_veth;
@@ -53,7 +55,8 @@ struct thread_data {
 	struct burst_rx burst_rx;
 	struct burst_tx burst_tx;
 	u32 cpu_core_id;
-	struct spsc_queue *rb;
+	// struct spsc_queue *rb;
+	ringbuf_t *rb;
 	int quit;
 };
 
@@ -174,6 +177,9 @@ uint64_t time_into_cycle_ns;
 uint8_t topo;
 uint64_t slot_time_ns = 1000000;	// 1 ms
 uint64_t cycle_time_ns = 2000000;	// 2 ms
+
+ringbuf_t *rb_forward;
+ringbuf_t *rb_backward;
 
 //Outer veth 
 struct config veth_cfg = {

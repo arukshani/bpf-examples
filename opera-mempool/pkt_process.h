@@ -30,15 +30,20 @@ thread_func_fq_veth(void *arg)
 		n_pkts = xsk_ring_cons__peek(&port_nic->umem_cq, n_pkts, &idx_cq);
 		// printf("VEEEEEETHHHHH.\n");
 
-		// printf("n_pkts %d \n", n_pkts);
+		// printf("n_pkts in CQ ring %d \n", n_pkts);
 
 		if (n_pkts > 0) {
 			unsigned int i;
 			// int ret;
 
-			rcvd = xsk_ring_prod__reserve(&port_veth->umem_fq, rcvd, &idx_fq);
+			// printf("n_pkts in CQ ring %d \n", n_pkts);
+
+			rcvd = xsk_ring_prod__reserve(&port_veth->umem_fq, n_pkts, &idx_fq);
 			// if (ret != rcvd)
 			// 	break;
+			// printf("Cleanup thread FQ POS for veth: %d \n", idx_fq);
+			// printf("Cleanup thread CQ POS for veth: %d \n", idx_cq);
+			// idx_fq = idx_fq % 4096;
 
 			if (rcvd > 0) {
 				for (i = 0; i < rcvd; i++)
@@ -88,14 +93,23 @@ thread_func_fq_nic(void *arg)
 			unsigned int i;
 			// int ret;
 
-			rcvd = xsk_ring_prod__reserve(&port_nic->umem_fq, rcvd, &idx_fq);
+			rcvd = xsk_ring_prod__reserve(&port_nic->umem_fq, n_pkts, &idx_fq);
 			// if (ret != rcvd)
 			// 	break;
+			// printf("Cleanup thread FQ POS for NIC: %d \n", idx_fq);
+			// printf("Cleanup thread FQ POS mod for NIC: %d \n", idx_fq % 4096);
+			// printf("Cleanup thread CQ POS for NIC: %d \n", idx_cq);
+
+			// idx_fq = idx_fq % 4096;
 
 			if (rcvd > 0) {
-				for (i = 0; i < rcvd; i++)
+				for (i = 0; i < rcvd; i++) {
+					
 					*xsk_ring_prod__fill_addr(&port_nic->umem_fq, idx_fq + i) =
 						*xsk_ring_cons__comp_addr(&port_veth->umem_cq, idx_cq + i);
+					// printf("Cleanup thread FQ POS for NIC: %d \n", idx_fq);
+				}
+					
 
 				xsk_ring_cons__release(&port_veth->umem_cq, rcvd);
 				xsk_ring_prod__submit(&port_nic->umem_fq, rcvd);
@@ -144,8 +158,8 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 	for (i = 0; i < n_pkts; i++) {
 		// printf("b->addr[i] %lld \n", b->addr[i]);
 		// printf("b->len[i] %d \n", b->len[i]);
-		xsk_ring_prod__tx_desc(&p->txq, pos + i)->addr = b->addr[i];
-		xsk_ring_prod__tx_desc(&p->txq, pos + i)->len = b->len[i];
+		xsk_ring_prod__tx_desc(&p->txq, pos + i)->addr = b->addr[0];
+		xsk_ring_prod__tx_desc(&p->txq, pos + i)->len = b->len[0];
 	}
 
 	xsk_ring_prod__submit(&p->txq, n_pkts);
@@ -163,19 +177,31 @@ thread_func_tx(void *arg)
 	CPU_ZERO(&cpu_cores);
 	CPU_SET(t->cpu_core_id, &cpu_cores);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
+
+	ringbuf_t *q = t->rb;
 	while (!t->quit) {
 		struct port *port_tx = t->ports_tx;
-		struct spsc_queue *q = t->rb;
-		void *pulled;
+		
+		// void *pulled;
 		// struct burst_tx *btx = &t->burst_tx[0];
 
-		if(spsc_queue_pull(q, &pulled)) {
-			// printf("Queue Not Empty: \n");
-            struct burst_tx *btx = (struct burst_tx *)pulled;
-            // printf("btx_test addr %lld \n", btx->addr[0]);
-			// printf("btx_test len %d \n", btx->len[0]);
-            port_tx_burst(port_tx, btx);
-		}
+		// if(spsc_queue_pull(q, &pulled)) {
+		// 	// printf("Queue Not Empty: \n");
+        //     struct burst_tx *btx = (struct burst_tx *)pulled;
+        //     printf("TX pulled addr %lld \n", btx->addr[0]);
+		// 	// printf("btx_test len %d \n", btx->len[0]);
+        //     port_tx_burst(port_tx, btx);
+		// }
+		// pulled = NULL;
+		
+		while(!ringbuf_is_empty(q)) {
+			void *obj;
+			struct burst_tx btx_test;
+			ringbuf_sc_dequeue(q, &obj);
+			struct burst_tx *btx = (struct burst_tx*)obj;
+			// printf("POP addr %lld \n", btx->addr[0]);
+			// port_tx_burst(port_tx, btx_test);
+   	 	}
 	}
 	return NULL;
 }
@@ -326,6 +352,7 @@ port_rx_burst(struct port *p, struct burst_rx *b)
 
 	/* RXQ. */
 	n_pkts = xsk_ring_cons__peek(&p->rxq, n_pkts, &pos);
+	
 	if (!n_pkts) {
 		if (xsk_ring_prod__needs_wakeup(&p->umem_fq)) {
 			struct pollfd pollfd = {
@@ -342,15 +369,17 @@ port_rx_burst(struct port *p, struct burst_rx *b)
 		b->addr[i] = xsk_ring_cons__rx_desc(&p->rxq, pos + i)->addr;
 		b->len[i] = xsk_ring_cons__rx_desc(&p->rxq, pos + i)->len;
 	}
+	// printf("rx pos %d \n", pos);
 
 	xsk_ring_cons__release(&p->rxq, n_pkts);
 	// p->n_pkts_rx += n_pkts;
 
 	/* UMEM FQ. */
 	// for ( ; ; ) {
-	// 	int status;
+		// int status;
 
-	// 	status = xsk_ring_prod__reserve(&p->umem_fq, n_pkts, &pos);
+		// status = xsk_ring_prod__reserve(&p->umem_fq, n_pkts, &pos);
+		// printf("RX thread FQ Pos : %d \n" , pos);
 	// 	if (status == n_pkts)
 	// 		break;
 
@@ -384,12 +413,13 @@ thread_func_rx(void *arg)
 	CPU_ZERO(&cpu_cores);
 	CPU_SET(t->cpu_core_id, &cpu_cores);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
+	ringbuf_t *q = t->rb;
 	
     while (!t->quit) {
 		
 		struct port *port_rx = t->ports_rx;
 		struct burst_rx *brx = &t->burst_rx;
-		struct spsc_queue *q = t->rb;
+		
 
 		u32 n_pkts, j;
 
@@ -408,15 +438,28 @@ thread_func_rx(void *arg)
 						     addr);
 			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 
-			struct burst_tx btx;
-			btx.addr[j] = brx->addr[j];
-			btx.len[j] = new_len;
+			struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
+			btx->addr[0] = brx->addr[j];
+			btx->len[0] = new_len;
 
-			if (!spsc_queue_push(q, (void *) &btx)) {
-			    // printf("Queue push failed at count %lu, %d, free slots %d\n", count, 1<<20, spsc_queue_available(q));
-			    printf("Queue push failed \n");
-		    }
+			// printf("RX pushed adrr %lld \n", btx->addr[0]);
+
+			// if (!spsc_queue_push(q, (void *) &btx)) {
+			//     // printf("Queue push failed at count %lu, %d, free slots %d\n", count, 1<<20, spsc_queue_available(q));
+			//     printf("Queue push failed \n");
+		    // }
+			if (!ringbuf_is_full(q)) {
+				// ringbuf_sp_enqueue(q, (void *) &btx);
+				ringbuf_sp_enqueue(q, btx);
+				// void *obj;
+				// ringbuf_sc_dequeue(q, &obj);
+				// struct burst_tx *btx_test = (struct burst_tx *)obj;
+				// printf("btx_test addr %lld \n", btx_test->addr[0]);
+				// printf("btx_test len %d \n", btx_test->len[0]);
+			}
+
 		}
+		// printf("n_pkts %d \n", n_pkts);
 	}
 
 	return NULL;

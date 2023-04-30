@@ -97,6 +97,7 @@ int main(int argc, char **argv)
 		port_params[i].bp = bp;
 
     for (i = 0; i < n_ports; i++) {
+		printf("==================Initialize Port=================\n");
 		ports[i] = port_init(&port_params[i]);
 		if (!ports[i]) {
 			printf("Port %d initialization failed.\n", i);
@@ -115,13 +116,13 @@ int main(int argc, char **argv)
 	// Assign NULL initially
 	for (int i = 0; i < capacity; i++)
 		arr[i] = NULL;
-	u32 dest2 = htonl(0xc0a80101);  //192.168.1.1
+	u32 dest2 = htonl(0xc0a80102);  //192.168.1.2
     insert(dest2, 1); //dest,index for dest ip
 	A = newRouteMatrix(1, 2);
     setRouteElement(A, 1, 1, 1); //ip, topo, port
     setRouteElement(A, 1, 2, 1); //ip, topo, port
     B = newMacMatrix(1, 2);
-	unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x78}; //0c:42:a1:dd:58:78
+	unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x20}; //0c:42:a1:dd:58:20
     struct mac_addr dest_mac2;
     __builtin_memcpy(dest_mac2.bytes, mac2, sizeof(mac2));
     setMacElement(B, 1, 1, dest_mac2); //port, topo, mac
@@ -144,11 +145,10 @@ int main(int argc, char **argv)
 	t_tx_nic->ports_tx = ports[1]; //nic tx
 
 	//+++FIFO QUEUE+++++
-	struct spsc_queue* rb_forward = NULL;
-	rb_forward = spsc_queue_init(rb_forward, 2048, &memtype_heap);
-
-    struct spsc_queue* rb_backward = NULL;
-	rb_backward = spsc_queue_init(rb_backward, 2048, &memtype_heap);
+	// rb_forward = spsc_queue_init(rb_forward, 2048, &memtype_heap);
+	// rb_backward = spsc_queue_init(rb_backward, 2048, &memtype_heap);
+	rb_forward = ringbuf_create(2048);
+	rb_backward = ringbuf_create(2048);
 
 	t_rx_veth->rb = rb_forward;
 	t_tx_nic->rb = rb_forward;
@@ -205,22 +205,22 @@ int main(int argc, char **argv)
 	// if (t_fq_veth->port_veth == NULL) {
 	// 	printf("veth port is NULL \n");
 	// }
-	int status_veth_fq = pthread_create(&cleanup_threads[0],
-				NULL,
-				thread_func_fq_veth,
-				&thread_cleanup[0]);
-	if (status_veth_fq) {
-		printf("Thread1 %d creation failed.\n", i);
-		return -1;
-	}
-	int status_nic_fq = pthread_create(&cleanup_threads[1],
-				NULL,
-				thread_func_fq_nic,
-				&thread_cleanup[1]);
-	if (status_nic_fq) {
-		printf("Thread1 %d creation failed.\n", i);
-		return -1;
-	}
+	// int status_veth_fq = pthread_create(&cleanup_threads[0],
+	// 			NULL,
+	// 			thread_func_fq_veth,
+	// 			&thread_cleanup[0]);
+	// if (status_veth_fq) {
+	// 	printf("Thread1 %d creation failed.\n", i);
+	// 	return -1;
+	// }
+	// int status_nic_fq = pthread_create(&cleanup_threads[1],
+	// 			NULL,
+	// 			thread_func_fq_nic,
+	// 			&thread_cleanup[1]);
+	// if (status_nic_fq) {
+	// 	printf("Thread1 %d creation failed.\n", i);
+	// 	return -1;
+	// }
 
 	printf("All cleanup threads created successfully.\n");
 
@@ -260,13 +260,15 @@ int main(int argc, char **argv)
     deleteMacMatrix(B);
     free(arr);
     free(dummy);
-	int ret1 = spsc_queue_destroy(rb_forward);
-	if (ret1)
-		printf("Failed to destroy queue: %d\n", ret1);
+	ringbuf_free(rb_forward);
+	ringbuf_free(rb_backward);
+	// int ret1 = spsc_queue_destroy(rb_forward);
+	// if (ret1)
+	// 	printf("Failed to destroy queue: %d\n", ret1);
 
-    int ret2 = spsc_queue_destroy(rb_backward);
-	if (ret2)
-		printf("Failed to destroy queue: %d\n", ret2);
+    // int ret2 = spsc_queue_destroy(rb_backward);
+	// if (ret2)
+	// 	printf("Failed to destroy queue: %d\n", ret2);
 
     return 0;
 }
