@@ -49,9 +49,10 @@ thread_func_fq_veth(void *arg)
 			unsigned int i;
 			int real_pkts = 0;
 			for (i = 0; i < n_pkts; i++) {
-				u64 cq_index = *xsk_ring_cons__comp_addr(&port_nic->umem_cq, idx_cq + i);
+				struct cq_addr *cq_addr = calloc(1, sizeof(struct cq_addr));
+				cq_addr->addr = *xsk_ring_cons__comp_addr(&port_nic->umem_cq, idx_cq + i);
 				if (!ringbuf_is_full(cq)) {
-					ringbuf_sp_enqueue(cq, *(void **) &cq_index);
+					ringbuf_sp_enqueue(cq, cq_addr);
 					real_pkts++;
 				}
 				xsk_ring_cons__release(&port_nic->umem_cq, real_pkts);
@@ -97,9 +98,10 @@ thread_func_fq_nic(void *arg)
 			unsigned int i;
 			int real_pkts = 0;
 			for (i = 0; i < n_pkts; i++) {
-				u64 cq_index = *xsk_ring_cons__comp_addr(&port_veth->umem_cq, idx_cq + i);
+				struct cq_addr *cq_addr = calloc(1, sizeof(struct cq_addr));
+				cq_addr->addr = *xsk_ring_cons__comp_addr(&port_veth->umem_cq, idx_cq + i);
 				if (!ringbuf_is_full(cq)) {
-					ringbuf_sp_enqueue(cq, *(void **) &cq_index);
+					ringbuf_sp_enqueue(cq, cq_addr);
 					real_pkts++;
 				}
 			}
@@ -371,7 +373,7 @@ port_rx_burst(struct port *p, struct burst_rx *b, ringbuf_t *cq)
 		int status;
 
 		status = xsk_ring_prod__reserve(&p->umem_fq, n_pkts, &pos);
-		printf("RX thread FQ Pos : %d \n" , pos);
+		// printf("RX thread FQ Pos : %d \n" , pos);
 		if (status == n_pkts)
 			break;
 
@@ -390,7 +392,8 @@ port_rx_burst(struct port *p, struct burst_rx *b, ringbuf_t *cq)
 		if(!ringbuf_is_empty(cq)) {
 			void *obj;
 			ringbuf_sc_dequeue(cq, &obj);
-			*xsk_ring_prod__fill_addr(&p->umem_fq, pos + i) = *(u64 *) &obj;
+			struct cq_addr *cq_index = (struct cq_addr*)obj;
+			*xsk_ring_prod__fill_addr(&p->umem_fq, pos + i) = cq_index->addr;
 			real_pkts++;
    	 	}
 	}

@@ -41,6 +41,10 @@ struct burst_tx {
 	__u32 len[MAX_BURST_TX];
 }__attribute__((packed));
 
+struct cq_addr {
+	__u64 addr;
+}__attribute__((packed));
+
 struct thread_cleanup {
 	struct port *port_veth;
 	struct port *port_nic;
