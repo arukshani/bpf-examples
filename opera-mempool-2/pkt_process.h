@@ -55,8 +55,8 @@ thread_func_fq_veth(void *arg)
 					ringbuf_sp_enqueue(cq, cq_addr);
 					real_pkts++;
 				}
-				xsk_ring_cons__release(&port_nic->umem_cq, real_pkts);
 			}
+			xsk_ring_cons__release(&port_nic->umem_cq, real_pkts);
 		}
 	}
 	return NULL;
@@ -114,15 +114,15 @@ thread_func_fq_nic(void *arg)
 //++++++++++++++TX++++++++++++++++++++++++++++++++++++++++++
 
 static inline void
-port_tx_burst(struct port *p, struct burst_tx *b)
+port_tx_burst(struct port *p, struct burst_tx *b, ringbuf_t *cq)
 {
 	u32 n_pkts, pos, i;
 	int status;
 
 	/* UMEM CQ. */
-	// n_pkts = p->params.bp->umem_cfg.comp_size;
+	n_pkts = p->params.bp->umem_cfg.comp_size;
 
-	// n_pkts = xsk_ring_cons__peek(&p->umem_cq, n_pkts, &pos);
+	n_pkts = xsk_ring_cons__peek(&p->umem_cq, n_pkts, &pos);
 
 	// for (i = 0; i < n_pkts; i++) {
 	// 	u64 addr = *xsk_ring_cons__comp_addr(&p->umem_cq, pos + i);
@@ -131,6 +131,22 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 	// }
 
 	// xsk_ring_cons__release(&p->umem_cq, n_pkts);
+
+	if (n_pkts > 0) {
+		unsigned int i;
+		int real_pkts = 0;
+		for (i = 0; i < n_pkts; i++) {
+			struct cq_addr *cq_addr = calloc(1, sizeof(struct cq_addr));
+			cq_addr->addr = *xsk_ring_cons__comp_addr(&p->umem_cq, pos + i);
+			if (!ringbuf_is_full(cq)) {
+				ringbuf_sp_enqueue(cq, cq_addr);
+				real_pkts++;
+			}
+		}
+		xsk_ring_cons__release(&p->umem_cq, real_pkts);
+	}
+
+
 
 	/* TXQ. */
 	// n_pkts = b->n_pkts;
@@ -176,6 +192,7 @@ thread_func_tx(void *arg)
 	ringbuf_t *q = t->rb;
 	while (!t->quit) {
 		struct port *port_tx = t->ports_tx;
+		ringbuf_t *cq = t->cq;
 		
 		// void *pulled;
 		// struct burst_tx *btx = &t->burst_tx[0];
@@ -194,7 +211,7 @@ thread_func_tx(void *arg)
 			ringbuf_sc_dequeue(q, &obj);
 			struct burst_tx *btx = (struct burst_tx*)obj;
 			// printf("POP addr %lld \n", btx->addr[0]);
-			port_tx_burst(port_tx, btx);
+			port_tx_burst(port_tx, btx, cq);
    	 	}
 	}
 	return NULL;
@@ -369,36 +386,48 @@ port_rx_burst(struct port *p, struct burst_rx *b, ringbuf_t *cq)
 	// p->n_pkts_rx += n_pkts;
 
 	/* UMEM FQ. */
-	for ( ; ; ) {
-		int status;
+	// for ( ; ; ) {
+	// 	int status;
 
-		status = xsk_ring_prod__reserve(&p->umem_fq, n_pkts, &pos);
-		// printf("RX thread FQ Pos : %d \n" , pos);
-		if (status == n_pkts)
-			break;
+	// 	status = xsk_ring_prod__reserve(&p->umem_fq, n_pkts, &pos);
+	// 	// printf("RX thread FQ Pos : %d \n" , pos);
+	// 	if (status == n_pkts)
+	// 		break;
 
-		if (xsk_ring_prod__needs_wakeup(&p->umem_fq)) {
-			struct pollfd pollfd = {
-				.fd = xsk_socket__fd(p->xsk),
-				.events = POLLIN,
-			};
+	// 	if (xsk_ring_prod__needs_wakeup(&p->umem_fq)) {
+	// 		struct pollfd pollfd = {
+	// 			.fd = xsk_socket__fd(p->xsk),
+	// 			.events = POLLIN,
+	// 		};
 
-			poll(&pollfd, 1, 0);
-		}
-	}
+	// 		poll(&pollfd, 1, 0);
+	// 	}
+	// }
 
-	int real_pkts = 0;
-	for (i = 0; i < n_pkts; i++) {
-		if(!ringbuf_is_empty(cq)) {
+	// int real_pkts = 0;
+	// for (i = 0; i < n_pkts; i++) {
+	// 	if(!ringbuf_is_empty(cq)) {
+	// 		void *obj;
+	// 		ringbuf_sc_dequeue(cq, &obj);
+	// 		struct cq_addr *cq_index = (struct cq_addr*)obj;
+	// 		*xsk_ring_prod__fill_addr(&p->umem_fq, pos + i) = cq_index->addr;
+	// 		real_pkts++;
+	// 		free(cq_index);
+   	//  	} 
+	// }
+
+	if(!ringbuf_is_empty(cq)) {
+		int status = xsk_ring_prod__reserve(&p->umem_fq, 1, &pos);
+		if(status > 0) {
 			void *obj;
 			ringbuf_sc_dequeue(cq, &obj);
 			struct cq_addr *cq_index = (struct cq_addr*)obj;
 			*xsk_ring_prod__fill_addr(&p->umem_fq, pos + i) = cq_index->addr;
-			real_pkts++;
-   	 	}
+			// real_pkts++;
+			free(cq_index);
+			xsk_ring_prod__submit(&p->umem_fq, 1);
+		}
 	}
-
-	xsk_ring_prod__submit(&p->umem_fq, real_pkts);
 
 	return n_pkts;
 }

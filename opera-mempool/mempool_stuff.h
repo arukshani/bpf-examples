@@ -54,6 +54,8 @@ port_init(struct port_params *params)
     n_slabs_available = params->bp->n_slabs_available;
     n_slabs_available--;
     p->slab_cons = params->bp->slabs[n_slabs_available];
+	params->bp->n_slabs_available = n_slabs_available;
+	printf("n_slabs_available %d \n", n_slabs_available);
     u64 n_buffers_per_slab = params->bp->params.n_buffers_per_slab;
     p->n_buffers_cons = n_buffers_per_slab;
 

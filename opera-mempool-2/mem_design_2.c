@@ -185,9 +185,11 @@ int main(int argc, char **argv)
 	t_rx_veth->rb = rb_forward;
 	t_rx_veth->cq = cq_forward;
 	t_tx_nic->rb = rb_forward;
+	t_tx_nic->cq = cq_forward;
 	t_rx_nic->rb = rb_backward;
 	t_rx_nic->cq = cq_backward;
 	t_tx_veth->rb = rb_backward;
+	t_tx_veth->cq = cq_backward;
 
 	int status_veth_rx = pthread_create(&threads[0],
 				NULL,
@@ -242,22 +244,22 @@ int main(int argc, char **argv)
 	// if (t_fq_veth->port_veth == NULL) {
 	// 	printf("veth port is NULL \n");
 	// }
-	int status_veth_fq = pthread_create(&cleanup_threads[0],
-				NULL,
-				thread_func_fq_veth,
-				&thread_cleanup[0]);
-	if (status_veth_fq) {
-		printf("Thread1 %d creation failed.\n", i);
-		return -1;
-	}
-	int status_nic_fq = pthread_create(&cleanup_threads[1],
-				NULL,
-				thread_func_fq_nic,
-				&thread_cleanup[1]);
-	if (status_nic_fq) {
-		printf("Thread1 %d creation failed.\n", i);
-		return -1;
-	}
+	// int status_veth_fq = pthread_create(&cleanup_threads[0],
+	// 			NULL,
+	// 			thread_func_fq_veth,
+	// 			&thread_cleanup[0]);
+	// if (status_veth_fq) {
+	// 	printf("Thread1 %d creation failed.\n", i);
+	// 	return -1;
+	// }
+	// int status_nic_fq = pthread_create(&cleanup_threads[1],
+	// 			NULL,
+	// 			thread_func_fq_nic,
+	// 			&thread_cleanup[1]);
+	// if (status_nic_fq) {
+	// 	printf("Thread1 %d creation failed.\n", i);
+	// 	return -1;
+	// }
 
 	printf("All cleanup threads created successfully.\n");
 
@@ -299,6 +301,8 @@ int main(int argc, char **argv)
     free(dummy);
 	ringbuf_free(rb_forward);
 	ringbuf_free(rb_backward);
+	ringbuf_free(cq_forward);
+	ringbuf_free(cq_backward);
 	// int ret1 = spsc_queue_destroy(rb_forward);
 	// if (ret1)
 	// 	printf("Failed to destroy queue: %d\n", ret1);
