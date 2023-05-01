@@ -1,11 +1,11 @@
-static struct burst_tx *
-thread_msg_alloc(void)
-{
-	size_t size = RTE_MAX(sizeof(struct burst_tx),
-		sizeof(struct burst_tx));
+// static struct burst_tx *
+// thread_msg_alloc(void)
+// {
+// 	size_t size = RTE_MAX(sizeof(struct burst_tx),
+// 		sizeof(struct burst_tx));
 
-	return calloc(1, size);
-}
+// 	return calloc(1, size);
+// }
 
 static void
 thread_msg_free(struct burst_tx *rsp)
@@ -214,7 +214,6 @@ thread_func_tx(void *arg)
 		
 		while(!ringbuf_is_empty(q)) {
 			void *obj;
-			struct burst_tx btx_test;
 			ringbuf_sc_dequeue(q, &obj);
 			struct burst_tx *btx = (struct burst_tx*)obj;
 			// printf("POP addr %lld \n", btx->addr[0]);
@@ -456,14 +455,18 @@ thread_func_rx(void *arg)
 						     addr);
 			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 
-			struct burst_tx *btx = thread_msg_alloc();
-			if (btx == NULL) {
+			// struct burst_tx *btx = thread_msg_alloc();
+			struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
+			if (btx != NULL) {
 				btx->addr[0] = brx->addr[j];
 				btx->len[0] = new_len;
-
+				// printf("btx is not null \n");
 				if (!ringbuf_is_full(q)) {
+					// printf("rx ring not full %lld \n", btx->addr[0]);
 					ringbuf_sp_enqueue(q, btx);
 				}
+			} else {
+				printf("BTX is null \n");
 			}
 
 		}

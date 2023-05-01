@@ -58,23 +58,23 @@
 #include <stdint.h>
 #include <errno.h>
 #include <sys/queue.h>
-#include <rte_malloc.h>
-#include <rte_ring.h>
-#include <rte_ring_elem.h>
-#include <inttypes.h>
-#include <sys/types.h>
-#include <rte_common.h>
-#include <rte_memory.h>
-#include <rte_launch.h>
-#include <rte_eal.h>
-#include <rte_per_lcore.h>
-#include <rte_lcore.h>
-#include <rte_debug.h>
-#include <rte_branch_prediction.h>
-#include <rte_ring.h>
-#include <rte_log.h>
-#include <rte_mempool.h>
-#include <rte_errno.h>
+// #include <rte_malloc.h>
+// #include <rte_ring.h>
+// #include <rte_ring_elem.h>
+// #include <inttypes.h>
+// #include <sys/types.h>
+// #include <rte_common.h>
+// #include <rte_memory.h>
+// #include <rte_launch.h>
+// #include <rte_eal.h>
+// #include <rte_per_lcore.h>
+// #include <rte_lcore.h>
+// #include <rte_debug.h>
+// #include <rte_branch_prediction.h>
+// #include <rte_ring.h>
+// #include <rte_log.h>
+// #include <rte_mempool.h>
+// #include <rte_errno.h>
 
 #include "util.h"
 #include "xdp_stuff.h"
@@ -89,9 +89,9 @@ int main(int argc, char **argv)
 	// int ret;
 	// // unsigned lcore_id;
 
-	int ret = rte_eal_init(argc, argv);
-	if (ret < 0)
-		rte_exit(EXIT_FAILURE, "Cannot init EAL\n");
+	// int ret = rte_eal_init(argc, argv);
+	// if (ret < 0)
+	// 	rte_exit(EXIT_FAILURE, "Cannot init EAL\n");
 
     int i;
 
