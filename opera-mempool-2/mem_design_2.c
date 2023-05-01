@@ -179,10 +179,14 @@ int main(int argc, char **argv)
 	// rb_backward = spsc_queue_init(rb_backward, 2048, &memtype_heap);
 	rb_forward = ringbuf_create(2048);
 	rb_backward = ringbuf_create(2048);
+	cq_forward = ringbuf_create(2048);
+	cq_backward = ringbuf_create(2048);
 
 	t_rx_veth->rb = rb_forward;
+	t_rx_veth->cq = cq_forward;
 	t_tx_nic->rb = rb_forward;
 	t_rx_nic->rb = rb_backward;
+	t_rx_nic->cq = cq_backward;
 	t_tx_veth->rb = rb_backward;
 
 	int status_veth_rx = pthread_create(&threads[0],
@@ -232,6 +236,9 @@ int main(int argc, char **argv)
 	t_fq_veth->port_nic = ports[1]; //nic 
 	t_fq_nic->port_veth = ports[0]; //veth1
 	t_fq_nic->port_nic = ports[1]; //nic 
+
+	t_fq_veth->cq = cq_forward;
+	t_fq_nic->cq = cq_backward;
 	// if (t_fq_veth->port_veth == NULL) {
 	// 	printf("veth port is NULL \n");
 	// }

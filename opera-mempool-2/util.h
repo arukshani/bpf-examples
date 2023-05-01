@@ -45,6 +45,7 @@ struct thread_cleanup {
 	struct port *port_veth;
 	struct port *port_nic;
 	u32 cpu_core_id;
+	ringbuf_t *cq;
 	int quit;
 };
 
@@ -55,8 +56,8 @@ struct thread_data {
 	struct burst_rx burst_rx;
 	struct burst_tx burst_tx;
 	u32 cpu_core_id;
-	// struct spsc_queue *rb;
 	ringbuf_t *rb;
+	ringbuf_t *cq;
 	int quit;
 };
 
@@ -180,6 +181,8 @@ uint64_t cycle_time_ns = 2000000;	// 2 ms
 
 ringbuf_t *rb_forward;
 ringbuf_t *rb_backward;
+ringbuf_t *cq_forward;
+ringbuf_t *cq_backward;
 
 //Outer veth 
 struct config veth_cfg = {

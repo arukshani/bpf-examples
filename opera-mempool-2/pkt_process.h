@@ -26,12 +26,13 @@ thread_func_fq_veth(void *arg)
 	
 
     while (!t->quit) {
-		struct port *port_veth = t->port_veth;
+		// struct port *port_veth = t->port_veth;
 		struct port *port_nic = t->port_nic;
+		ringbuf_t *cq = t->cq;
 
 		u32 idx_cq = 0, idx_fq = 0;
 		
-		unsigned int rcvd = 1;
+		// unsigned int rcvd = 1;
 
 		if (port_nic == NULL) {
 			break;
@@ -46,24 +47,14 @@ thread_func_fq_veth(void *arg)
 
 		if (n_pkts > 0) {
 			unsigned int i;
-			// int ret;
-
-			// printf("n_pkts in CQ ring %d \n", n_pkts);
-
-			rcvd = xsk_ring_prod__reserve(&port_veth->umem_fq, n_pkts, &idx_fq);
-			// if (ret != rcvd)
-			// 	break;
-			// printf("Cleanup thread FQ POS for veth: %d \n", idx_fq);
-			// printf("Cleanup thread CQ POS for veth: %d \n", idx_cq);
-			// idx_fq = idx_fq % 4096;
-
-			if (rcvd > 0) {
-				for (i = 0; i < rcvd; i++)
-					*xsk_ring_prod__fill_addr(&port_veth->umem_fq, idx_fq + i) =
-						*xsk_ring_cons__comp_addr(&port_nic->umem_cq, idx_cq + i);
-
-				xsk_ring_cons__release(&port_nic->umem_cq, rcvd);
-				xsk_ring_prod__submit(&port_veth->umem_fq, rcvd);
+			int real_pkts = 0;
+			for (i = 0; i < n_pkts; i++) {
+				u64 cq_index = *xsk_ring_cons__comp_addr(&port_nic->umem_cq, idx_cq + i);
+				if (!ringbuf_is_full(cq)) {
+					ringbuf_sp_enqueue(cq, *(void **) &cq_index);
+					real_pkts++;
+				}
+				xsk_ring_cons__release(&port_nic->umem_cq, real_pkts);
 			}
 		}
 	}
@@ -84,15 +75,16 @@ thread_func_fq_nic(void *arg)
 
     while (!t->quit) {
 		struct port *port_veth = t->port_veth;
-		struct port *port_nic = t->port_nic;
+		ringbuf_t *cq = t->cq;
+		// struct port *port_nic = t->port_nic;
 
 		u32 idx_cq = 0, idx_fq = 0;
 		
 		unsigned int rcvd = 1;
 
-		if (port_nic == NULL) {
-			break;
-		}
+		// if (port_nic == NULL) {
+		// 	break;
+		// }
 		u32 n_pkts = port_veth->params.bp->umem_cfg.comp_size;
 		// printf("n_pkts %d \n", n_pkts);
 		// n_pkts = p->params.bp->umem_cfg.comp_size;
@@ -103,29 +95,15 @@ thread_func_fq_nic(void *arg)
 
 		if (n_pkts > 0) {
 			unsigned int i;
-			// int ret;
-
-			rcvd = xsk_ring_prod__reserve(&port_nic->umem_fq, n_pkts, &idx_fq);
-			// if (ret != rcvd)
-			// 	break;
-			// printf("Cleanup thread FQ POS for NIC: %d \n", idx_fq);
-			// printf("Cleanup thread FQ POS mod for NIC: %d \n", idx_fq % 4096);
-			// printf("Cleanup thread CQ POS for NIC: %d \n", idx_cq);
-
-			// idx_fq = idx_fq % 4096;
-
-			if (rcvd > 0) {
-				for (i = 0; i < rcvd; i++) {
-					
-					*xsk_ring_prod__fill_addr(&port_nic->umem_fq, idx_fq + i) =
-						*xsk_ring_cons__comp_addr(&port_veth->umem_cq, idx_cq + i);
-					// printf("Cleanup thread FQ POS for NIC: %d \n", idx_fq);
+			int real_pkts = 0;
+			for (i = 0; i < n_pkts; i++) {
+				u64 cq_index = *xsk_ring_cons__comp_addr(&port_veth->umem_cq, idx_cq + i);
+				if (!ringbuf_is_full(cq)) {
+					ringbuf_sp_enqueue(cq, *(void **) &cq_index);
+					real_pkts++;
 				}
-					
-
-				xsk_ring_cons__release(&port_veth->umem_cq, rcvd);
-				xsk_ring_prod__submit(&port_nic->umem_fq, rcvd);
 			}
+			xsk_ring_cons__release(&port_veth->umem_cq, real_pkts);
 		}
 	}
 	return NULL;
@@ -349,7 +327,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 }
 
 static inline u32
-port_rx_burst(struct port *p, struct burst_rx *b)
+port_rx_burst(struct port *p, struct burst_rx *b, ringbuf_t *cq)
 {
 	u32 n_pkts, pos, i;
 
@@ -389,29 +367,35 @@ port_rx_burst(struct port *p, struct burst_rx *b)
 	// p->n_pkts_rx += n_pkts;
 
 	/* UMEM FQ. */
-	// for ( ; ; ) {
-		// int status;
+	for ( ; ; ) {
+		int status;
 
-		// status = xsk_ring_prod__reserve(&p->umem_fq, n_pkts, &pos);
-		// printf("RX thread FQ Pos : %d \n" , pos);
-	// 	if (status == n_pkts)
-	// 		break;
+		status = xsk_ring_prod__reserve(&p->umem_fq, n_pkts, &pos);
+		printf("RX thread FQ Pos : %d \n" , pos);
+		if (status == n_pkts)
+			break;
 
-	// 	if (xsk_ring_prod__needs_wakeup(&p->umem_fq)) {
-	// 		struct pollfd pollfd = {
-	// 			.fd = xsk_socket__fd(p->xsk),
-	// 			.events = POLLIN,
-	// 		};
+		if (xsk_ring_prod__needs_wakeup(&p->umem_fq)) {
+			struct pollfd pollfd = {
+				.fd = xsk_socket__fd(p->xsk),
+				.events = POLLIN,
+			};
 
-	// 		poll(&pollfd, 1, 0);
-	// 	}
-	// }
+			poll(&pollfd, 1, 0);
+		}
+	}
 
-	// for (i = 0; i < n_pkts; i++)
-	// 	*xsk_ring_prod__fill_addr(&p->umem_fq, pos + i) =
-	// 		bcache_cons(p->bc);
+	int real_pkts = 0;
+	for (i = 0; i < n_pkts; i++) {
+		if(!ringbuf_is_empty(cq)) {
+			void *obj;
+			ringbuf_sc_dequeue(cq, &obj);
+			*xsk_ring_prod__fill_addr(&p->umem_fq, pos + i) = *(u64 *) &obj;
+			real_pkts++;
+   	 	}
+	}
 
-	// xsk_ring_prod__submit(&p->umem_fq, n_pkts);
+	xsk_ring_prod__submit(&p->umem_fq, real_pkts);
 
 	return n_pkts;
 }
@@ -434,11 +418,12 @@ thread_func_rx(void *arg)
 		struct port *port_rx = t->ports_rx;
 		struct burst_rx *brx = &t->burst_rx;
 		
+		ringbuf_t *cq = t->cq;
 
 		u32 n_pkts, j;
 
 		/* RX. */
-		n_pkts = port_rx_burst(port_rx, brx);
+		n_pkts = port_rx_burst(port_rx, brx, cq);
 		
 		if (!n_pkts)
 			continue;
