@@ -1,3 +1,18 @@
+static struct burst_tx *
+thread_msg_alloc(void)
+{
+	size_t size = RTE_MAX(sizeof(struct burst_tx),
+		sizeof(struct burst_tx));
+
+	return calloc(1, size);
+}
+
+static void
+thread_msg_free(struct burst_tx *rsp)
+{
+	free(rsp);
+}
+
 
 //++++++++++++++CQ++++++++++++++++++++++++++++++++++++++++++
 static void *
@@ -162,7 +177,7 @@ port_tx_burst(struct port *p, struct burst_tx *b)
 		xsk_ring_prod__tx_desc(&p->txq, pos + i)->len = b->len[0];
 	}
 
-	free(b);
+	thread_msg_free(b);
 
 	xsk_ring_prod__submit(&p->txq, n_pkts);
 	if (xsk_ring_prod__needs_wakeup(&p->txq))
@@ -441,26 +456,14 @@ thread_func_rx(void *arg)
 						     addr);
 			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 
-			struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
-			btx->addr[0] = brx->addr[j];
-			btx->len[0] = new_len;
+			struct burst_tx *btx = thread_msg_alloc();
+			if (btx == NULL) {
+				btx->addr[0] = brx->addr[j];
+				btx->len[0] = new_len;
 
-			// printf("RX pushed adrr %lld \n", btx->addr[0]);
-
-			// if (!spsc_queue_push(q, (void *) &btx)) {
-			//     // printf("Queue push failed at count %lu, %d, free slots %d\n", count, 1<<20, spsc_queue_available(q));
-			//     printf("Queue push failed \n");
-		    // }
-			if (!ringbuf_is_full(q)) {
-				// ringbuf_sp_enqueue(q, (void *) &btx);
-				ringbuf_sp_enqueue(q, btx);
-				// void *obj;
-				// ringbuf_sc_dequeue(q, &obj);
-				// struct burst_tx *btx_test = (struct burst_tx *)obj;
-				// printf("btx_test addr %lld \n", btx_test->addr[0]);
-				// printf("btx_test len %d \n", btx_test->len[0]);
-			} else {
-				printf("Can't enqueue. Ring is full \n");
+				if (!ringbuf_is_full(q)) {
+					ringbuf_sp_enqueue(q, btx);
+				}
 			}
 
 		}
