@@ -19,7 +19,7 @@ typedef __u8  u8;
 #define STRERR_BUFSIZE          1024
 
 #ifndef MAX_BURST_RX
-#define MAX_BURST_RX 1
+#define MAX_BURST_RX 64
 #endif
 
 #ifndef MAX_BURST_TX

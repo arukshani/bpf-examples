@@ -365,12 +365,14 @@ port_rx_burst(struct port *p, struct burst_rx *b)
 	// 	return 0;
 
 	// printf("bp->n_slabs_available %ld \n", p->bc->bp->n_slabs_available);
-    n_pkts = 1;
+    // n_pkts = 1;
 
 	/* RXQ. */
-	n_pkts = xsk_ring_cons__peek(&p->rxq, n_pkts, &pos);
+	n_pkts = xsk_ring_cons__peek(&p->rxq, MAX_BURST_RX, &pos);
+	// printf("n_pkts %d \n", n_pkts);
 	
 	if (!n_pkts) {
+		// printf("n_pkts %d \n", n_pkts);
 		if (xsk_ring_prod__needs_wakeup(&p->umem_fq)) {
 			struct pollfd pollfd = {
 				.fd = xsk_socket__fd(p->xsk),
@@ -381,12 +383,13 @@ port_rx_burst(struct port *p, struct burst_rx *b)
 		}
 		return 0;
 	}
-
+	// printf("n_pkts %d \n", n_pkts);
 	for (i = 0; i < n_pkts; i++) {
 		b->addr[i] = xsk_ring_cons__rx_desc(&p->rxq, pos + i)->addr;
 		b->len[i] = xsk_ring_cons__rx_desc(&p->rxq, pos + i)->len;
 	}
 	// printf("rx pos %d \n", pos);
+	// printf("n_pkts %d \n", n_pkts);
 
 	xsk_ring_cons__release(&p->rxq, n_pkts);
 	// p->n_pkts_rx += n_pkts;
@@ -436,6 +439,7 @@ thread_func_rx(void *arg)
 		
 		struct port *port_rx = t->ports_rx;
 		struct burst_rx *brx = &t->burst_rx;
+		// struct burst_rx *brx = calloc(1, sizeof(struct burst_tx));
 		
 
 		u32 n_pkts, j;
@@ -471,6 +475,7 @@ thread_func_rx(void *arg)
 
 		}
 		// printf("n_pkts %d \n", n_pkts);
+		// free(brx);
 	}
 
 	return NULL;
