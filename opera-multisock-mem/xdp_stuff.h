@@ -122,23 +122,23 @@ static int lookup_bpf_map(int prog_fd)
 }
 
 
-static void enter_xsks_into_map(u32 index)
+static void enter_xsks_into_map(u32 index, u32 parent_index, int key)
 {
 	int i, xsks_map;
 
-	xsks_map = lookup_bpf_map(xdp_program__fd(xdp_prog[index]));
+	xsks_map = lookup_bpf_map(xdp_program__fd(xdp_prog[parent_index]));
 	if (xsks_map < 0) {
 		fprintf(stderr, "ERROR: no xsks map found: %s\n",
 			strerror(xsks_map));
 			exit(EXIT_FAILURE);
 	}
 
-	printf("Update bpf map for xdp_prog[%d] %s, \n", index, port_params[index].iface);
+	printf("Update bpf map for xdp_prog[%d] %s key: %d, \n", parent_index, port_params[parent_index].iface, key);
 
-	int fd = xsk_socket__fd(ports[index]->xsk);
-	int key, ret;
-	i = 0;
-	key = i;
+	int fd = xsk_socket__fd(workers[index]->xsk);
+	int ret;
+	// i = 0;
+	// key = index;
 	ret = bpf_map_update_elem(xsks_map, &key, &fd, 0);
 	if (ret) {
 		fprintf(stderr, "ERROR: bpf_map_update_elem %d %d\n", i, ret);

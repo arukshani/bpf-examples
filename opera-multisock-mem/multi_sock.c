@@ -134,8 +134,22 @@ int main(int argc, char **argv)
 			return -1;
 		}
         print_port(i);
-        enter_xsks_into_map(i);
+        // enter_xsks_into_map(i);
     }
+
+	printf("Hello \n");
+
+	int m=0;
+	for (int n = 0; n < 2; n++) {
+		for (int k = 0; k < 2; k++) {
+			if (m == 3) {
+				break;
+			}
+			workers[m] = worker_init(&port_params[n], ports[n]);
+			enter_xsks_into_map(m, n, k);
+			m++;
+		}
+	}
 
     printf("All ports created successfully.\n");
 
@@ -158,74 +172,116 @@ int main(int argc, char **argv)
     setMacElement(B, 1, 1, dest_mac2); //port, topo, mac
     setMacElement(B, 1, 2, dest_mac2); //port, topo, mac
 
-	n_threads = 4;
-	thread_data[0].cpu_core_id = 0; //cat /proc/cpuinfo | grep 'core id' //veth rx
-	thread_data[1].cpu_core_id = 1; //cat /proc/cpuinfo | grep 'core id' //nic rx
-    thread_data[2].cpu_core_id = 2; //cat /proc/cpuinfo | grep 'core id' //veth tx
-	thread_data[3].cpu_core_id = 3; //cat /proc/cpuinfo | grep 'core id' //nic tx
+	n_threads = 6;
 
-	struct thread_data *t_rx_veth = &thread_data[0];
-	struct thread_data *t_rx_nic = &thread_data[1];
-    struct thread_data *t_tx_veth = &thread_data[2];
-	struct thread_data *t_tx_nic = &thread_data[3];
+	for(int k=0; k <n_threads; k++ ) {
+		thread_data[k].cpu_core_id = k;
+	}
 
-	t_rx_veth->ports_rx = ports[0]; //veth1 rx
-	t_rx_nic->ports_rx = ports[1]; //nic q0 rx
-	t_tx_veth->ports_tx = ports[0]; //veth tx
-	t_tx_nic->ports_tx = ports[1]; //nic tx
+	printf("test1 \n");
 
-	//+++FIFO QUEUE+++++
-	// rb_forward = spsc_queue_init(rb_forward, 2048, &memtype_heap);
-	// rb_backward = spsc_queue_init(rb_backward, 2048, &memtype_heap);
-	rb_forward = ringbuf_create(2048);
-	rb_backward = ringbuf_create(2048);
 
-	t_rx_veth->rb = rb_forward;
-	t_tx_nic->rb = rb_forward;
-	t_rx_nic->rb = rb_backward;
-	t_tx_veth->rb = rb_backward;
+	//2 veth rx and 2 nic rx; 
+	int n_rx_threads = 4;
+	int n_tx_threads = 4;
 
-	int status_veth_rx = pthread_create(&threads[0],
+
+	//w0=veth,w1=veth,w3=nic,w4=nic
+	
+	for (int m=0; m <4; m++ ) {
+		struct thread_data *t = &thread_data[m];
+		for (int k=0; k <n_rx_threads; k++ ) {
+			if (k == 3) {
+				break;
+			}
+			t->worker_rx = workers[k];
+		}
+	}
+
+	printf("test2 \n");
+
+
+	for (int m=4; m <8; m++ ) {
+		struct thread_data *t = &thread_data[m];
+		for (int k=0; k <n_tx_threads; k++ ) {
+			if (k == 3) {
+				break;
+			}
+			t->worker_tx = workers[k];
+		}
+	}
+	printf("test3 \n");
+
+	// struct mpmc_queue *rb_forward;
+    // struct mpmc_queue queue_f;
+    mpmc_queue_init(rb_forward, 2048*2, &memtype_heap);
+    // rb_forward = &queue_f;
+
+	// struct mpmc_queue *rb_backward;
+    // struct mpmc_queue queue_b;
+    mpmc_queue_init(rb_backward, 2048*2, &memtype_heap);
+    // rb_backward = &queue_b;
+
+	printf("test4 \n");
+
+	//veth rx
+	for (int m=0; m <2; m++ ) {
+		struct thread_data *t = &thread_data[m];
+		t->rb = rb_forward;
+	}
+	printf("test5 \n");
+
+	//nic rx
+	for (int m=2; m <3; m++ ) {
+		// if (m == 3) {
+		// 		break;
+		// 	}
+		struct thread_data *t = &thread_data[m];
+		t->rb = rb_backward;
+	}
+	printf("test6 \n");
+
+	//veth tx
+	for (int m=3; m <5; m++ ) {
+		struct thread_data *t = &thread_data[m];
+		t->rb = rb_forward;
+	}
+	printf("test7 \n");
+
+	//nic tx
+	for (int m=5; m <6; m++ ) {
+		struct thread_data *t = &thread_data[m];
+		t->rb = rb_backward;
+	}
+	printf("test8 \n");
+
+	for (int m=0; m <3; m++ ) {
+		int status_rx = pthread_create(&threads[m],
 				NULL,
 				thread_func_rx,
-				&thread_data[0]);
-	if (status_veth_rx) {
-		printf("Thread1 %d creation failed.\n", i);
-		return -1;
+				&thread_data[m]);
+		if (status_rx) {
+			printf("Thread1 %d creation failed.\n", m);
+			return -1;
+		}
 	}
 
-	int status_nic_rx = pthread_create(&threads[1],
-				NULL,
-				thread_func_rx,
-				&thread_data[1]);
-	if (status_nic_rx) {
-		printf("Thread2 %d creation failed.\n", i);
-		return -1;
-	}
-
-	int status_veth_tx = pthread_create(&threads[2],
+	for (int m=3; m <6; m++ ) {
+		int status_tx = pthread_create(&threads[m],
 				NULL,
 				thread_func_tx,
-				&thread_data[2]);
-	if (status_veth_tx) {
-		printf("Thread3 %d creation failed.\n", i);
-		return -1;
-	}
-
-	int status_nic_tx = pthread_create(&threads[3],
-				NULL,
-				thread_func_tx,
-				&thread_data[3]);
-	if (status_nic_tx) {
-		printf("Thread4 %d creation failed.\n", i);
-		return -1;
+				&thread_data[m]);
+		if (status_tx) {
+			printf("Thread1 %d creation failed.\n", m);
+			return -1;
+		}
 	}
 
 	printf("All threads created successfully.\n");
 
 	n_cleanup_threads = 2;
-	thread_cleanup[0].cpu_core_id = 4; 
-	thread_cleanup[1].cpu_core_id = 5; 
+	thread_cleanup[0].cpu_core_id = 11; 
+	thread_cleanup[1].cpu_core_id = 12; 
 	struct thread_cleanup *t_fq_veth = &thread_cleanup[0];
 	struct thread_cleanup *t_fq_nic = &thread_cleanup[1];
 	t_fq_veth->port_veth = ports[0]; //veth1 
@@ -279,8 +335,11 @@ int main(int argc, char **argv)
 	for (i = 0; i < n_cleanup_threads; i++)
 		pthread_join(cleanup_threads[i], NULL);
 
-	for (i = 0; i < n_ports; i++)
-		port_free(ports[i]);
+	// for (i = 0; i < n_ports; i++)
+	// 	port_free(ports[i]);
+
+	for (i = 0; i < 4; i++)
+		worker_port_free(workers[i]);
 
     bpool_free(bp);
 
@@ -290,8 +349,8 @@ int main(int argc, char **argv)
     deleteMacMatrix(B);
     free(arr);
     free(dummy);
-	ringbuf_free(rb_forward);
-	ringbuf_free(rb_backward);
+	// ringbuf_free(rb_forward);
+	// ringbuf_free(rb_backward);
 	// int ret1 = spsc_queue_destroy(rb_forward);
 	// if (ret1)
 	// 	printf("Failed to destroy queue: %d\n", ret1);

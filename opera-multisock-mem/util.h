@@ -1,6 +1,8 @@
 // #include "memory.h"
 // #include "spsc_queue.h"
-#include "ringbuffer.h"
+// #include "ringbuffer.h"
+#include "mpmc_queue.h"
+#include "memory.h"
 
 
 typedef __u64 u64;
@@ -13,7 +15,7 @@ typedef __u8  u8;
 #endif
 
 #ifndef MAX_THREADS
-#define MAX_THREADS 4
+#define MAX_THREADS 8
 #endif
 
 #define STRERR_BUFSIZE          1024
@@ -49,14 +51,15 @@ struct thread_cleanup {
 };
 
 struct thread_data {
-	struct port *ports_rx;
-	struct port *ports_tx;
+	struct worker_port *worker_rx;
+	struct worker_port *worker_tx;
 	u32 n_ports_rx;
 	struct burst_rx burst_rx;
 	struct burst_tx burst_tx;
 	u32 cpu_core_id;
 	// struct spsc_queue *rb;
-	ringbuf_t *rb;
+	// ringbuf_t *rb;
+	struct mpmc_queue *rb;
 	int quit;
 };
 
@@ -121,6 +124,13 @@ struct bpool {
 	struct xsk_umem *umem;
 };
 
+struct worker_port {
+	struct port *parent_port;
+	struct xsk_ring_cons rxq;
+	struct xsk_ring_prod txq;
+	struct xsk_socket *xsk;
+};
+
 struct port {
 	struct port_params params;
 
@@ -128,11 +138,10 @@ struct port {
 	u64 *slab_cons;
 	u64 n_buffers_cons;
 
-	struct xsk_ring_cons rxq;
-	struct xsk_ring_prod txq;
+	// struct worker_port *workers[2];
+	
 	struct xsk_ring_prod umem_fq;
 	struct xsk_ring_cons umem_cq;
-	struct xsk_socket *xsk;
 	int umem_fq_initialized;
 
 	u64 n_pkts_rx;
@@ -156,6 +165,7 @@ static struct bpool_params bpool_params;
 static struct xsk_umem_config umem_cfg;
 static struct port_params port_params[MAX_PORTS];
 static struct port *ports[MAX_PORTS];
+static struct worker_port *workers[4];
 static struct xdp_program *xdp_prog[2];
 static int n_ports;
 static struct bpool *bp;
@@ -178,8 +188,8 @@ uint8_t topo;
 uint64_t slot_time_ns = 1000000;	// 1 ms
 uint64_t cycle_time_ns = 2000000;	// 2 ms
 
-ringbuf_t *rb_forward;
-ringbuf_t *rb_backward;
+struct mpmc_queue *rb_forward;
+struct mpmc_queue *rb_backward;
 
 //Outer veth 
 struct config veth_cfg = {

@@ -19,7 +19,7 @@ bcache_cons(struct port *p)
 }
 
 static void
-port_free(struct port *p)
+worker_port_free(struct worker_port *p)
 {
 	if (!p)
 		return;
@@ -33,6 +33,53 @@ port_free(struct port *p)
 		xsk_socket__delete(p->xsk);
 
 	free(p);
+}
+
+// static void
+// port_free(struct port *p)
+// {
+// 	if (!p)
+// 		return;
+
+// 	/* To keep this example simple, the code to free the buffers from the
+// 	 * socket's receive and transmit queues, as well as from the UMEM fill
+// 	 * and completion queues, is not included.
+// 	 */
+
+// 	if (p->xsk)
+// 		xsk_socket__delete(p->xsk);
+
+// 	free(p);
+// }
+
+static struct worker_port *
+worker_init(struct port_params *params, struct port *p)
+{
+	struct worker_port *w;
+	w = calloc(sizeof(struct worker_port), 1);
+	if (!w)
+		return NULL;
+
+	w->parent_port = p;
+
+	/* xsk socket. */
+	int status = xsk_socket__create_shared(&w->xsk,
+					params->iface,
+					params->iface_queue,
+					params->bp->umem,
+					&w->rxq,
+					&w->txq,
+					&p->umem_fq,
+					&p->umem_cq,
+					&params->xsk_cfg);
+
+	apply_setsockopt(w->xsk);
+	if (status) {
+		printf("ERROR in xsk_socket__create_shared \n");
+		worker_port_free(w);
+		return NULL;
+	}
+	return w;
 }
 
 static struct port *
@@ -59,35 +106,36 @@ port_init(struct port_params *params)
     u64 n_buffers_per_slab = params->bp->params.n_buffers_per_slab;
     p->n_buffers_cons = n_buffers_per_slab;
 
-	/* xsk socket. */
-	status = xsk_socket__create_shared(&p->xsk,
-					   params->iface,
-					   params->iface_queue,
-					   params->bp->umem,
-					   &p->rxq,
-					   &p->txq,
-					   &p->umem_fq,
-					   &p->umem_cq,
-					   &params->xsk_cfg);
+	// for (int j=0; j<2; j++) {
+	// 	/* xsk socket. */
+	// 	status = xsk_socket__create_shared(&p->workers[j]->xsk,
+	// 					params->iface,
+	// 					params->iface_queue,
+	// 					params->bp->umem,
+	// 					&p->workers[j]->rxq,
+	// 					&p->workers[j]->txq,
+	// 					&p->umem_fq,
+	// 					&p->umem_cq,
+	// 					&params->xsk_cfg);
 
-	apply_setsockopt(p->xsk);
-	
-	if (status) {
-		printf("ERROR in xsk_socket__create_shared \n");
-		port_free(p);
-		return NULL;
-	}
+	// 	apply_setsockopt(p->worker_port[j]->xsk);
+	// 	if (status) {
+	// 		printf("ERROR in xsk_socket__create_shared \n");
+	// 		port_free(p);
+	// 		return NULL;
+	// 	}
+	// }
 	
 	/* umem fq. */
-	xsk_ring_prod__reserve(&p->umem_fq, umem_fq_size, &pos);
-	// printf("INIT FQ POS: %d \n", pos);
+	// xsk_ring_prod__reserve(&p->umem_fq, umem_fq_size, &pos);
+	// // printf("INIT FQ POS: %d \n", pos);
 
-	for (i = 0; i < umem_fq_size; i++) {
-		// printf("INIT FQ POS: %d \n", pos + i);
-		*xsk_ring_prod__fill_addr(&p->umem_fq, pos + i) = bcache_cons(p);
-	}
+	// for (i = 0; i < umem_fq_size; i++) {
+	// 	// printf("INIT FQ POS: %d \n", pos + i);
+	// 	*xsk_ring_prod__fill_addr(&p->umem_fq, pos + i) = bcache_cons(p);
+	// }
 
-	xsk_ring_prod__submit(&p->umem_fq, umem_fq_size);
+	// xsk_ring_prod__submit(&p->umem_fq, umem_fq_size);
 	p->umem_fq_initialized = 1;
 
 	return p;

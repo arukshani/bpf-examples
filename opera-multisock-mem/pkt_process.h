@@ -137,7 +137,7 @@ thread_func_fq_nic(void *arg)
 //++++++++++++++TX++++++++++++++++++++++++++++++++++++++++++
 
 static inline void
-port_tx_burst(struct port *p, struct burst_tx *b)
+port_tx_burst(struct worker_port *p, struct burst_tx *b)
 {
 	u32 n_pkts, pos, i;
 	int status;
@@ -196,9 +196,9 @@ thread_func_tx(void *arg)
 	CPU_SET(t->cpu_core_id, &cpu_cores);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
 
-	ringbuf_t *q = t->rb;
+	struct mpmc_queue *q = t->rb;
 	while (!t->quit) {
-		struct port *port_tx = t->ports_tx;
+		struct worker_port *port_tx = t->worker_tx;
 		
 		// void *pulled;
 		// struct burst_tx *btx = &t->burst_tx[0];
@@ -212,9 +212,9 @@ thread_func_tx(void *arg)
 		// }
 		// pulled = NULL;
 		
-		while(!ringbuf_is_empty(q)) {
+		while(mpmc_queue_available(q)) {
 			void *obj;
-			ringbuf_sc_dequeue(q, &obj);
+			mpmc_queue_pull(q, &obj);
 			struct burst_tx *btx = (struct burst_tx*)obj;
 			// printf("POP addr %lld \n", btx->addr[0]);
 			port_tx_burst(port_tx, btx);
@@ -352,7 +352,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 }
 
 static inline u32
-port_rx_burst(struct port *p, struct burst_rx *b)
+port_rx_burst(struct worker_port *p, struct burst_rx *b)
 {
 	u32 n_pkts, pos, i;
 
@@ -373,7 +373,7 @@ port_rx_burst(struct port *p, struct burst_rx *b)
 	
 	if (!n_pkts) {
 		// printf("n_pkts %d \n", n_pkts);
-		if (xsk_ring_prod__needs_wakeup(&p->umem_fq)) {
+		if (xsk_ring_prod__needs_wakeup(&p->parent_port->umem_fq)) {
 			struct pollfd pollfd = {
 				.fd = xsk_socket__fd(p->xsk),
 				.events = POLLIN,
@@ -433,11 +433,11 @@ thread_func_rx(void *arg)
 	CPU_ZERO(&cpu_cores);
 	CPU_SET(t->cpu_core_id, &cpu_cores);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
-	ringbuf_t *q = t->rb;
+	struct mpmc_queue *q = t->rb;
 	
     while (!t->quit) {
 		
-		struct port *port_rx = t->ports_rx;
+		struct worker_port *port_rx = t->worker_rx;
 		struct burst_rx *brx = &t->burst_rx;
 		// struct burst_rx *brx = calloc(1, sizeof(struct burst_tx));
 		
@@ -455,20 +455,21 @@ thread_func_rx(void *arg)
 		for (j = 0; j < n_pkts; j++) {
 
 			u64 addr = xsk_umem__add_offset_to_addr(brx->addr[j]);
-			u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
+			u8 *pkt = xsk_umem__get_data(port_rx->parent_port->params.bp->addr,
 						     addr);
-			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
+			int new_len = process_rx_packet(pkt, &port_rx->parent_port->params, brx->len[j], brx->addr[j]);
 
 			// struct burst_tx *btx = thread_msg_alloc();
 			struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
 			if (btx != NULL) {
 				btx->addr[0] = brx->addr[j];
 				btx->len[0] = new_len;
-				// printf("btx is not null \n");
-				if (!ringbuf_is_full(q)) {
-					// printf("rx ring not full %lld \n", btx->addr[0]);
-					ringbuf_sp_enqueue(q, btx);
-				}
+				mpmc_queue_push(q, btx);
+				// // printf("btx is not null \n");
+				// if (!ringbuf_is_full(q)) {
+				// 	// printf("rx ring not full %lld \n", btx->addr[0]);
+					
+				// }
 			} else {
 				printf("BTX is null \n");
 			}
