@@ -7,7 +7,7 @@
 int main(int argc,char **argv)
 {
     int sockfd,n;
-    char sendline[100];
+    char sendline[100] = "Hello";
     char recvline[100];
     struct sockaddr_in servaddr;
  
@@ -18,19 +18,21 @@ int main(int argc,char **argv)
     servaddr.sin_family=AF_INET;
     servaddr.sin_port=htons(22000);
  
-    inet_pton(AF_INET,"192.168.1.3",&(servaddr.sin_addr));
+    inet_pton(AF_INET,"192.168.1.2",&(servaddr.sin_addr));
  
     connect(sockfd,(struct sockaddr *)&servaddr,sizeof(servaddr));
  
-    // while(1)
-    // {
-        bzero( sendline, 100);
-        bzero( recvline, 100);
-        fgets(sendline,100,stdin); /*stdin = 0 , for standard input */
- 
+    int m = 0;
+    while(m < 4000)
+    {
+        // bzero( sendline, 100);
+        // bzero( recvline, 100);
+        // fgets(sendline,100,stdin); /*stdin = 0 , for standard input */
+        strncpy(sendline, "hello", 100);
         write(sockfd,sendline,strlen(sendline)+1);
-        read(sockfd,recvline,100);
-        printf("%s",recvline);
-    // }
+        m++;
+        // read(sockfd,recvline,100);
+        // printf("%s",recvline);
+    }
  
 }
