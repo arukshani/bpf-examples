@@ -10,10 +10,10 @@ BPF_TARGETS    += nic_kern
 # USER_TARGETS_OBJS :=mpmc_queue.o memory.o
 
 LDLIBS += -lpthread
-LDLIBS += -lrte_mbuf
-LDLIBS += -lrte_mempool
-LDLIBS += -lrte_ring
-LDLIBS += -lrte_eal
+# LDLIBS += -lrte_mbuf
+# LDLIBS += -lrte_mempool
+# LDLIBS += -lrte_ring
+# LDLIBS += -lrte_eal
 
 LIB_DIR = ../lib
 
