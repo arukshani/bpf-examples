@@ -152,7 +152,7 @@ int main(int argc, char **argv)
     setRouteElement(A, 1, 1, 1); //ip, topo, port
     setRouteElement(A, 1, 2, 1); //ip, topo, port
     B = newMacMatrix(1, 2);
-	unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x20}; //0c:42:a1:dd:58:20
+	unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x59, 0x1c}; //0c:42:a1:dd:59:1c
     struct mac_addr dest_mac2;
     __builtin_memcpy(dest_mac2.bytes, mac2, sizeof(mac2));
     setMacElement(B, 1, 1, dest_mac2); //port, topo, mac
