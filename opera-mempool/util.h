@@ -177,6 +177,8 @@ uint64_t time_into_cycle_ns;
 uint8_t topo;
 uint64_t slot_time_ns = 1000000;	// 1 ms
 uint64_t cycle_time_ns = 2000000;	// 2 ms
+struct timespec timestamp_arr[10050];
+long time_index = 0;
 
 ringbuf_t *rb_forward;
 ringbuf_t *rb_backward;

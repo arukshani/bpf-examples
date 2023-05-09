@@ -146,7 +146,7 @@ int main(int argc, char **argv)
 	// Assign NULL initially
 	for (int i = 0; i < capacity; i++)
 		arr[i] = NULL;
-	u32 dest2 = htonl(0xc0a80102);  //192.168.1.2
+	u32 dest2 = htonl(0xc0a80101);  //192.168.1.2
     insert(dest2, 1); //dest,index for dest ip
 	A = newRouteMatrix(1, 2);
     setRouteElement(A, 1, 1, 1); //ip, topo, port
@@ -159,8 +159,8 @@ int main(int argc, char **argv)
     setMacElement(B, 1, 2, dest_mac2); //port, topo, mac
 
 	n_threads = 4;
-	thread_data[0].cpu_core_id = 0; //cat /proc/cpuinfo | grep 'core id' //veth rx
-	thread_data[1].cpu_core_id = 1; //cat /proc/cpuinfo | grep 'core id' //nic rx
+	thread_data[0].cpu_core_id = 6; //cat /proc/cpuinfo | grep 'core id' //veth rx
+	thread_data[1].cpu_core_id = 7; //cat /proc/cpuinfo | grep 'core id' //nic rx
     thread_data[2].cpu_core_id = 2; //cat /proc/cpuinfo | grep 'core id' //veth tx
 	thread_data[3].cpu_core_id = 3; //cat /proc/cpuinfo | grep 'core id' //nic tx
 
@@ -266,6 +266,13 @@ int main(int argc, char **argv)
 	{
 		read_time();
 	}
+
+	// int z;
+	// for (z = 0; z < time_index; z++ ) {
+	// 	char buff[100];
+	// 	strftime(buff, sizeof buff, "%D %T", gmtime(&timestamp_arr[z].tv_sec));
+	// 	printf("node1,%ld,%ld,%s\n", timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec, buff);
+	// }
 
 	for (i = 0; i < n_threads; i++)
 		thread_data[i].quit = 1;

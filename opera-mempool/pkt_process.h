@@ -240,6 +240,8 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 	if (is_veth_1 == 0)
 	{
+		// timestamp_arr[time_index] = now;
+		// time_index++;
 		// printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~from veth \n");
 		struct iphdr *outer_iphdr; 
 		struct iphdr encap_outer_iphdr; 

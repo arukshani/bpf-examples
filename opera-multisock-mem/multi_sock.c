@@ -111,7 +111,7 @@ int main(int argc, char **argv)
     port_params[1].iface = "enp65s0f0np0";
 	port_params[1].iface_queue = 0;
 
-    n_threads = 4;
+    // n_threads = 4;
 
     /* Buffer pool initialization. */
 	bp = bpool_init(&bpool_params, &umem_cfg);
@@ -137,19 +137,33 @@ int main(int argc, char **argv)
         // enter_xsks_into_map(i);
     }
 
-	printf("Hello \n");
+	//for two veth sockets
+	workers[0] = worker_init(&port_params[0], ports[0]);
+	enter_xsks_into_map(0, 0, 0);
+	workers[1] = worker_init(&port_params[0], ports[0]);
+	enter_xsks_into_map(1, 0, 1);
 
-	int m=0;
-	for (int n = 0; n < 2; n++) {
-		for (int k = 0; k < 2; k++) {
-			if (m == 3) {
-				break;
-			}
-			workers[m] = worker_init(&port_params[n], ports[n]);
-			enter_xsks_into_map(m, n, k);
-			m++;
-		}
+	//For nic socket
+	workers[2] = worker_init(&port_params[1], ports[1]);
+	enter_xsks_into_map(0, 1, 0);
+
+	for (i = 0; i < n_ports; i++) {
+		init_fq(port_params[i].bp->umem_cfg.fill_size, ports[i]);
 	}
+
+	//Initialize fill queue
+
+	// int m=0;
+	// for (int n = 0; n < 2; n++) {
+	// 	for (int k = 0; k < 2; k++) {
+	// 		if (m == 3) {
+	// 			break;
+	// 		}
+	// 		workers[m] = worker_init(&port_params[n], ports[n]);
+	// 		enter_xsks_into_map(m, n, k);
+	// 		m++;
+	// 	}
+	// }
 
     printf("All ports created successfully.\n");
 
@@ -160,13 +174,13 @@ int main(int argc, char **argv)
 	// Assign NULL initially
 	for (int i = 0; i < capacity; i++)
 		arr[i] = NULL;
-	u32 dest2 = htonl(0xc0a80102);  //192.168.1.2
+	u32 dest2 = htonl(0xc0a80101);  //192.168.1.1
     insert(dest2, 1); //dest,index for dest ip
 	A = newRouteMatrix(1, 2);
     setRouteElement(A, 1, 1, 1); //ip, topo, port
     setRouteElement(A, 1, 2, 1); //ip, topo, port
     B = newMacMatrix(1, 2);
-	unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x20}; //0c:42:a1:dd:58:20
+	unsigned char mac2[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x59, 0x1c}; //0c:42:a1:dd:59:1c
     struct mac_addr dest_mac2;
     __builtin_memcpy(dest_mac2.bytes, mac2, sizeof(mac2));
     setMacElement(B, 1, 1, dest_mac2); //port, topo, mac
@@ -178,82 +192,43 @@ int main(int argc, char **argv)
 		thread_data[k].cpu_core_id = k;
 	}
 
-	printf("test1 \n");
+	// 2 veth rx and 1 nic rx; 
+	int n_rx_threads = 3;
+	int n_tx_threads = 3;
 
+	// mpmc_queue_init(rb_forward, 2048*2, &memtype_heap);
+    // mpmc_queue_init(rb_backward, 2048*2, &memtype_heap);
 
-	//2 veth rx and 2 nic rx; 
-	int n_rx_threads = 4;
-	int n_tx_threads = 4;
+	printf("Test1 \n");
 
+	// w0=veth,w1=veth,w3=nic
 
-	//w0=veth,w1=veth,w3=nic,w4=nic
-	
-	for (int m=0; m <4; m++ ) {
+	//t0=veth rx, t1=veth rx, t2=nic rx
+	for (int m=0; m <3; m++ ) {
 		struct thread_data *t = &thread_data[m];
-		for (int k=0; k <n_rx_threads; k++ ) {
-			if (k == 3) {
-				break;
-			}
-			t->worker_rx = workers[k];
+		t->worker_rx = workers[m];
+		if (m==0 || m==1) {
+			t->rb = rb_forward;
+		} else if (m==2) {
+			t->rb = rb_backward;
 		}
 	}
 
-	printf("test2 \n");
+	printf("Test2 \n");
 
-
-	for (int m=4; m <8; m++ ) {
+	//t3=veth tx, t4=veth tx, t5=nic tx
+	for (int m=3; m <6; m++ ) {
 		struct thread_data *t = &thread_data[m];
-		for (int k=0; k <n_tx_threads; k++ ) {
-			if (k == 3) {
-				break;
-			}
-			t->worker_tx = workers[k];
+		int w = m-3;
+		t->worker_tx = workers[w];
+		if (m==3 || m==4) {
+			t->rb = rb_backward;
+		} else if (m==2) {
+			t->rb = rb_forward;
 		}
 	}
-	printf("test3 \n");
 
-	// struct mpmc_queue *rb_forward;
-    // struct mpmc_queue queue_f;
-    mpmc_queue_init(rb_forward, 2048*2, &memtype_heap);
-    // rb_forward = &queue_f;
-
-	// struct mpmc_queue *rb_backward;
-    // struct mpmc_queue queue_b;
-    mpmc_queue_init(rb_backward, 2048*2, &memtype_heap);
-    // rb_backward = &queue_b;
-
-	printf("test4 \n");
-
-	//veth rx
-	for (int m=0; m <2; m++ ) {
-		struct thread_data *t = &thread_data[m];
-		t->rb = rb_forward;
-	}
-	printf("test5 \n");
-
-	//nic rx
-	for (int m=2; m <3; m++ ) {
-		// if (m == 3) {
-		// 		break;
-		// 	}
-		struct thread_data *t = &thread_data[m];
-		t->rb = rb_backward;
-	}
-	printf("test6 \n");
-
-	//veth tx
-	for (int m=3; m <5; m++ ) {
-		struct thread_data *t = &thread_data[m];
-		t->rb = rb_forward;
-	}
-	printf("test7 \n");
-
-	//nic tx
-	for (int m=5; m <6; m++ ) {
-		struct thread_data *t = &thread_data[m];
-		t->rb = rb_backward;
-	}
-	printf("test8 \n");
+	printf("Test3 \n");
 
 	for (int m=0; m <3; m++ ) {
 		int status_rx = pthread_create(&threads[m],
@@ -265,6 +240,8 @@ int main(int argc, char **argv)
 			return -1;
 		}
 	}
+
+	printf("Test4 \n");
 
 	for (int m=3; m <6; m++ ) {
 		int status_tx = pthread_create(&threads[m],
@@ -338,7 +315,7 @@ int main(int argc, char **argv)
 	// for (i = 0; i < n_ports; i++)
 	// 	port_free(ports[i]);
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 3; i++)
 		worker_port_free(workers[i]);
 
     bpool_free(bp);

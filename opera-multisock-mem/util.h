@@ -165,7 +165,7 @@ static struct bpool_params bpool_params;
 static struct xsk_umem_config umem_cfg;
 static struct port_params port_params[MAX_PORTS];
 static struct port *ports[MAX_PORTS];
-static struct worker_port *workers[4];
+static struct worker_port *workers[3];
 static struct xdp_program *xdp_prog[2];
 static int n_ports;
 static struct bpool *bp;
