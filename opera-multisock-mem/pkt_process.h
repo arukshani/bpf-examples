@@ -197,27 +197,21 @@ thread_func_tx(void *arg)
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
 
 	struct mpmc_queue *q = t->rb;
+	if (q == NULL) {
+		printf("TX Queue is NULL \n");
+		return NULL;
+	}
 	while (!t->quit) {
 		struct worker_port *port_tx = t->worker_tx;
-		
-		// void *pulled;
-		// struct burst_tx *btx = &t->burst_tx[0];
-
-		// if(spsc_queue_pull(q, &pulled)) {
-		// 	// printf("Queue Not Empty: \n");
-        //     struct burst_tx *btx = (struct burst_tx *)pulled;
-        //     printf("TX pulled addr %lld \n", btx->addr[0]);
-		// 	// printf("btx_test len %d \n", btx->len[0]);
-        //     port_tx_burst(port_tx, btx);
-		// }
-		// pulled = NULL;
-		
-		while(mpmc_queue_available(q)) {
-			void *obj;
-			mpmc_queue_pull(q, &obj);
+		// printf("tx \n");
+		// while(mpmc_queue_available(q)) {
+		void *obj;
+		while(mpmc_queue_pull(q, &obj)) {
+			// printf("tx  mpmc_queue_available \n");
+			// mpmc_queue_pull(q, &obj);
 			struct burst_tx *btx = (struct burst_tx*)obj;
-			// printf("POP addr %lld \n", btx->addr[0]);
 			port_tx_burst(port_tx, btx);
+			obj = NULL;
    	 	}
 	}
 	return NULL;
@@ -434,6 +428,9 @@ thread_func_rx(void *arg)
 	CPU_SET(t->cpu_core_id, &cpu_cores);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
 	struct mpmc_queue *q = t->rb;
+	if (q == NULL) {
+		printf("RX Queue is NULL \n");
+	}
 	
     while (!t->quit) {
 		

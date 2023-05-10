@@ -147,23 +147,10 @@ int main(int argc, char **argv)
 	workers[2] = worker_init(&port_params[1], ports[1]);
 	enter_xsks_into_map(0, 1, 0);
 
+	//Initialize fill queue
 	for (i = 0; i < n_ports; i++) {
 		init_fq(port_params[i].bp->umem_cfg.fill_size, ports[i]);
 	}
-
-	//Initialize fill queue
-
-	// int m=0;
-	// for (int n = 0; n < 2; n++) {
-	// 	for (int k = 0; k < 2; k++) {
-	// 		if (m == 3) {
-	// 			break;
-	// 		}
-	// 		workers[m] = worker_init(&port_params[n], ports[n]);
-	// 		enter_xsks_into_map(m, n, k);
-	// 		m++;
-	// 	}
-	// }
 
     printf("All ports created successfully.\n");
 
@@ -196,10 +183,14 @@ int main(int argc, char **argv)
 	int n_rx_threads = 3;
 	int n_tx_threads = 3;
 
-	// mpmc_queue_init(rb_forward, 2048*2, &memtype_heap);
-    // mpmc_queue_init(rb_backward, 2048*2, &memtype_heap);
+	struct mpmc_queue queue_f;
+	struct mpmc_queue queue_b;
+	mpmc_queue_init(&queue_f, 2048*2, &memtype_heap);
+    mpmc_queue_init(&queue_b, 2048*2, &memtype_heap);
+	rb_forward = &queue_f;
+	rb_backward = &queue_b;
 
-	printf("Test1 \n");
+	// printf("Test1 \n");
 
 	// w0=veth,w1=veth,w3=nic
 
@@ -214,7 +205,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	printf("Test2 \n");
+	// printf("Test2 \n");
 
 	//t3=veth tx, t4=veth tx, t5=nic tx
 	for (int m=3; m <6; m++ ) {
@@ -222,13 +213,15 @@ int main(int argc, char **argv)
 		int w = m-3;
 		t->worker_tx = workers[w];
 		if (m==3 || m==4) {
+			// printf("tx m is 3 or 4 rb_backward \n");
 			t->rb = rb_backward;
-		} else if (m==2) {
+		} else if (m==5) {
+			// printf("tx m is 5 rb_forward \n");
 			t->rb = rb_forward;
 		}
 	}
 
-	printf("Test3 \n");
+	// printf("Test3 \n");
 
 	for (int m=0; m <3; m++ ) {
 		int status_rx = pthread_create(&threads[m],
@@ -241,7 +234,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	printf("Test4 \n");
+	// printf("Test4 \n");
 
 	for (int m=3; m <6; m++ ) {
 		int status_tx = pthread_create(&threads[m],
@@ -265,9 +258,7 @@ int main(int argc, char **argv)
 	t_fq_veth->port_nic = ports[1]; //nic 
 	t_fq_nic->port_veth = ports[0]; //veth1
 	t_fq_nic->port_nic = ports[1]; //nic 
-	// if (t_fq_veth->port_veth == NULL) {
-	// 	printf("veth port is NULL \n");
-	// }
+	
 	int status_veth_fq = pthread_create(&cleanup_threads[0],
 				NULL,
 				thread_func_fq_veth,
@@ -326,15 +317,12 @@ int main(int argc, char **argv)
     deleteMacMatrix(B);
     free(arr);
     free(dummy);
-	// ringbuf_free(rb_forward);
-	// ringbuf_free(rb_backward);
-	// int ret1 = spsc_queue_destroy(rb_forward);
-	// if (ret1)
-	// 	printf("Failed to destroy queue: %d\n", ret1);
-
-    // int ret2 = spsc_queue_destroy(rb_backward);
-	// if (ret2)
-	// 	printf("Failed to destroy queue: %d\n", ret2);
+	int ret1 = mpmc_queue_destroy(rb_forward);
+	if (ret1)
+		printf("Failed to destroy queue: %d", ret1);
+	int ret2 = mpmc_queue_destroy(rb_backward);
+	if (ret2)
+		printf("Failed to destroy queue: %d", ret2);
 
     return 0;
 }
