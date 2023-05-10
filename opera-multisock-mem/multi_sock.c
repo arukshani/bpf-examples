@@ -145,7 +145,7 @@ int main(int argc, char **argv)
 
 	//For nic socket
 	workers[2] = worker_init(&port_params[1], ports[1]);
-	enter_xsks_into_map(0, 1, 0);
+	enter_xsks_into_map(2, 1, 0);
 
 	//Initialize fill queue
 	for (i = 0; i < n_ports; i++) {
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
 	// Assign NULL initially
 	for (int i = 0; i < capacity; i++)
 		arr[i] = NULL;
-	u32 dest2 = htonl(0xc0a80101);  //192.168.1.1
+	u32 dest2 = htonl(0xc0a80102);  //192.168.1.1
     insert(dest2, 1); //dest,index for dest ip
 	A = newRouteMatrix(1, 2);
     setRouteElement(A, 1, 1, 1); //ip, topo, port
@@ -176,7 +176,7 @@ int main(int argc, char **argv)
 	n_threads = 6;
 
 	for(int k=0; k <n_threads; k++ ) {
-		thread_data[k].cpu_core_id = k;
+		thread_data[k].cpu_core_id = k+1;
 	}
 
 	// 2 veth rx and 1 nic rx; 

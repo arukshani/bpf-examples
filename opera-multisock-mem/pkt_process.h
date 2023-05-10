@@ -208,10 +208,11 @@ thread_func_tx(void *arg)
 		void *obj;
 		while(mpmc_queue_pull(q, &obj)) {
 			// printf("tx  mpmc_queue_available \n");
+			// void *obj;
 			// mpmc_queue_pull(q, &obj);
 			struct burst_tx *btx = (struct burst_tx*)obj;
 			port_tx_burst(port_tx, btx);
-			obj = NULL;
+			// obj = NULL;
    	 	}
 	}
 	return NULL;
@@ -311,7 +312,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		
 	} else if (is_nic == 0)
 	{
-		// printf("from NIC \n");
+		// printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~from NIC \n");
 		struct ethhdr *eth = (struct ethhdr *) data;
 		struct iphdr *outer_ip_hdr = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
@@ -461,7 +462,9 @@ thread_func_rx(void *arg)
 			if (btx != NULL) {
 				btx->addr[0] = brx->addr[j];
 				btx->len[0] = new_len;
+				// printf("b4 queue push from nic \n");
 				mpmc_queue_push(q, btx);
+				// printf("after queue push from nic \n");
 				// // printf("btx is not null \n");
 				// if (!ringbuf_is_full(q)) {
 				// 	// printf("rx ring not full %lld \n", btx->addr[0]);
