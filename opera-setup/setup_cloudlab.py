@@ -43,8 +43,8 @@ def export_environs():
     master_ip = get_master_ip()
     for index, row in node_info.iterrows():
         #TODO: Get interface names nad remote ips
-        node = {'ifname_remote': 'eno33np0', 
-                        'ifname_local': 'enp65s0f0np0',
+        node = {'ifname_remote': '', 
+                        'ifname_local': '',
                         'host': row[0],
                         'ip_lan': row[1],
                         'ip_wan': '', 
@@ -75,7 +75,7 @@ def create_ssh_config():
         f.write(ssh_config)
 
 def get_master_ip():
-    cmd = "ip -4 addr show enp65s0f0np0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}'" #interface name assumed to be 'ens1f1'
+    cmd = "ip -4 addr show enp65s0f0np0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}'" #interface name assumed to be 'enp65s0f0np0'
     master_local_ip = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
     return master_local_ip
 
@@ -99,11 +99,13 @@ def main():
     
 if __name__ == '__main__':
     main()
-    # install_packges()
-    # find_worker_nodes()
+    #First run this ++++++++++++++
+    install_packges()
+    find_worker_nodes() # Maunally check whether all workers are there if not add them
+    #Then run this +++++++++++++++
     # create_ssh_config()
     # export_environs()
     # setup_workers()
     # get_worker_mac()
-    add_arp_records()
+    # add_arp_records()
     
