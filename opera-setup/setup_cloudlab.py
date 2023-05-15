@@ -9,6 +9,13 @@ import constant
 USER = os.environ['USER']
 IDENTITY_FILE = '/users/{}/.ssh/{}_cloudlab.pem'.format(USER, USER)
 
+def copy_worker_info():
+    with open('/tmp/workers.pkl','rb') as f:  
+        workers = pickle.load(f)
+        for worker in workers:
+            remoteCmd = 'scp -o StrictHostKeyChecking=no /tmp/all_worker_info.csv {}:/tmp'.format(worker['host'])
+            proc = subprocess.run(remoteCmd, shell=True)
+
 def add_arp_records():
     worker_info = pd.read_csv('/tmp/all_worker_info.csv', header=None)
     for index, row in worker_info.iterrows():
@@ -108,4 +115,5 @@ if __name__ == '__main__':
     # setup_workers()
     # get_worker_mac()
     # add_arp_records()
+    # copy_worker_info()
     
