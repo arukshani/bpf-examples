@@ -12,7 +12,12 @@ IDENTITY_FILE = '/users/{}/.ssh/{}_cloudlab.pem'.format(USER, USER)
 def add_arp_records():
     worker_info = pd.read_csv('/tmp/all_worker_info.csv', header=None)
     for index, row in worker_info.iterrows():
-        print("{} {}".format(row[0], row[1]))
+        # print("--- {} {} ---".format(row[0], row[1]))
+        for c_index, c_row in worker_info.iterrows():
+            # print("all to all {} {}".format(c_row[0], c_row[1]))
+            if (row[0] != c_row[0]):
+                remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./add_arp.sh {} {}'.format(row[4], row[5], c_row[0], c_row[3])
+                proc = subprocess.run(remoteCmd, shell=True)
 
 def get_worker_mac():
     with open('/tmp/workers.pkl','rb') as f:  
@@ -20,6 +25,7 @@ def get_worker_mac():
         for worker in workers:
             remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./get_mac.sh {}'.format(worker['username'], worker['host'], worker['ip_lan'])
             stdout = subprocess.run(remoteCmd, shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
+            stdout = stdout + ",{},{}".format(worker['username'], worker['host'])
             with open("/tmp/all_worker_info.csv", "a") as myfile:
                 myfile.write(stdout + "\n")
             
