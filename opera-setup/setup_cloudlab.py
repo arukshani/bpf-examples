@@ -12,7 +12,7 @@ IDENTITY_FILE = '/users/{}/.ssh/{}_cloudlab.pem'.format(USER, USER)
 def add_arp_records():
     worker_info = pd.read_csv('/tmp/all_worker_info.csv', header=None)
     for index, row in worker_info.iterrows():
-        # print("--- {} {} ---".format(row[0], row[1]))
+        print("--- Add ARP records for {} ---".format(row[0]))
         for c_index, c_row in worker_info.iterrows():
             # print("all to all {} {}".format(c_row[0], c_row[1]))
             if (row[0] != c_row[0]):
@@ -99,10 +99,10 @@ def main():
     
 if __name__ == '__main__':
     main()
-    #First run this ++++++++++++++
+    #First run this ++++++SECTION 1++++++++
     install_packges()
     find_worker_nodes() # Maunally check whether all workers are there if not add them
-    #Then run this +++++++++++++++
+    #Then run this +++++++SECTION 2+++++++
     # create_ssh_config()
     # export_environs()
     # setup_workers()
