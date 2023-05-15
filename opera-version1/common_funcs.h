@@ -34,15 +34,15 @@
 //   return 0;
 // }
 
-int getMACAddress(int iNetType, unsigned char chMAC[6]) {
+int getMACAddress(char *ifname, unsigned char chMAC[6]) {
 
-  char *ifname=NULL;
+  // char *ifname=NULL;
  
-  if (!iNetType) {
-    ifname="enp65s0f0np0"; /* Ethernet */
-  } else {
-    ifname="veth1"; /* veth */
-  }
+  // if (!iNetType) {
+  //   ifname="enp65s0f0np0"; /* Ethernet */
+  // } else {
+  //   ifname="veth1"; /* veth */
+  // }
 
   struct ifreq s;
   int fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
@@ -66,7 +66,7 @@ int getMACAddress(int iNetType, unsigned char chMAC[6]) {
            char *chIP - IP Address string
    Return: 0: success / -1: Failure
     */
-uint32_t getIpAddress(int iNetType) {
+uint32_t getIpAddress(char *ifname) {
 //   struct ifreq ifr;
 //   int sock = 0;
  
@@ -95,12 +95,12 @@ uint32_t getIpAddress(int iNetType) {
   ifr.ifr_addr.sa_family = AF_INET;
 
   /* I want IP address attached to "eth0" */
-  strncpy(ifr.ifr_name, "enp65s0f0np0", IFNAMSIZ-1);
+  strncpy(ifr.ifr_name, ifname, IFNAMSIZ-1);
 
   ioctl(fd, SIOCGIFADDR, &ifr);
 
   /* display result */
-  printf("%s\n", inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
+  printf("Source IP Address: %s\n", inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
   uint32_t ip_addr = inet_addr(inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
   // uint32_t ip_addr = (((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr).s_addr;
   printf("Source IP Address: %d\n", ip_addr);

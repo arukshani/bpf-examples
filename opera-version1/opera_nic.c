@@ -91,6 +91,8 @@ typedef __u32 u32;
 typedef __u16 u16;
 typedef __u8  u8;
 
+struct ifaddrs *ifaddr, *ifa;
+const char *nic_iface;
 
 struct bpool_params {
 	u32 n_buffers;
@@ -832,9 +834,12 @@ struct config {
 
 static void load_xdp_program(void)
 {
+	int veth_ifindex = if_nametoindex("veth1");
+	int nic_ifindex = if_nametoindex(nic_iface);
+
 	//Outer veth 
     struct config veth_cfg = {
-		.ifindex = 6,
+		.ifindex = veth_ifindex,
 		.ifname = "veth1",
 		.xsk_if_queue = 0,
 		.xsk_poll_mode = true,
@@ -844,8 +849,8 @@ static void load_xdp_program(void)
 
 	//Physical NIC
     struct config nic_cfg = {
-		.ifindex = 4,
-		.ifname = "enp65s0f0np0",
+		.ifindex = nic_ifindex,
+		.ifname = nic_iface,
 		.xsk_if_queue = 0,
 		.xsk_poll_mode = true,
 		.filename = "nic_kern.o",
@@ -1212,7 +1217,7 @@ uint64_t cycle_time_ns = 2000000;	// 2 ms
 static int process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr)
 {
 	int is_veth = strcmp(params->iface, "veth1"); 
-	int is_nic = strcmp(params->iface, "enp65s0f0np0"); 
+	int is_nic = strcmp(params->iface, nic_iface); 
 
 	if (is_veth == 0)
 	{
@@ -1422,7 +1427,6 @@ static void read_time()
 
 int main(int argc, char **argv)
 {
-	struct ifaddrs *ifaddr, *ifa;
 	struct in_addr* ifa_inaddr;
 	struct in_addr addr;
 	int family, s, n;
@@ -1457,6 +1461,7 @@ int main(int argc, char **argv)
         ifa_inaddr = &(((struct sockaddr_in*) ifa->ifa_addr)->sin_addr);
         if(memcmp(ifa_inaddr, &addr, sizeof(struct in_addr)) == 0) {
             printf("Interface: %s\n", ifa->ifa_name);
+			nic_iface=ifa->ifa_name;
         }
     }
 
@@ -1477,7 +1482,7 @@ int main(int argc, char **argv)
     n_ports = 2; //0 and 1 (veth and nic)
     port_params[0].iface = "veth1";
 	port_params[0].iface_queue = 0;
-    port_params[1].iface = "enp65s0f0np0";
+    port_params[1].iface = nic_iface; //"enp65s0f0np0"
 	port_params[1].iface_queue = 0;
 
     n_threads = 1; //only 1 thread
@@ -1510,8 +1515,8 @@ int main(int argc, char **argv)
 	// clkid = get_nic_clock_id();
 
 	//+++++++Source MAC and IP++++++++++++++
-	getMACAddress(0, out_eth_src);
-	src_ip = getIpAddress(0);
+	getMACAddress(nic_iface, out_eth_src);
+	src_ip = getIpAddress(nic_iface);
 
     //+++++++++++++++++++++IP++++++++++++++++++++++
      // Space allocation
