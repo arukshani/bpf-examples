@@ -5,6 +5,8 @@ import pandas as pd
 import pickle
 import json 
 import constant
+import binascii
+import socket
 
 USER = os.environ['USER']
 IDENTITY_FILE = '/users/{}/.ssh/{}_cloudlab.pem'.format(USER, USER)
@@ -32,7 +34,8 @@ def get_worker_mac():
         for worker in workers:
             remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./get_mac.sh {}'.format(worker['username'], worker['host'], worker['ip_lan'])
             stdout = subprocess.run(remoteCmd, shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
-            stdout = stdout + ",{},{}".format(worker['username'], worker['host'])
+            hex_val="0x{}".format(binascii.hexlify(socket.inet_aton(worker['ip_lan'])).decode('ascii'))
+            stdout = stdout + ",{},{},{}".format(worker['username'], worker['host'], hex_val)
             with open("/tmp/all_worker_info.csv", "a") as myfile:
                 myfile.write(stdout + "\n")
             
