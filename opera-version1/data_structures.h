@@ -176,12 +176,10 @@ struct HashNode {
 
 const int capacity = 20;
 int size = 0;
-
-struct HashNode** arr;
 struct HashNode* dummy;
 
 // Function to add key value pair
-void insert(int key, int V)
+void insert(int key, int V, struct HashNode** arr)
 {
 
 	struct HashNode* temp
@@ -211,7 +209,7 @@ void insert(int key, int V)
 }
 
 // Function to delete a key value pair
-int delete (int key)
+int delete (int key, struct HashNode** arr)
 {
 	// Apply hash function to find
 	// index for given key
@@ -242,7 +240,7 @@ int delete (int key)
 
 // Function to search the value
 // for a given key
-int find(int key)
+int find(int key, struct HashNode** arr)
 {
 	// Apply hash function to find
 	// index for given key

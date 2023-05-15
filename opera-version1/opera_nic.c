@@ -93,6 +93,8 @@ typedef __u8  u8;
 
 struct ifaddrs *ifaddr, *ifa;
 const char *nic_iface;
+struct HashNode** ip_set;
+struct HashNode** mac_set;
 
 struct bpool_params {
 	u32 n_buffers;
@@ -1267,7 +1269,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		outer_eth_hdr = (struct ethhdr *) data;
 		__builtin_memcpy(outer_eth_hdr->h_source, out_eth_src, sizeof(outer_eth_hdr->h_source));
 
-		u32 dest_ip_index = find(inner_ip_hdr_tmp->daddr);
+		u32 dest_ip_index = find(inner_ip_hdr_tmp->daddr, ip_set);
 		// printf("dest_ip_index dest2 = %d\n", dest_ip_index);
 		int port_val;
     	getRouteElement(A, dest_ip_index, topo, &port_val);
@@ -1319,7 +1321,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		if (src_ip != (inner_ip_hdr->daddr)) {
 			// printf("Not destined for local node \n");
 			//send it back out NIC
-			u32 dest_ip_index = find(inner_ip_hdr->daddr);
+			u32 dest_ip_index = find(inner_ip_hdr->daddr, ip_set);
 			int port_val;
     		getRouteElement(A, dest_ip_index, topo, &port_val);
 			struct mac_addr dest_mac_val;
@@ -1520,18 +1522,25 @@ int main(int argc, char **argv)
 
     //+++++++++++++++++++++IP++++++++++++++++++++++
      // Space allocation
-	arr = (struct HashNode**)malloc(sizeof(struct HashNode*)
+	ip_set = (struct HashNode**)malloc(sizeof(struct HashNode*)
 									* capacity);
 	// Assign NULL initially
 	for (int i = 0; i < capacity; i++)
-		arr[i] = NULL;
-    
-    u32 dest1 = htonl(0xc0a80101); //192.168.1.1
-    u32 dest2 = htonl(0xc0a80104); //192.168.1.4
-    insert(dest1, 1); //dest,index for dest ip
-    insert(dest2, 2); //dest,index for dest ip
-    
-    //+++++++++++++++++++++IP++++++++++++++++++++++
+		ip_set[i] = NULL;
+
+	FILE* stream = fopen("/tmp/all_worker_info.csv", "r");
+	char line[1024];
+	int ip_index=1;
+    while (fgets(line, 1024, stream))
+    {
+        char* tmp = strdup(line);
+		u32 dest = htonl(getfield(tmp, 7)); 
+		insert(dest, ip_index, ip_set);
+		// u32 dest_ip_index = find(dest, ip_set);
+		// printf("dest_ip_index dest = %d\n", dest_ip_index);
+        free(tmp);
+		ip_index++;
+    }
 
     //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
 
@@ -1656,7 +1665,8 @@ int main(int argc, char **argv)
     // free(kv);
     deleteRouteMatrix(A);
     deleteMacMatrix(B);
-    free(arr);
+    free(ip_set);
+	free(mac_set);
     free(dummy);
 	freeifaddrs(ifaddr);
 

@@ -4,6 +4,7 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
+#include <arpa/inet.h>
 
 //https://www.cnx-software.com/2011/04/05/c-code-to-get-mac-address-and-ip-address/ 
 
@@ -112,3 +113,17 @@ uint32_t getIpAddress(char *ifname) {
 
 unsigned char out_eth_src[ETH_ALEN+1];
 uint32_t src_ip;
+
+//+++++++++++++++++++READ CSV++++++++++++++++++++++++
+const char* getfield(char* line, int num)
+{
+    const char* tok;
+    for (tok = strtok(line, ",");
+            tok && *tok;
+            tok = strtok(NULL, ",\n"))
+    {
+        if (!--num)
+            return tok;
+    }
+    return NULL;
+}
