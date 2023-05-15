@@ -34,7 +34,7 @@ def setup_workers():
     with open('/tmp/workers.pkl','rb') as f:  
         workers = pickle.load(f)
         for worker in workers:
-            remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./setup_worker.sh'.format(worker['username'], worker['host'])
+            remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./setup_worker.sh {}'.format(worker['username'], worker['host'], worker['ip_lan'])
             proc = subprocess.run(remoteCmd, shell=True)
 
 def export_environs():
