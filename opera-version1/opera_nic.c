@@ -72,6 +72,7 @@
 #include "data_structures.h"
 #include "common_funcs.h"
 // #include "network_stuff.h"
+#include "hashmap.h"
 
 #define DEVICE "/dev/ptp3"
 
@@ -1538,10 +1539,32 @@ int main(int argc, char **argv)
 		insert(dest, ip_index, ip_set);
 		// u32 dest_ip_index = find(dest, ip_set);
 		// printf("dest_ip_index dest = %d\n", dest_ip_index);
+
         free(tmp);
 		ip_index++;
     }
 
+	FILE* stream2 = fopen("/tmp/all_worker_info.csv", "r");
+	char line2[1024];
+	int ip_index2=1;
+
+	while (fgets(line2, 1024, stream2))
+    {
+		char* tmp2 = strdup(line2);
+		char* mac_addr_str = getfield(tmp2, 3);
+		printf("mac addr = %s\n", mac_addr_str);
+		uint8_t mac_addr[6];
+		sscanf(mac_addr_str, "%x:%x:%x:%x:%x:%x",
+           &mac_addr[0],
+           &mac_addr[1],
+           &mac_addr[2],
+           &mac_addr[3],
+           &mac_addr[4],
+           &mac_addr[5]) < 6;
+
+		free(tmp2);
+		ip_index2++;
+    }
     //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
 
     A = newRouteMatrix(2, 2);
