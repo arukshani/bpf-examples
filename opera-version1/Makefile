@@ -6,6 +6,8 @@ BPF_TARGETS    += nic_kern
 
 LDLIBS += -lpthread
 
+USER_TARGETS_OBJS := map.o
+
 LIB_DIR = ../lib
 
 include $(LIB_DIR)/common.mk

@@ -72,7 +72,7 @@
 #include "data_structures.h"
 #include "common_funcs.h"
 // #include "network_stuff.h"
-#include "hashmap.h"
+#include "map.h"
 
 #define DEVICE "/dev/ptp3"
 
@@ -95,7 +95,7 @@ typedef __u8  u8;
 struct ifaddrs *ifaddr, *ifa;
 const char *nic_iface;
 struct HashNode** ip_set;
-struct HashNode** mac_set;
+// HASHMAP(char, struct mac_addr) map;
 
 struct bpool_params {
 	u32 n_buffers;
@@ -1543,16 +1543,19 @@ int main(int argc, char **argv)
         free(tmp);
 		ip_index++;
     }
+	fclose(stream);
 
 	FILE* stream2 = fopen("/tmp/all_worker_info.csv", "r");
 	char line2[1024];
 	int ip_index2=1;
 
+	map_int_t m;
+	map_init(&m);
 	while (fgets(line2, 1024, stream2))
     {
 		char* tmp2 = strdup(line2);
 		char* mac_addr_str = getfield(tmp2, 3);
-		printf("mac addr = %s\n", mac_addr_str);
+		// printf("mac addr = %s\n", mac_addr_str);
 		uint8_t mac_addr[6];
 		sscanf(mac_addr_str, "%x:%x:%x:%x:%x:%x",
            &mac_addr[0],
@@ -1561,10 +1564,23 @@ int main(int argc, char **argv)
            &mac_addr[3],
            &mac_addr[4],
            &mac_addr[5]) < 6;
+		
+		struct mac_addr *dest_mac = calloc(1, sizeof(struct mac_addr));
+    	__builtin_memcpy(dest_mac->bytes, mac_addr, sizeof(mac_addr));
+		
+		char mac_key[100];
+		sprintf(mac_key, "%d", ip_index2);
+		map_set(&m, mac_key, dest_mac);
 
+		// struct mac_addr *val = map_get(&m, mac_key);
+		// if (val) {
+		// 	printf("mac value exists: \n");
+		// }
+		
 		free(tmp2);
 		ip_index2++;
     }
+	// fclose(stream2);
     //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
 
     A = newRouteMatrix(2, 2);
@@ -1689,7 +1705,7 @@ int main(int argc, char **argv)
     deleteRouteMatrix(A);
     deleteMacMatrix(B);
     free(ip_set);
-	free(mac_set);
+	// free(mac_set);
     free(dummy);
 	freeifaddrs(ifaddr);
 
