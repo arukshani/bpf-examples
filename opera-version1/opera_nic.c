@@ -1273,9 +1273,9 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		u32 dest_ip_index = find(inner_ip_hdr_tmp->daddr, ip_set);
 		// printf("dest_ip_index dest2 = %d\n", dest_ip_index);
 		int port_val;
-    	getRouteElement(A, dest_ip_index, topo, &port_val);
+    	getRouteElement(route_table, dest_ip_index, topo, &port_val);
 		struct mac_addr dest_mac_val;
-		getMacElement(B, port_val, topo, &dest_mac_val);
+		// getMacElement(B, port_val, topo, &dest_mac_val);
 		// printf("dest_ip_index, port_val, topo = %d , %d , %d\n", dest_ip_index, port_val, topo);
 		// int i;
 		// for (i = 0; i < 6; ++i)
@@ -1324,9 +1324,9 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 			//send it back out NIC
 			u32 dest_ip_index = find(inner_ip_hdr->daddr, ip_set);
 			int port_val;
-    		getRouteElement(A, dest_ip_index, topo, &port_val);
+    		getRouteElement(route_table, dest_ip_index, topo, &port_val);
 			struct mac_addr dest_mac_val;
-			getMacElement(B, port_val, topo, &dest_mac_val);
+			// getMacElement(B, port_val, topo, &dest_mac_val);
 			__builtin_memcpy(eth->h_dest, dest_mac_val.bytes, sizeof(eth->h_dest));
 			__builtin_memcpy(eth->h_source, out_eth_src, sizeof(eth->h_source));
 			return 1; //indicates that packet should go back out through NIC
@@ -1555,7 +1555,7 @@ int main(int argc, char **argv)
     {
 		char* tmp2 = strdup(line2);
 		char* mac_addr_str = getfield(tmp2, 3);
-		// printf("mac addr = %s\n", mac_addr_str);
+		printf("mac addr = %s\n", mac_addr_str);
 		uint8_t mac_addr[6];
 		sscanf(mac_addr_str, "%x:%x:%x:%x:%x:%x",
            &mac_addr[0],
@@ -1580,30 +1580,57 @@ int main(int argc, char **argv)
 		free(tmp2);
 		ip_index2++;
     }
-	// fclose(stream2);
-    //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
+	fclose(stream2);
+    //+++++++++++++++++++++ROUTE++++++++++++++++++++++
 
-    A = newRouteMatrix(2, 2);
-    setRouteElement(A, 1, 1, 1); //ip, topo, port
-    setRouteElement(A, 1, 2, 1); //ip, topo, port
-    setRouteElement(A, 2, 1, 2); //ip, topo, port
-    setRouteElement(A, 2, 2, 2); //ip, topo, port
+	route_table = newRouteMatrix(32, 32);
+	FILE *stream3 = fopen("configs/node1.csv", "r");
+	if (stream3) {
+		size_t i, j, k;
+      	char buffer[BUFSIZ], *ptr;
+		/*
+		* Read each line from the file.
+		*/
+		for ( i = 0; fgets(buffer, sizeof buffer, stream3); ++i )
+		{
+			int row = i+1;
+			// printf("~~~~~~~READ LINE %d \n ~~~~~~~~~~~~~~", row);
+			/*
+			* Parse the comma-separated values from each line into 'array'.
+			*/
+			for ( j = 0, ptr = buffer; j < 32; ++j, ++ptr )
+			{
+				int val = (int)strtol(ptr, &ptr, 10);
+				// printf("route %d,", val);
+				int col = j+1;
+				// printf("row and col %d %d ,", row, col);
+				setRouteElement(route_table, row, col, val);
+			}
+		}
+		fclose(stream3);
+	}
+
+    // A = newRouteMatrix(2, 2);
+    // setRouteElement(A, 1, 1, 1); //ip, topo, port
+    // setRouteElement(A, 1, 2, 1); //ip, topo, port
+    // setRouteElement(A, 2, 1, 2); //ip, topo, port
+    // setRouteElement(A, 2, 2, 2); //ip, topo, port
    
-    B = newMacMatrix(2, 2);
+    // B = newMacMatrix(2, 2);
 	
-    unsigned char node1_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc node1 
-    struct mac_addr dest_n1_mac;
-    __builtin_memcpy(dest_n1_mac.bytes, node1_mac, sizeof(node1_mac));
+    // unsigned char node1_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc node1 
+    // struct mac_addr dest_n1_mac;
+    // __builtin_memcpy(dest_n1_mac.bytes, node1_mac, sizeof(node1_mac));
 
-	unsigned char node4_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x4c}; //0c:42:a1:dd:58:4c node3
-    // unsigned char node4_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5b, 0x28}; //0c:42:a1:dd:5b:28 node4
-    struct mac_addr dest_n4_mac;
-    __builtin_memcpy(dest_n4_mac.bytes, node4_mac, sizeof(node4_mac));
+	// unsigned char node4_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x4c}; //0c:42:a1:dd:58:4c node3
+    // // unsigned char node4_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5b, 0x28}; //0c:42:a1:dd:5b:28 node4
+    // struct mac_addr dest_n4_mac;
+    // __builtin_memcpy(dest_n4_mac.bytes, node4_mac, sizeof(node4_mac));
 
-    setMacElement(B, 1, 1, dest_n1_mac); //port, topo, mac
-    setMacElement(B, 1, 2, dest_n1_mac); //port, topo, mac
-    setMacElement(B, 2, 1, dest_n4_mac); //port, topo, mac
-    setMacElement(B, 2, 2, dest_n4_mac); //port, topo, mac
+    // setMacElement(B, 1, 1, dest_n1_mac); //port, topo, mac
+    // setMacElement(B, 1, 2, dest_n1_mac); //port, topo, mac
+    // setMacElement(B, 2, 1, dest_n4_mac); //port, topo, mac
+    // setMacElement(B, 2, 2, dest_n4_mac); //port, topo, mac
 
     //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
 
@@ -1702,8 +1729,8 @@ int main(int argc, char **argv)
 	remove_xdp_program();
 
     // free(kv);
-    deleteRouteMatrix(A);
-    deleteMacMatrix(B);
+    deleteRouteMatrix(route_table);
+    // deleteMacMatrix(B);
     free(ip_set);
 	// free(mac_set);
     free(dummy);

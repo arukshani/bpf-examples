@@ -165,8 +165,8 @@ int deleteMacMatrix(mac_matrix * mtx) {
   return 0;
 }
 
-route_matrix * A;
-mac_matrix * B;
+route_matrix * route_table;
+// mac_matrix * B;
 
 //++++++++++++++++++++++++++++++HASHTABLE IMPLEMENTATION+++++++++++++++++++++++++++++++++++++++++++++++++++++
 struct HashNode {
