@@ -1529,58 +1529,58 @@ int main(int argc, char **argv)
 	for (int i = 0; i < capacity; i++)
 		ip_set[i] = NULL;
 
-	FILE* stream = fopen("/tmp/all_worker_info.csv", "r");
-	char line[1024];
-	int ip_index=1;
-    while (fgets(line, 1024, stream))
-    {
-        char* tmp = strdup(line);
-		u32 dest = htonl(getfield(tmp, 7)); 
-		insert(dest, ip_index, ip_set);
-		// u32 dest_ip_index = find(dest, ip_set);
-		// printf("dest_ip_index dest = %d\n", dest_ip_index);
-
-        free(tmp);
-		ip_index++;
-    }
-	fclose(stream);
-
-	FILE* stream2 = fopen("/tmp/all_worker_info.csv", "r");
-	char line2[1024];
-	int ip_index2=1;
-
+	//+++++++++++++++++++++IP and MAC set++++++++++++++++++++++
 	map_int_t m;
 	map_init(&m);
-	while (fgets(line2, 1024, stream2))
-    {
-		char* tmp2 = strdup(line2);
-		char* mac_addr_str = getfield(tmp2, 3);
-		printf("mac addr = %s\n", mac_addr_str);
-		uint8_t mac_addr[6];
-		sscanf(mac_addr_str, "%x:%x:%x:%x:%x:%x",
-           &mac_addr[0],
-           &mac_addr[1],
-           &mac_addr[2],
-           &mac_addr[3],
-           &mac_addr[4],
-           &mac_addr[5]) < 6;
-		
-		struct mac_addr *dest_mac = calloc(1, sizeof(struct mac_addr));
-    	__builtin_memcpy(dest_mac->bytes, mac_addr, sizeof(mac_addr));
-		
-		char mac_key[100];
-		sprintf(mac_key, "%d", ip_index2);
-		map_set(&m, mac_key, dest_mac);
+	FILE *file = fopen("/tmp/all_worker_info.csv", "r");
+	if (file)
+	{
+		size_t i, j, k;
+      	char buffer[1024], *ptr;
+		while(fgets(buffer, 1024, file))
+      	{
+			printf("~~~~~~NODE~~~~~~~~~\n");
+			ptr = strtok(buffer, ",");
+			int col_index = 1;
+			while(ptr != NULL)
+			{
+				// printf("'%s'\n", ptr);
+				if (col_index == 7) {
+					printf("hex ip = %s\n", ptr);
+					u32 dest = htonl(ptr); 
+					insert(dest, col_index, ip_set);
+					// u32 dest_ip_index = find(dest, ip_set);
+					// printf("dest_ip_index dest = %d\n", dest_ip_index);
+				}
+				if (col_index == 3) {
+					printf("mac addr = %s\n", ptr);
+					uint8_t mac_addr[6];
+					sscanf(ptr, "%x:%x:%x:%x:%x:%x",
+					&mac_addr[0],
+					&mac_addr[1],
+					&mac_addr[2],
+					&mac_addr[3],
+					&mac_addr[4],
+					&mac_addr[5]) < 6;
+					struct mac_addr *dest_mac = calloc(1, sizeof(struct mac_addr));
+					__builtin_memcpy(dest_mac->bytes, mac_addr, sizeof(mac_addr));
 
-		// struct mac_addr *val = map_get(&m, mac_key);
-		// if (val) {
-		// 	printf("mac value exists: \n");
-		// }
-		
-		free(tmp2);
-		ip_index2++;
-    }
-	fclose(stream2);
+					char mac_key[100];
+					sprintf(mac_key, "%d", col_index);
+					map_set(&m, mac_key, dest_mac);
+
+					// struct mac_addr *val = map_get(&m, mac_key);
+					// if (val) {
+					// 	printf("mac value exists: \n");
+					// }
+				}
+				ptr = strtok(NULL, ",");
+				col_index++;
+			}
+		}
+		fclose(file);
+	}
+
     //+++++++++++++++++++++ROUTE++++++++++++++++++++++
 
 	route_table = newRouteMatrix(32, 32);
@@ -1609,30 +1609,6 @@ int main(int argc, char **argv)
 		}
 		fclose(stream3);
 	}
-
-    // A = newRouteMatrix(2, 2);
-    // setRouteElement(A, 1, 1, 1); //ip, topo, port
-    // setRouteElement(A, 1, 2, 1); //ip, topo, port
-    // setRouteElement(A, 2, 1, 2); //ip, topo, port
-    // setRouteElement(A, 2, 2, 2); //ip, topo, port
-   
-    // B = newMacMatrix(2, 2);
-	
-    // unsigned char node1_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0xcc}; //0c:42:a1:dd:5f:cc node1 
-    // struct mac_addr dest_n1_mac;
-    // __builtin_memcpy(dest_n1_mac.bytes, node1_mac, sizeof(node1_mac));
-
-	// unsigned char node4_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x58, 0x4c}; //0c:42:a1:dd:58:4c node3
-    // // unsigned char node4_mac[ETH_ALEN+1] = { 0x0c, 0x42, 0xa1, 0xdd, 0x5b, 0x28}; //0c:42:a1:dd:5b:28 node4
-    // struct mac_addr dest_n4_mac;
-    // __builtin_memcpy(dest_n4_mac.bytes, node4_mac, sizeof(node4_mac));
-
-    // setMacElement(B, 1, 1, dest_n1_mac); //port, topo, mac
-    // setMacElement(B, 1, 2, dest_n1_mac); //port, topo, mac
-    // setMacElement(B, 2, 1, dest_n4_mac); //port, topo, mac
-    // setMacElement(B, 2, 2, dest_n4_mac); //port, topo, mac
-
-    //+++++++++++++++++++++ROUTE & MAC++++++++++++++++++++++
 
 	/* Threads. */
 	for (i = 0; i < n_threads; i++) {
