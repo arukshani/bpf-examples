@@ -1539,21 +1539,21 @@ int main(int argc, char **argv)
       	char buffer[1024], *ptr;
 		while(fgets(buffer, 1024, file))
       	{
-			printf("~~~~~~NODE~~~~~~~~~\n");
+			// printf("~~~~~~NODE~~~~~~~~~\n");
 			ptr = strtok(buffer, ",");
 			int col_index = 1;
 			while(ptr != NULL)
 			{
 				// printf("'%s'\n", ptr);
 				if (col_index == 7) {
-					printf("hex ip = %s\n", ptr);
+					// printf("hex ip = %s\n", ptr);
 					u32 dest = htonl(ptr); 
 					insert(dest, col_index, ip_set);
 					// u32 dest_ip_index = find(dest, ip_set);
 					// printf("dest_ip_index dest = %d\n", dest_ip_index);
 				}
 				if (col_index == 3) {
-					printf("mac addr = %s\n", ptr);
+					// printf("mac addr = %s\n", ptr);
 					uint8_t mac_addr[6];
 					sscanf(ptr, "%x:%x:%x:%x:%x:%x",
 					&mac_addr[0],
@@ -1594,18 +1594,19 @@ int main(int argc, char **argv)
 		for ( i = 0; fgets(buffer, sizeof buffer, stream3); ++i )
 		{
 			int row = i+1;
-			// printf("~~~~~~~READ LINE %d \n ~~~~~~~~~~~~~~", row);
+			// printf("~~~~~~~READ LINE %d ~~~~~~~~~~~~~~~~\n", row);
 			/*
 			* Parse the comma-separated values from each line into 'array'.
 			*/
 			for ( j = 0, ptr = buffer; j < 32; ++j, ++ptr )
 			{
 				int val = (int)strtol(ptr, &ptr, 10);
-				// printf("route %d,", val);
+				// printf("%d,", val);
 				int col = j+1;
 				// printf("row and col %d %d ,", row, col);
 				setRouteElement(route_table, row, col, val);
 			}
+			// printf("\n");
 		}
 		fclose(stream3);
 	}
