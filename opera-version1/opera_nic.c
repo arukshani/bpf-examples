@@ -95,6 +95,7 @@ typedef __u8  u8;
 struct ifaddrs *ifaddr, *ifa;
 const char *nic_iface;
 struct HashNode** ip_set;
+map_int_t m; //mac table
 // HASHMAP(char, struct mac_addr) map;
 
 struct bpool_params {
@@ -1272,9 +1273,9 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		u32 dest_ip_index = find(inner_ip_hdr_tmp->daddr, ip_set);
 		// printf("dest_ip_index dest2 = %d\n", dest_ip_index);
-		int port_val;
-    	getRouteElement(route_table, dest_ip_index, topo, &port_val);
-		struct mac_addr dest_mac_val;
+		int mac_index;
+    	getRouteElement(route_table, dest_ip_index, topo, &mac_index);
+		struct mac_addr *dest_mac_val = map_get(&m, mac_index);
 		// getMacElement(B, port_val, topo, &dest_mac_val);
 		// printf("dest_ip_index, port_val, topo = %d , %d , %d\n", dest_ip_index, port_val, topo);
 		// int i;
@@ -1282,7 +1283,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
       	// 	printf(" %02x", (unsigned char) dest_mac_val.bytes[i]);
     	// puts("\n");
 
-		__builtin_memcpy(outer_eth_hdr->h_dest, dest_mac_val.bytes, sizeof(outer_eth_hdr->h_dest));
+		__builtin_memcpy(outer_eth_hdr->h_dest, dest_mac_val->bytes, sizeof(outer_eth_hdr->h_dest));
 
 		outer_eth_hdr->h_proto = htons(ETH_P_IP);
 
@@ -1434,7 +1435,7 @@ int main(int argc, char **argv)
 	struct in_addr addr;
 	int family, s, n;
 
-	if(argc != 2) {
+	if(argc != 3) {
         fprintf(stderr, "Usage: getifaddr <IP>\n");
         return EXIT_FAILURE;
     }
@@ -1447,6 +1448,9 @@ int main(int argc, char **argv)
         perror("getifaddrs");
         return EXIT_FAILURE;
     }
+
+	char *route_filename = argv[2];
+	printf("%s\n", route_filename);
 
 	// printf("Interface: %s\n", ifaddr->ifa_name);
 
@@ -1530,7 +1534,6 @@ int main(int argc, char **argv)
 		ip_set[i] = NULL;
 
 	//+++++++++++++++++++++IP and MAC set++++++++++++++++++++++
-	map_int_t m;
 	map_init(&m);
 	FILE *file = fopen("/tmp/all_worker_info.csv", "r");
 	if (file)
@@ -1582,9 +1585,11 @@ int main(int argc, char **argv)
 	}
 
     //+++++++++++++++++++++ROUTE++++++++++++++++++++++
-
+	// char result[100] = "configs/";
+	// strcat(result, route_filename); 
+	// printf("%s \n", result);
 	route_table = newRouteMatrix(32, 32);
-	FILE *stream3 = fopen("configs/node1.csv", "r");
+	FILE *stream3 = fopen(route_filename, "r");
 	if (stream3) {
 		size_t i, j, k;
       	char buffer[BUFSIZ], *ptr;
@@ -1594,19 +1599,19 @@ int main(int argc, char **argv)
 		for ( i = 0; fgets(buffer, sizeof buffer, stream3); ++i )
 		{
 			int row = i+1;
-			// printf("~~~~~~~READ LINE %d ~~~~~~~~~~~~~~~~\n", row);
+			printf("~~~~~~~READ LINE %d ~~~~~~~~~~~~~~~~\n", row);
 			/*
 			* Parse the comma-separated values from each line into 'array'.
 			*/
 			for ( j = 0, ptr = buffer; j < 32; ++j, ++ptr )
 			{
 				int val = (int)strtol(ptr, &ptr, 10);
-				// printf("%d,", val);
+				printf("%d,", val);
 				int col = j+1;
 				// printf("row and col %d %d ,", row, col);
 				setRouteElement(route_table, row, col, val);
 			}
-			// printf("\n");
+			printf("\n");
 		}
 		fclose(stream3);
 	}
