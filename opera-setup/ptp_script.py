@@ -5,6 +5,7 @@ import pickle
 import logging
 
 def stop_ptp():
+    print("Kill PTP")
     with open('/tmp/workers.pkl','rb') as f:  
         workers = pickle.load(f)
         for worker in workers:
@@ -12,6 +13,7 @@ def stop_ptp():
             proc = subprocess.run(remoteCmd, shell=True)
 
 def start_ptp():
+    print("Start PTP")
     with open('/tmp/workers.pkl','rb') as f:  
         workers = pickle.load(f)
         for worker in workers:
@@ -20,16 +22,16 @@ def start_ptp():
 
 def main(args):
     # print(args)
-    if(args.start == 1):
+    if(args.start):
         start_ptp()
     
-    if(args.stop == 1):
+    if(args.stop):
         stop_ptp()
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Start and stop PTP on worker nodes')
-    parser.add_argument('--start', '-s', type=int, default=0)
-    parser.add_argument('--stop', '-k', type=int, default=0)
+    parser.add_argument('--start', '-s', action='store_true')
+    parser.add_argument('--stop', '-k', action='store_true')
     args = parser.parse_args()
     return args
     

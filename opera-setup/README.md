@@ -16,7 +16,9 @@ python3 setup_cloudlab.py
 python3 setup_cloudlab.py
 ```
 
+# PTP Start and Kill
 ```
-python3 ptp_script.py -s 1
-python3 ptp_script.py -k 1
+python3 ptp_script.py -s 
+python3 ptp_script.py -k 
 ```
+
