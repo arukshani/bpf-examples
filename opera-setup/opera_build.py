@@ -25,7 +25,7 @@ def build_opera():
     with open('/tmp/workers.pkl','rb') as f:  
         workers = pickle.load(f)
         for worker in workers:
-            remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./build_opera.sh'.format(worker['username'],worker['host'])
+            remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./make_opera.sh'.format(worker['username'],worker['host'])
             proc = subprocess.run(remoteCmd, shell=True)
 
 
