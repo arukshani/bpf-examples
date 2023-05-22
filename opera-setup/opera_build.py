@@ -5,26 +5,29 @@ import pickle
 import logging
 
 def pull_changes():
-    print("Pull Changes")
+    # print("Pull Changes")
     with open('/tmp/workers.pkl','rb') as f:  
         workers = pickle.load(f)
         for worker in workers:
+            print("===================PULL==={}=======================".format(worker['host']))
             remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./pull_opera.sh'.format(worker['username'],worker['host'])
             proc = subprocess.run(remoteCmd, shell=True)
 
 def clean_opera():
-    print("Clean Opera")
+    # print("Clean Opera")
     with open('/tmp/workers.pkl','rb') as f:  
         workers = pickle.load(f)
         for worker in workers:
+            print("===================CLEAN==={}=======================".format(worker['host']))
             remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./clean_opera.sh'.format(worker['username'],worker['host'])
             proc = subprocess.run(remoteCmd, shell=True)
 
 def build_opera():
-    print("Make Opera")
+    # print("Make Opera")
     with open('/tmp/workers.pkl','rb') as f:  
         workers = pickle.load(f)
         for worker in workers:
+            print("===================MAKE==={}=======================".format(worker['host']))
             remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./make_opera.sh'.format(worker['username'],worker['host'])
             proc = subprocess.run(remoteCmd, shell=True)
 
