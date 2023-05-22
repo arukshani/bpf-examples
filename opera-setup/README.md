@@ -22,6 +22,13 @@ python3 ptp_script.py -s
 python3 ptp_script.py -k 
 ```
 
+### Make, Clean and Pull Opera Code
+```
+python3 opera_build.py -m
+python3 opera_build.py -c
+python3 opera_build.py -p
+```
+
 ### All worker info fileds
 ```
 local_IP,local_interface,node_mac,veth_mac,ptp_interface,username,node_name,ip_in_hex
