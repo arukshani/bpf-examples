@@ -246,7 +246,7 @@ int find(int key, struct HashNode** arr)
 	// index for given key
 	int hashIndex = (key % capacity);
 
-	int counter = 0;
+	// int counter = 0;
 
 	// Find the node with given key
 	while (arr[hashIndex] != NULL) {

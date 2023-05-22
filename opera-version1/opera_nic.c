@@ -93,7 +93,7 @@ typedef __u16 u16;
 typedef __u8  u8;
 
 struct ifaddrs *ifaddr, *ifa;
-const char *nic_iface;
+char *nic_iface;
 struct HashNode** ip_set;
 map_int_t m; //mac table
 // HASHMAP(char, struct mac_addr) map;
@@ -1176,13 +1176,13 @@ static unsigned long get_nsec(struct timespec *ts)
     return ts->tv_sec * 1000000000UL + ts->tv_nsec;
 }
 
-static struct timespec get_realtime(void)
-{
-	struct timespec ts;
+// static struct timespec get_realtime(void)
+// {
+// 	struct timespec ts;
 
-	clock_gettime(CLOCK_REALTIME, &ts);
-	return ts;
-}
+// 	clock_gettime(CLOCK_REALTIME, &ts);
+// 	return ts;
+// }
 
 static struct timespec get_nicclock(void)
 {
@@ -1200,7 +1200,7 @@ struct timespec now;
 uint64_t time_into_cycle_ns;
 uint8_t topo;
 uint64_t slot_time_ns = 1000000;	// 1 ms
-uint64_t cycle_time_ns = 2000000;	// 2 ms
+uint64_t cycle_time_ns = 32000000;	// 32 ms
 
 //++++++++++++++++++++++END TIME RELATED+++++++++++++++++++++++++++++
 
@@ -1433,9 +1433,9 @@ int main(int argc, char **argv)
 {
 	struct in_addr* ifa_inaddr;
 	struct in_addr addr;
-	int family, s, n;
+	int s, n;
 
-	if(argc != 3) {
+	if(argc != 4) {
         fprintf(stderr, "Usage: getifaddr <IP>\n");
         return EXIT_FAILURE;
     }
@@ -1451,6 +1451,10 @@ int main(int argc, char **argv)
 
 	char *route_filename = argv[2];
 	printf("%s\n", route_filename);
+
+	char *run_time = argv[3];
+  	int running_time = atoi(run_time);
+	printf("Running time : %d \n",running_time);
 
 	// printf("Interface: %s\n", ifaddr->ifa_name);
 
@@ -1538,7 +1542,6 @@ int main(int argc, char **argv)
 	FILE *file = fopen("/tmp/all_worker_info.csv", "r");
 	if (file)
 	{
-		size_t i, j, k;
       	char buffer[1024], *ptr;
 		while(fgets(buffer, 1024, file))
       	{
@@ -1558,13 +1561,13 @@ int main(int argc, char **argv)
 				if (col_index == 3) {
 					// printf("mac addr = %s\n", ptr);
 					uint8_t mac_addr[6];
-					sscanf(ptr, "%x:%x:%x:%x:%x:%x",
-					&mac_addr[0],
-					&mac_addr[1],
-					&mac_addr[2],
-					&mac_addr[3],
-					&mac_addr[4],
-					&mac_addr[5]) < 6;
+					// sscanf(ptr, "%x:%x:%x:%x:%x:%x",
+					// &mac_addr[0],
+					// &mac_addr[1],
+					// &mac_addr[2],
+					// &mac_addr[3],
+					// &mac_addr[4],
+					// &mac_addr[5]) < 6;
 					struct mac_addr *dest_mac = calloc(1, sizeof(struct mac_addr));
 					__builtin_memcpy(dest_mac->bytes, mac_addr, sizeof(mac_addr));
 
@@ -1591,7 +1594,7 @@ int main(int argc, char **argv)
 	route_table = newRouteMatrix(32, 32);
 	FILE *stream3 = fopen(route_filename, "r");
 	if (stream3) {
-		size_t i, j, k;
+		size_t i,j;
       	char buffer[BUFSIZ], *ptr;
 		/*
 		* Read each line from the file.
@@ -1653,7 +1656,7 @@ int main(int argc, char **argv)
 	signal(SIGTERM, signal_handler);
 	signal(SIGABRT, signal_handler);
 
-	time_t secs = 600; // 10 minutes (can be retrieved from user's input)
+	time_t secs = running_time; // 10 minutes (can be retrieved from user's input)
 
 	time_t startTime = time(NULL);
 	while (time(NULL) - startTime < secs)
