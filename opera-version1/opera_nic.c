@@ -1561,13 +1561,13 @@ int main(int argc, char **argv)
 				if (col_index == 3) {
 					// printf("mac addr = %s\n", ptr);
 					uint8_t mac_addr[6];
-					// sscanf(ptr, "%x:%x:%x:%x:%x:%x",
-					// &mac_addr[0],
-					// &mac_addr[1],
-					// &mac_addr[2],
-					// &mac_addr[3],
-					// &mac_addr[4],
-					// &mac_addr[5]) < 6;
+					sscanf(ptr, "%x:%x:%x:%x:%x:%x",
+					&mac_addr[0],
+					&mac_addr[1],
+					&mac_addr[2],
+					&mac_addr[3],
+					&mac_addr[4],
+					&mac_addr[5]) < 6;
 					struct mac_addr *dest_mac = calloc(1, sizeof(struct mac_addr));
 					__builtin_memcpy(dest_mac->bytes, mac_addr, sizeof(mac_addr));
 
