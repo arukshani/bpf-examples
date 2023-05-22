@@ -1548,7 +1548,7 @@ int main(int argc, char **argv)
 			while(ptr != NULL)
 			{
 				// printf("'%s'\n", ptr);
-				if (col_index == 7) {
+				if (col_index == 8) {
 					// printf("hex ip = %s\n", ptr);
 					u32 dest = htonl(ptr); 
 					insert(dest, col_index, ip_set);
