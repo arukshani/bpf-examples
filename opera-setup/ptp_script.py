@@ -6,16 +6,18 @@ import logging
 import pandas as pd
 
 def stop_ptp():
-    print("Kill PTP")
+    # print("Kill PTP")
     with open('/tmp/workers.pkl','rb') as f:  
         workers = pickle.load(f)
         for worker in workers:
+            print("===================KILL PTP==={}=======================".format(worker['host']))
             remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./stop_ptp.sh'.format(worker['username'],worker['host'])
             proc = subprocess.run(remoteCmd, shell=True)
 
 def start_ptp():
     worker_info = pd.read_csv('/tmp/all_worker_info.csv', header=None)
     for index, row in worker_info.iterrows():
+        print("===================START PTP==={}=======================".format(row[6]))
         remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./start_ptp.sh {}'.format(row[5], row[6], row[4])
         proc = subprocess.run(remoteCmd, shell=True)
 

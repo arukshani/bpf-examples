@@ -3,9 +3,16 @@ import argparse
 import subprocess
 import pickle
 import logging
+import pandas as pd
+
+def start_opera_nic():
+    worker_info = pd.read_csv('/tmp/all_worker_info.csv', header=None)
+    for index, row in worker_info.iterrows():
+        print("===================START OPERA NIC==={}=======================".format(row[6]))
+        remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./start_opera.sh {} {}'.format(row[5], row[6], row[0], row[6])
+        proc = subprocess.run(remoteCmd, shell=True)
 
 def pull_changes():
-    # print("Pull Changes")
     with open('/tmp/workers.pkl','rb') as f:  
         workers = pickle.load(f)
         for worker in workers:
@@ -14,7 +21,6 @@ def pull_changes():
             proc = subprocess.run(remoteCmd, shell=True)
 
 def clean_opera():
-    # print("Clean Opera")
     with open('/tmp/workers.pkl','rb') as f:  
         workers = pickle.load(f)
         for worker in workers:
@@ -23,7 +29,6 @@ def clean_opera():
             proc = subprocess.run(remoteCmd, shell=True)
 
 def build_opera():
-    # print("Make Opera")
     with open('/tmp/workers.pkl','rb') as f:  
         workers = pickle.load(f)
         for worker in workers:
@@ -43,11 +48,15 @@ def main(args):
     if(args.pull):
         pull_changes()
 
+    if(args.start):
+        start_opera_nic()
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Start and stop PTP on worker nodes')
     parser.add_argument('--make', '-m', action='store_true')
     parser.add_argument('--clean', '-c', action='store_true')
     parser.add_argument('--pull', '-p', action='store_true')
+    parser.add_argument('--start', '-s', action='store_true')
     args = parser.parse_args()
     return args
     
