@@ -3,6 +3,7 @@ import argparse
 import subprocess
 import pickle
 import logging
+import pandas as pd
 
 def stop_ptp():
     print("Kill PTP")
@@ -13,12 +14,10 @@ def stop_ptp():
             proc = subprocess.run(remoteCmd, shell=True)
 
 def start_ptp():
-    print("Start PTP")
-    with open('/tmp/workers.pkl','rb') as f:  
-        workers = pickle.load(f)
-        for worker in workers:
-            remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./start_ptp.sh'.format(worker['username'],worker['host'])
-            proc = subprocess.run(remoteCmd, shell=True)
+    worker_info = pd.read_csv('/tmp/all_worker_info.csv', header=None)
+    for index, row in worker_info.iterrows():
+        remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./start_ptp.sh {}'.format(row[5], row[6], row[4])
+        proc = subprocess.run(remoteCmd, shell=True)
 
 def main(args):
     # print(args)

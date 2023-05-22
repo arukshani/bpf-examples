@@ -1,5 +1,5 @@
 
-# Master Node
+### Master Node
 ```
 scp ~/.ssh/rukshani_cloudlab.pem rukshani@ip:~/.ssh/
 cd /opt
@@ -9,16 +9,21 @@ cd bpf-examples/opera-setup/
 python3 setup_cloudlab.py
 ```
 
-# Maunally check whether all workers are there if not add them
-# Comment SECTION1 and uncomment SECTION2 and run the script again
+### Maunally check whether all workers are there if not add them
+##### Comment SECTION1 and uncomment SECTION2 and run the script again
 
 ```
 python3 setup_cloudlab.py
 ```
 
-# PTP Start and Kill
+### PTP Start and Kill
 ```
 python3 ptp_script.py -s 
 python3 ptp_script.py -k 
+```
+
+### All worker info fileds
+```
+local_IP,local_interface,node_mac,veth_mac,ptp_interface,username,node_name,ip_in_hex
 ```
 

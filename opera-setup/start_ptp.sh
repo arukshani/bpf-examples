@@ -1,3 +1,4 @@
 #!/bin/sh
 
-nohup sudo ptp4l -i enp65s0f1np1 -q > /dev/null 2>&1 &
+echo $1
+nohup sudo ptp4l -i $1 -q > /dev/null 2>&1 &

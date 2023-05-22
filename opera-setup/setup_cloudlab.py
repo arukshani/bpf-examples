@@ -25,7 +25,7 @@ def add_arp_records():
         for c_index, c_row in worker_info.iterrows():
             # print("all to all {} {}".format(c_row[0], c_row[1]))
             if (row[0] != c_row[0]):
-                remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./add_arp.sh {} {}'.format(row[4], row[5], c_row[0], c_row[3])
+                remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./add_arp.sh {} {}'.format(row[5], row[6], c_row[0], c_row[3])
                 proc = subprocess.run(remoteCmd, shell=True)
 
 def get_worker_mac():

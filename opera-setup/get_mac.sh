@@ -10,7 +10,13 @@ NODE_IN=${NODE_IN::-1}
 #Get node mac
 NODE_MAC=$(ip link show $NODE_IN | awk '/ether/ {print $2}')
 
-echo $1,$NODE_IN,$NODE_MAC,$VETH_MAC
+IFS='.' read ip1 ip2 ip3 ip4 <<< "$1"
+PTP_IP=10.10.1.$ip4
+# echo $PTP_IP
+PTP_IN=$(ifconfig | grep -B1 "inet $PTP_IP" | awk '$1!="inet" && $1!="--" {print $1}')
+PTP_IN=${PTP_IN::-1}
+
+echo $1,$NODE_IN,$NODE_MAC,$VETH_MAC,$PTP_IN
 
 
 
