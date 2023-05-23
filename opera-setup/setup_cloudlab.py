@@ -11,6 +11,19 @@ import socket
 USER = os.environ['USER']
 IDENTITY_FILE = '/users/{}/.ssh/{}_cloudlab.pem'.format(USER, USER)
 
+def add_arp_records_for_single_node():
+    node_info = pd.read_csv('/tmp/node_1_info.csv', header=None)
+    worker_info = pd.read_csv('/tmp/all_worker_info.csv', header=None)
+    for index, row in node_info.iterrows():
+        print("--- Add ARP records for {} ---".format(row[0]))
+        for c_index, c_row in worker_info.iterrows():
+            # print("all to all {} {}".format(c_row[0], c_row[1]))
+            if (row[0] != c_row[0]):
+                remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./add_arp.sh {} {}'.format(row[5], row[6], c_row[0], c_row[3])
+                proc = subprocess.run(remoteCmd, shell=True)
+
+###################################################
+
 def copy_worker_info():
     with open('/tmp/workers.pkl','rb') as f:  
         workers = pickle.load(f)
@@ -109,14 +122,19 @@ def main():
     
 if __name__ == '__main__':
     main()
-    #First run this ++++++SECTION 1++++++++
+
+    #First run this ++++++SECTION 1++++++++++++++++++++++++++++++++++++
     install_packges()
     find_worker_nodes() # Maunally check whether all workers are there if not add them
-    #Then run this +++++++SECTION 2+++++++
+
+    #Then run this +++++++SECTION 2++++++++++++++++++++++++++++++++++++
     # create_ssh_config()
     # export_environs()
     # setup_workers()
     # get_worker_mac()
     # add_arp_records()
     # copy_worker_info()
+
+    #+++++++++++++ADDITIONAL FOR SPECIAL CASES+++++++++++++++++++++++++
+    # add_arp_records_for_single_node()
     
