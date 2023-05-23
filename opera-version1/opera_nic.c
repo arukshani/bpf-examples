@@ -1717,6 +1717,8 @@ int main(int argc, char **argv)
 
     deleteRouteMatrix(route_table);
 	freeifaddrs(ifaddr);
+	mg_map_cleanup(&ip_table);
+	mg_map_cleanup(&mac_table);
 
     return 0;
 }
