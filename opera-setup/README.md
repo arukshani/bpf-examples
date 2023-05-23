@@ -22,11 +22,12 @@ python3 ptp_script.py -s
 python3 ptp_script.py -k 
 ```
 
-### Make, Clean and Pull Opera Code
+### Make, Clean, Pull and Start Opera Code
 ```
 python3 opera_build.py -m
 python3 opera_build.py -c
 python3 opera_build.py -p
+python3 opera_build.py -s
 ```
 
 ### All worker info fileds
