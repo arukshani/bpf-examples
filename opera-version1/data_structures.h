@@ -170,7 +170,7 @@ route_matrix * route_table;
 
 //++++++++++++++++++++++++++++++HASHTABLE IMPLEMENTATION+++++++++++++++++++++++++++++++++++++++++++++++++++++
 struct HashNode {
-	int key;
+	uint32_t key;
 	int value;
 };
 
@@ -179,7 +179,7 @@ int size = 0;
 struct HashNode* dummy;
 
 // Function to add key value pair
-void insert(int key, int V, struct HashNode** arr)
+void insert(uint32_t key, int V, struct HashNode** arr)
 {
 
 	struct HashNode* temp
@@ -209,7 +209,7 @@ void insert(int key, int V, struct HashNode** arr)
 }
 
 // Function to delete a key value pair
-int delete (int key, struct HashNode** arr)
+int delete (uint32_t key, struct HashNode** arr)
 {
 	// Apply hash function to find
 	// index for given key
@@ -240,7 +240,7 @@ int delete (int key, struct HashNode** arr)
 
 // Function to search the value
 // for a given key
-int find(int key, struct HashNode** arr)
+int find(uint32_t key, struct HashNode** arr)
 {
 	// Apply hash function to find
 	// index for given key
