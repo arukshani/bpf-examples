@@ -100,7 +100,9 @@ char *nic_iface;
 struct HashNode** ip_set;
 mg_Map mac_table; //mac table
 mg_Map ip_table; //ip table
-// HASHMAP(char, struct mac_addr) map;
+struct ip_set {
+	int index;
+};
 
 struct bpool_params {
 	u32 n_buffers;
@@ -1286,11 +1288,11 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		// sprintf(ip_index,"%d",inner_ip_hdr_tmp->daddr);
 		// u32 *dest_ip_index = map_get(&ip_table, "33663168");
 		// printf("dest_ip_index = %d\n", dest_ip_index);
-		int dest_ip_index = mg_map_get(&ip_table, inner_ip_hdr_tmp->daddr);
-		printf("dest_ip_index = %d\n", dest_ip_index);
+		struct ip_set *dest_ip_index = mg_map_get(&ip_table, inner_ip_hdr_tmp->daddr);
+		// printf("dest_ip_index = %d\n", dest_ip_index->index);
 		int mac_index;
-    	getRouteElement(route_table, dest_ip_index, topo, &mac_index);
-		struct mac_addr *dest_mac_val = mg_map_get(&mac_table, dest_ip_index);
+    	getRouteElement(route_table, dest_ip_index->index, topo, &mac_index);
+		struct mac_addr *dest_mac_val = mg_map_get(&mac_table, mac_index);
 
 		// printf("mac_index = %d\n", mac_index);
 		// struct mac_addr *dest_mac_val = map_get(&mac_table, mac_index);
@@ -1557,8 +1559,6 @@ int main(int argc, char **argv)
 		ip_set[i] = NULL;
 
 	//+++++++++++++++++++++IP and MAC set++++++++++++++++++++++
-	// map_init(&mac_table);
-	// map_init(&ip_table);
 	mg_map_init(&mac_table, sizeof(struct mac_addr), 32);
 	mg_map_init(&ip_table, sizeof(int), 32);
 	FILE *file = fopen("/tmp/all_worker_info.csv", "r");
@@ -1576,25 +1576,10 @@ int main(int argc, char **argv)
 				// printf("'%s'\n", ptr);
 				if (col_index == 8) {
 					uint32_t dest = inet_addr(ptr);
-					int ip_index = dest_index;
-					printf("dest ip_index %d \n", ip_index);
-					mg_map_add(&ip_table, dest, &ip_index);
-					// printf("dest int %d \n", dest);
-					// char ip_key[100];
-					// sprintf(ip_key, "%d", dest);
-					// printf("dest str %s \n", ip_key);
-					// map_set(&ip_table, ip_key, dest_index);
-					// insert(dest, dest_index, ip_set);
-					// printf("%s \n", ptr);
-					// u32 num;
-					// sscanf(ptr, "%x", &num);
-					// printf("Number: %d \n", num);
-					// u32 dest = htonl(0xc0a80101); 
-					// printf("Number: %d \n", dest);
-					// printf("ip key value = %d %d, %d \n", dest, dest_index);
-					// insert(dest, dest_index, ip_set);
-					// u32 dest_ip_index = find(dest, ip_set);
-					// printf("Insert dest_ip_index = %d\n", dest_ip_index);
+					struct ip_set local_ip_index = {.index=dest_index};
+					mg_map_add(&ip_table, dest, &local_ip_index);
+					struct ip_set *dest_ip_index = mg_map_get(&ip_table, dest);
+					// printf("dest_ip_index after %d \n", dest_ip_index->index);
 				}
 				if (col_index == 3) {
 					// printf("mac addr = %s\n", ptr);
@@ -1608,16 +1593,7 @@ int main(int argc, char **argv)
 					&mac_addr[5]) < 6;
 					struct mac_addr *dest_mac = calloc(1, sizeof(struct mac_addr));
 					__builtin_memcpy(dest_mac->bytes, mac_addr, sizeof(mac_addr));
-
-					// char mac_key[100];
-					// sprintf(mac_key, "%d", dest_index);
-					// map_set(&mac_table, mac_key, dest_mac);
 					mg_map_add(&mac_table, dest_index, dest_mac);
-
-					// struct mac_addr *val = map_get(&m, mac_key);
-					// if (val) {
-					// 	printf("mac value exists: \n");
-					// }
 				}
 				ptr = strtok(NULL, ",");
 				col_index++;
