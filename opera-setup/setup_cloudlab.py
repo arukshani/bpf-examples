@@ -19,7 +19,7 @@ def add_arp_records_for_single_node():
         for c_index, c_row in worker_info.iterrows():
             # print("all to all {} {}".format(c_row[0], c_row[1]))
             if (row[0] != c_row[0]):
-                remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./add_arp.sh {} {}'.format(row[5], row[6], c_row[0], c_row[3])
+                remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./add_arp.sh {} {}'.format(row[6], row[7], c_row[0], c_row[3])
                 proc = subprocess.run(remoteCmd, shell=True)
 
 ###################################################
@@ -38,7 +38,7 @@ def add_arp_records():
         for c_index, c_row in worker_info.iterrows():
             # print("all to all {} {}".format(c_row[0], c_row[1]))
             if (row[0] != c_row[0]):
-                remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./add_arp.sh {} {}'.format(row[5], row[6], c_row[0], c_row[3])
+                remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./add_arp.sh {} {}'.format(row[6], row[7], c_row[0], c_row[3])
                 proc = subprocess.run(remoteCmd, shell=True)
 
 def get_worker_mac():
@@ -124,16 +124,16 @@ if __name__ == '__main__':
     main()
 
     #First run this ++++++SECTION 1++++++++++++++++++++++++++++++++++++
-    install_packges()
-    find_worker_nodes() # Maunally check whether all workers are there if not add them
+    # install_packges()
+    # find_worker_nodes() # Maunally check whether all workers are there if not add them
 
     #Then run this +++++++SECTION 2++++++++++++++++++++++++++++++++++++
     # create_ssh_config()
     # export_environs()
     # setup_workers()
-    # get_worker_mac()
+    get_worker_mac()
     # add_arp_records()
-    # copy_worker_info()
+    copy_worker_info()
 
     #+++++++++++++ADDITIONAL FOR SPECIAL CASES+++++++++++++++++++++++++
     # add_arp_records_for_single_node()

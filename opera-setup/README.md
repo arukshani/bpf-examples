@@ -32,6 +32,6 @@ python3 opera_build.py -s //start
 
 ### All worker info fileds
 ```
-local_IP,local_interface,node_mac,veth_mac,ptp_interface,username,node_name,ip_in_hex
+local_IP,local_interface,node_mac,veth_mac,ptp_interface,ptp_clock_name,username,node_name,ip_in_hex
 ```
 
