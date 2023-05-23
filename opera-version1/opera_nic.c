@@ -1231,7 +1231,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 	if (is_veth == 0)
 	{
-		printf("From VETH \n");
+		// printf("From VETH \n");
 		struct iphdr *outer_iphdr; 
 		struct iphdr encap_outer_iphdr; 
 		struct ethhdr *outer_eth_hdr; 
@@ -1284,11 +1284,11 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		struct mac_addr *dest_mac_val = mg_map_get(&mac_table, mac_index);
 
 		// For debug
-		printf("mac_index = %d\n", mac_index);
-		int i;
-		for (i = 0; i < 6; ++i)
-      		printf(" %02x", (unsigned char) dest_mac_val->bytes[i]);
-    	puts("\n");
+		// printf("mac_index = %d\n", mac_index);
+		// int i;
+		// for (i = 0; i < 6; ++i)
+      	// 	printf(" %02x", (unsigned char) dest_mac_val->bytes[i]);
+    	// puts("\n");
 
 		__builtin_memcpy(outer_eth_hdr->h_dest, dest_mac_val->bytes, sizeof(outer_eth_hdr->h_dest));
 
@@ -1309,7 +1309,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		
 	} else if (is_nic == 0)
 	{
-		printf("From NIC \n");
+		// printf("From NIC \n");
 		struct ethhdr *eth = (struct ethhdr *) data;
 		struct iphdr *outer_ip_hdr = (struct iphdr *)(data +
 						sizeof(struct ethhdr));
@@ -1329,7 +1329,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		struct iphdr *inner_ip_hdr = (struct iphdr *)(inner_eth + 1);
 		if (src_ip != (inner_ip_hdr->daddr)) {
-			printf("Not destined for local node \n");
+			// printf("Not destined for local node \n");
 			//send it back out NIC
 			struct ip_set *next_dest_ip_index = mg_map_get(&ip_table, inner_ip_hdr->daddr);
 			int next_mac_index;
@@ -1338,16 +1338,17 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 			__builtin_memcpy(eth->h_dest, next_dest_mac_val->bytes, sizeof(eth->h_dest));
 			__builtin_memcpy(eth->h_source, out_eth_src, sizeof(eth->h_source));
 
-			printf("next_mac_index = %d\n", next_mac_index);
-			int i;
-			for (i = 0; i < 6; ++i)
-				printf(" %02x", (unsigned char) next_dest_mac_val->bytes[i]);
-			puts("\n");
+			//Debug
+			// printf("next_mac_index = %d\n", next_mac_index);
+			// int i;
+			// for (i = 0; i < 6; ++i)
+			// 	printf(" %02x", (unsigned char) next_dest_mac_val->bytes[i]);
+			// puts("\n");
 
 			return 1; //indicates that packet should go back out through NIC
 
 		} else {
-			printf("Destined for local node \n");
+			// printf("Destined for local node \n");
 			//send it to local veth
 			void *cutoff_pos = greh + 1;
 			int cutoff_len = (int)(cutoff_pos - data);
