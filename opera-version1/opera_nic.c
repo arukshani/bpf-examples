@@ -1277,31 +1277,18 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
  
 		outer_eth_hdr = (struct ethhdr *) data;
 		__builtin_memcpy(outer_eth_hdr->h_source, out_eth_src, sizeof(outer_eth_hdr->h_source));
-
-		// u32 dest_ip_index = find(inner_ip_hdr_tmp->daddr, ip_set);
-		// char ip_index[50];
-		// printf("dest ip index u32 = %d \n",inner_ip_hdr_tmp->daddr);
-		// sprintf(ip_index, "%d", inner_ip_hdr_tmp->daddr);
-		// printf("dest ip index str = %s \n",ip_index);
-		
-		// char *ip_index = malloc(10);
-		// sprintf(ip_index,"%d",inner_ip_hdr_tmp->daddr);
-		// u32 *dest_ip_index = map_get(&ip_table, "33663168");
-		// printf("dest_ip_index = %d\n", dest_ip_index);
 		struct ip_set *dest_ip_index = mg_map_get(&ip_table, inner_ip_hdr_tmp->daddr);
 		// printf("dest_ip_index = %d\n", dest_ip_index->index);
 		int mac_index;
     	getRouteElement(route_table, dest_ip_index->index, topo, &mac_index);
 		struct mac_addr *dest_mac_val = mg_map_get(&mac_table, mac_index);
 
-		// printf("mac_index = %d\n", mac_index);
-		// struct mac_addr *dest_mac_val = map_get(&mac_table, mac_index);
-		// getMacElement(B, port_val, topo, &dest_mac_val);
-		// printf("dest_ip_index, port_val, topo = %d , %d , %d\n", dest_ip_index, port_val, topo);
-		// int i;
-		// for (i = 0; i < 6; ++i)
-      	// 	printf(" %02x", (unsigned char) dest_mac_val.bytes[i]);
-    	// puts("\n");
+		// For debug
+		printf("mac_index = %d\n", mac_index);
+		int i;
+		for (i = 0; i < 6; ++i)
+      		printf(" %02x", (unsigned char) dest_mac_val->bytes[i]);
+    	puts("\n");
 
 		__builtin_memcpy(outer_eth_hdr->h_dest, dest_mac_val->bytes, sizeof(outer_eth_hdr->h_dest));
 
@@ -1342,19 +1329,25 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 
 		struct iphdr *inner_ip_hdr = (struct iphdr *)(inner_eth + 1);
 		if (src_ip != (inner_ip_hdr->daddr)) {
-			// printf("Not destined for local node \n");
+			printf("Not destined for local node \n");
 			//send it back out NIC
-			u32 dest_ip_index = find(inner_ip_hdr->daddr, ip_set);
-			int port_val;
-    		getRouteElement(route_table, dest_ip_index, topo, &port_val);
-			struct mac_addr dest_mac_val;
-			// getMacElement(B, port_val, topo, &dest_mac_val);
-			__builtin_memcpy(eth->h_dest, dest_mac_val.bytes, sizeof(eth->h_dest));
+			struct ip_set *next_dest_ip_index = mg_map_get(&ip_table, inner_ip_hdr->daddr);
+			int next_mac_index;
+    		getRouteElement(route_table, next_dest_ip_index->index, topo, &next_mac_index);
+			struct mac_addr *next_dest_mac_val = mg_map_get(&mac_table, next_mac_index);
+			__builtin_memcpy(eth->h_dest, next_dest_mac_val->bytes, sizeof(eth->h_dest));
 			__builtin_memcpy(eth->h_source, out_eth_src, sizeof(eth->h_source));
+
+			printf("next_mac_index = %d\n", next_mac_index);
+			int i;
+			for (i = 0; i < 6; ++i)
+				printf(" %02x", (unsigned char) next_dest_mac_val->bytes[i]);
+			puts("\n");
+
 			return 1; //indicates that packet should go back out through NIC
 
 		} else {
-			// printf("send it to local veth \n");
+			printf("Destined for local node \n");
 			//send it to local veth
 			void *cutoff_pos = greh + 1;
 			int cutoff_len = (int)(cutoff_pos - data);
@@ -1550,14 +1543,6 @@ int main(int argc, char **argv)
 	getMACAddress(nic_iface, out_eth_src);
 	src_ip = getIpAddress(nic_iface);
 
-    //+++++++++++++++++++++IP++++++++++++++++++++++
-     // Space allocation
-	ip_set = (struct HashNode**)malloc(sizeof(struct HashNode*)
-									* capacity);
-	// Assign NULL initially
-	for (int i = 0; i < capacity; i++)
-		ip_set[i] = NULL;
-
 	//+++++++++++++++++++++IP and MAC set++++++++++++++++++++++
 	mg_map_init(&mac_table, sizeof(struct mac_addr), 32);
 	mg_map_init(&ip_table, sizeof(int), 32);
@@ -1729,12 +1714,7 @@ int main(int argc, char **argv)
 
 	remove_xdp_program();
 
-    // free(kv);
     deleteRouteMatrix(route_table);
-    // deleteMacMatrix(B);
-    free(ip_set);
-	// free(mac_set);
-    free(dummy);
 	freeifaddrs(ifaddr);
 
     return 0;
