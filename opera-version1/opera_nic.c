@@ -74,7 +74,7 @@
 // #include "network_stuff.h"
 #include "map.h"
 
-#define DEVICE "/dev/ptp3"
+// #define DEVICE "/dev/ptp3"
 
 #ifndef CLOCK_INVALID
 #define CLOCK_INVALID -1
@@ -103,6 +103,7 @@ mg_Map ip_table; //ip table
 struct ip_set {
 	int index;
 };
+char *ptp_clock_name;
 
 struct bpool_params {
 	u32 n_buffers;
@@ -1153,12 +1154,12 @@ clockid_t clkid;
 static clockid_t get_nic_clock_id(void)
 {
 	int fd;
-    char *device = DEVICE;
+    // char *device = DEVICE;
     clockid_t clkid;
 
-    fd = open(device, O_RDWR);
+    fd = open(ptp_clock_name, O_RDWR);
 	if (fd < 0) {
-		fprintf(stderr, "opening %s: %s\n", device, strerror(errno));
+		fprintf(stderr, "opening %s: %s\n", ptp_clock_name, strerror(errno));
 		return -1;
 	}
 
@@ -1442,6 +1443,7 @@ static void read_time()
 	// t1ms = now_ns / 1000000; // number of 1's of milliseconds 
 	time_into_cycle_ns = current_time_ns % cycle_time_ns;
 	topo = (time_into_cycle_ns / slot_time_ns) + 1;
+	// printf("topo: %d \n", topo);
 }
 
 int main(int argc, char **argv)
@@ -1450,7 +1452,7 @@ int main(int argc, char **argv)
 	struct in_addr addr;
 	int s, n;
 
-	if(argc != 4) {
+	if(argc != 5) {
         fprintf(stderr, "Usage: getifaddr <IP>\n");
         return EXIT_FAILURE;
     }
@@ -1467,7 +1469,10 @@ int main(int argc, char **argv)
 	char *route_filename = argv[2];
 	printf("%s\n", route_filename);
 
-	char *run_time = argv[3];
+	ptp_clock_name = argv[3];
+	printf("PTP Clock Name: %s\n", ptp_clock_name);
+
+	char *run_time = argv[4];
   	int running_time = atoi(run_time);
 	printf("Running time : %d \n",running_time);
 
@@ -1560,7 +1565,7 @@ int main(int argc, char **argv)
 			while(ptr != NULL)
 			{
 				// printf("'%s'\n", ptr);
-				if (col_index == 8) {
+				if (col_index == 9) {
 					uint32_t dest = inet_addr(ptr);
 					struct ip_set local_ip_index = {.index=dest_index};
 					mg_map_add(&ip_table, dest, &local_ip_index);
