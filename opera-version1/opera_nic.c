@@ -1718,7 +1718,7 @@ int main(int argc, char **argv)
 
 	/* output each array element's value */
 
-	// printf("Number of packets sent: %ld \n", time_index);
+	printf("time_index: %ld \n", time_index);
 
 	// uint32_t node_ip[20000];
 	// int slot[20000]; //0-from_veth, 1-intermediate_node, 2-to_veth
@@ -1731,7 +1731,8 @@ int main(int argc, char **argv)
 	fprintf(fpt,"node_ip,slot,topo_arr,next_node,time_ns,time_part_sec,time_part_nsec\n");
 	for (z = 0; z < time_index; z++ ) {
         unsigned long now_ns = get_nsec(&timestamp_arr[z]);
-		fprintf(fpt,"%ls,%ls,%hhn,%ls,%ld,%ld,%ld\n", node_ip,slot,topo_arr,next_node,now_ns,timestamp_arr[z].tv_sec,timestamp_arr[z].tv_nsec);
+		// printf("%d,%d,%d,%d,%ld,%ld,%ld\n", node_ip[z],slot[z],topo_arr[z],next_node[z],now_ns[z],timestamp_arr[z].tv_sec,timestamp_arr[z].tv_nsec);
+		fprintf(fpt,"%d,%d,%d,%d,%ld,%ld,%ld\n",node_ip[z],slot[z],topo_arr[z],next_node[z],now_ns,timestamp_arr[z].tv_sec,timestamp_arr[z].tv_nsec);
 	}
 	fclose(fpt);
 
