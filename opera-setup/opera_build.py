@@ -8,7 +8,7 @@ import pandas as pd
 def start_opera_nic():
     worker_info = pd.read_csv('/tmp/all_worker_info.csv', header=None)
     for index, row in worker_info.iterrows():
-        print("===================START OPERA NIC==={}=======================".format(row[6]))
+        print("===================START OPERA NIC==={}=======================".format(row[7]))
         remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./start_opera.sh {} {} {}'.format(row[6], row[7], row[0], row[7], row[5])
         proc = subprocess.run(remoteCmd, shell=True)
 
