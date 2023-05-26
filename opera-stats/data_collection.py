@@ -22,6 +22,13 @@ def collect_logs():
         localCmd = 'scp -r {}@{}:/tmp/{}-log.csv /tmp/logs'.format(row[6], row[7], row[7])
         proc = subprocess.run(localCmd, shell=True)
 
+def delete_logs():
+    worker_info = pd.read_csv('/tmp/all_worker_info.csv', header=None)
+    for index, row in worker_info.iterrows():
+        print("===================Delete Logs:==={}=======================".format(row[7]))
+        remoteCmd = 'ssh -o StrictHostKeyChecking=no {}@{} "bash -s" < ./delete_logs.sh {}'.format(row[6], row[7], row[7])
+        proc = subprocess.run(remoteCmd, shell=True)
+
 def rename_logs():
     worker_info = pd.read_csv('/tmp/all_worker_info.csv', header=None)
     for index, row in worker_info.iterrows():
@@ -36,10 +43,15 @@ def main(args):
         collect_logs()
         directory_name=create_directory()
         move_logs(directory_name)
+
+    if(args.delete):
+        delete_logs()
+    
         
 def parse_args():
     parser = argparse.ArgumentParser(description='Data Collection')
     parser.add_argument('--collect', '-c', action='store_true')
+    parser.add_argument('--delete', '-d', action='store_true')
     args = parser.parse_args()
     return args
     
