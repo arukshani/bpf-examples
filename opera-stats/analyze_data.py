@@ -17,22 +17,124 @@ node2_data = pd.read_csv(path+"node-2-link-log.csv" ,sep=',', header=0,
         names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
 node2_data['node_name'] = "node-2"
 
+node4_data = pd.read_csv(path+"node-4-link-log.csv" ,sep=',', header=0,
+        names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
+node4_data['node_name'] = "node-4"
+
+node11_data = pd.read_csv(path+"node-11-link-log.csv" ,sep=',', header=0,
+        names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
+node11_data['node_name'] = "node-13"
+
 node13_data = pd.read_csv(path+"node-13-link-log.csv" ,sep=',', header=0,
         names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
 node13_data['node_name'] = "node-13"
 
-# print(node1_data)
+print(node1_data)
 # print(node2_data)
+# print(node4_data)
+print(node11_data)
 # print(node13_data)
 
 def get_us(rtt_ns):
     return rtt_ns*0.001
 
-def ping_stats():
-    frames = [node1_data, node2_data, node13_data]
-    result = pd.concat(frames)
-    result.reset_index(drop=True, inplace=True)
-    print(result)
+def hop_latency_5():
+    c = 0
+    for i in range(3, 19 + 1):
+        if i % 2 != 0:
+            index = i
+            # print(i)
+            # print(c)
+            row1=node11_data.iloc[c]
+            row2=node1_data.iloc[index]
+            c = c +1
+            # print("{}-{}".formar())
+            hop_us = (row2['time_part_nsec'] - row1['time_part_nsec'])/1000
+            print(hop_us)
+
+def hop_latency_4():
+    for i in range(0,9):
+        # print(i)
+        row1=node4_data.iloc[i]
+        row2=node11_data.iloc[i]
+        hop_us = (row2['time_part_nsec'] - row1['time_part_nsec'])/1000
+        print(hop_us)
+
+def hop_latency_3():
+    c = 0
+    for i in range(3, 19 + 1):
+        if i % 2 != 0:
+            index = i
+            # print(i)
+            # print(c)
+            row1=node2_data.iloc[index]
+            row2=node4_data.iloc[c]
+            c = c +1
+            # print("{}-{}".formar())
+            hop_us = (row2['time_part_nsec'] - row1['time_part_nsec'])/1000
+            print(hop_us)
+
+def hop_latency_2():
+    # i = 3
+    c = 0
+    for i in range(2,20,2):
+        # print(i)
+        # print(c)
+        row1=node13_data.iloc[c]
+        row2=node2_data.iloc[i]
+        c = c +1
+        hop_us = (row2['time_part_nsec'] - row1['time_part_nsec'])/1000
+        print(hop_us)
+
+def hop_latency_1():
+    # i = 3
+    c = 0
+    for i in range(2,20,2):
+        # print(i)
+        # print(c)
+        row1=node1_data.iloc[i]
+        row2=node13_data.iloc[c]
+        c = c +1
+        hop_us = (row2['time_part_nsec'] - row1['time_part_nsec'])/1000
+        print(hop_us)
+
+
+#Meadured RTT
+def rtt_us():
+    for i in range(0,20,2):
+        index = i
+        row1=node1_data.iloc[index]
+        index = index+1
+        row2=node1_data.iloc[index]
+        rtt_us = (row2['time_part_nsec'] - row1['time_part_nsec'])/1000
+        print(rtt_us)
+
+#Forward Path Latency
+def fw_us():
+    for i in range(0,20,2):
+        index = i
+        row1=node1_data.iloc[index]
+        row2=node2_data.iloc[index]
+        fw_us = (row2['time_part_nsec'] - row1['time_part_nsec'])/1000
+        print(fw_us)
+
+#Return Path Latency
+def return_us():
+    for i in range(1, 19 + 1):
+        if i % 2 != 0:
+            index = i
+            # print(i)
+            row1=node2_data.iloc[index]
+            row2=node1_data.iloc[index]
+            # print("{}-{}".formar())
+            return_us = (row2['time_part_nsec'] - row1['time_part_nsec'])/1000
+            print(return_us)
+
+    # frames = [node1_data, node2_data, node13_data]
+    # result = pd.concat(frames)
+    # result.reset_index(drop=True, inplace=True)
+    # print(result)
+
 
 def forward_latency(node_name):
     node_data = pd.read_csv(path+node_name ,sep=',', header=0,
@@ -105,7 +207,10 @@ def main(args):
     if(args.analyze):
         # get_ping_rtt()
         # forward_latency('node-2-link-log.csv')
-        ping_stats()
+        # rtt_us()
+        # fw_us()
+        # return_us()
+        hop_latency_5()
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Analayze Data')
