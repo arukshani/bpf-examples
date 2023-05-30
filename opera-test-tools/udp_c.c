@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h> 
+#include <pthread.h>
 
 #define BUFSIZE 1024
 
@@ -21,10 +22,38 @@ void error(char *msg) {
     exit(0);
 }
 
+struct thread_data
+{
+  int  thread_id;
+  int sockid;
+};
+
+int serverlen;
+struct sockaddr_in serveraddr;
+char readbuf[BUFSIZE];
+int sockfd;
+
+void *readMsgs(void *threadarg)
+{
+    while(1) 
+    {
+        bzero(readbuf, BUFSIZE);
+        // struct thread_data *my_data;   
+        // my_data = (struct thread_data *) threadarg;
+        printf("hello:\n");
+        /* print the server's reply */
+        int n = recvfrom(sockfd, readbuf, strlen(readbuf), 0, &serveraddr, &serverlen);
+        // printf("%d \n", n);
+        // if (n < 0) 
+        // error("ERROR in recvfrom");
+        if (n > 0)
+            printf("Echo from server: %s \n", readbuf);
+    }
+}
+
 int main(int argc, char **argv) {
-    int sockfd, portno, n;
-    int serverlen;
-    struct sockaddr_in serveraddr;
+    int portno, n;
+    
     struct hostent *server;
     char *hostname;
     char buf[BUFSIZE];
@@ -56,6 +85,19 @@ int main(int argc, char **argv) {
 	  (char *)&serveraddr.sin_addr.s_addr, server->h_length);
     serveraddr.sin_port = htons(portno);
 
+    // pthread_t threads[1];
+    // struct thread_data td[1];
+    // td[0].thread_id = 0;
+    // td[0].sockid = sockfd;
+
+    serverlen = sizeof(serveraddr);
+
+    // int rc = pthread_create(&threads[0], NULL, readMsgs, (void *)&td[0]);
+    // if (rc){
+    //     printf("Unable to create thread \n");
+    //     exit(-1);    
+    // }    
+
     int m = 0;
     while(m < 10)
     {
@@ -69,16 +111,19 @@ int main(int argc, char **argv) {
         m++;
 
         /* send the message to the server */
-        serverlen = sizeof(serveraddr);
+        
         n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen);
         if (n < 0) 
         error("ERROR in sendto");
         
         /* print the server's reply */
-        n = recvfrom(sockfd, buf, strlen(buf), 0, &serveraddr, &serverlen);
-        if (n < 0) 
-        error("ERROR in recvfrom");
-        printf("Echo from server: %s \n", buf);
+        // n = recvfrom(sockfd, buf, strlen(buf), 0, &serveraddr, &serverlen);
+        // if (n < 0) 
+        // error("ERROR in recvfrom");
+        // printf("Echo from server: %s \n", buf);
     }
+    // while (1) sleep(10) ; // would be better
+    // sleep(10);
+    // pthread_join(threads[0], NULL);
     return 0;
 }
