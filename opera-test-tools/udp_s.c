@@ -100,9 +100,9 @@ int main(int argc, char **argv) {
     hostaddrp = inet_ntoa(clientaddr.sin_addr);
     if (hostaddrp == NULL)
       error("ERROR on inet_ntoa\n");
-    printf("server received datagram from %s (%s)\n", 
-	   hostp->h_name, hostaddrp);
-    printf("server received %d/%d bytes: %s\n", strlen(buf), n, buf);
+    // printf("server received datagram from %s (%s)\n", 
+	  //  hostp->h_name, hostaddrp);
+    // printf("server received %d/%d bytes: %s\n", strlen(buf), n, buf);
     
     /* 
      * sendto: echo the input back to the client 
