@@ -11,6 +11,8 @@
 #include <netinet/in.h>
 #include <netdb.h> 
 #include <pthread.h>
+#include <time.h>
+#include <errno.h>
 
 #define BUFSIZE 1024
 
@@ -49,6 +51,27 @@ void *readMsgs(void *threadarg)
         if (n > 0)
             printf("Echo from server: %s \n", readbuf);
     }
+}
+
+int msleep(long tms)
+{
+    struct timespec ts;
+    int ret;
+
+    if (tms < 0)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    ts.tv_sec = tms / 1000;
+    ts.tv_nsec = (tms % 1000) * 1000000;
+
+    do {
+        ret = nanosleep(&ts, &ts);
+    } while (ret && errno == EINTR);
+
+    return ret;
 }
 
 int main(int argc, char **argv) {
@@ -101,6 +124,7 @@ int main(int argc, char **argv) {
     int m = 0;
     while(m < 10)
     {
+        msleep(1);
         /* get a message from the user */
         bzero(buf, BUFSIZE);
         // printf("Please enter msg: ");
