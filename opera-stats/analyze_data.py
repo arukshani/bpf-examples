@@ -7,32 +7,34 @@ import plotly
 import matplotlib.pyplot as plt
 import plotly.express as px
 
-path = "/tmp/logs/2023-05-25_15-17-00/"
+path = "/tmp/logs/2023-05-26_12-42-29/"
 
 node1_data = pd.read_csv(path+"node-1-link-log.csv" ,sep=',', header=0,
         names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
 node1_data['node_name'] = "node-1"
+n1_tail_df = node1_data.tail(20)
 
 node2_data = pd.read_csv(path+"node-2-link-log.csv" ,sep=',', header=0,
         names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
 node2_data['node_name'] = "node-2"
+n2_tail_df = node2_data.tail(20)
 
-node4_data = pd.read_csv(path+"node-4-link-log.csv" ,sep=',', header=0,
-        names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
-node4_data['node_name'] = "node-4"
+# node4_data = pd.read_csv(path+"node-4-link-log.csv" ,sep=',', header=0,
+#         names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
+# node4_data['node_name'] = "node-4"
 
-node11_data = pd.read_csv(path+"node-11-link-log.csv" ,sep=',', header=0,
-        names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
-node11_data['node_name'] = "node-13"
+# node11_data = pd.read_csv(path+"node-11-link-log.csv" ,sep=',', header=0,
+#         names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
+# node11_data['node_name'] = "node-13"
 
-node13_data = pd.read_csv(path+"node-13-link-log.csv" ,sep=',', header=0,
-        names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
-node13_data['node_name'] = "node-13"
+# node13_data = pd.read_csv(path+"node-13-link-log.csv" ,sep=',', header=0,
+#         names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
+# node13_data['node_name'] = "node-13"
 
-print(node1_data)
-# print(node2_data)
+print(n1_tail_df)
+print(n2_tail_df)
 # print(node4_data)
-print(node11_data)
+# print(node11_data)
 # print(node13_data)
 
 def get_us(rtt_ns):
@@ -103,9 +105,9 @@ def hop_latency_1():
 def rtt_us():
     for i in range(0,20,2):
         index = i
-        row1=node1_data.iloc[index]
+        row1=n1_tail_df.iloc[index]
         index = index+1
-        row2=node1_data.iloc[index]
+        row2=n1_tail_df.iloc[index]
         rtt_us = (row2['time_part_nsec'] - row1['time_part_nsec'])/1000
         print(rtt_us)
 
@@ -113,8 +115,8 @@ def rtt_us():
 def fw_us():
     for i in range(0,20,2):
         index = i
-        row1=node1_data.iloc[index]
-        row2=node2_data.iloc[index]
+        row1=n1_tail_df.iloc[index]
+        row2=n2_tail_df.iloc[index]
         fw_us = (row2['time_part_nsec'] - row1['time_part_nsec'])/1000
         print(fw_us)
 
@@ -124,8 +126,8 @@ def return_us():
         if i % 2 != 0:
             index = i
             # print(i)
-            row1=node2_data.iloc[index]
-            row2=node1_data.iloc[index]
+            row1=n2_tail_df.iloc[index]
+            row2=n1_tail_df.iloc[index]
             # print("{}-{}".formar())
             return_us = (row2['time_part_nsec'] - row1['time_part_nsec'])/1000
             print(return_us)
@@ -209,8 +211,8 @@ def main(args):
         # forward_latency('node-2-link-log.csv')
         # rtt_us()
         # fw_us()
-        # return_us()
-        hop_latency_5()
+        return_us()
+        # hop_latency_5()
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Analayze Data')
