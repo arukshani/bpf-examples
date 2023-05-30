@@ -1,54 +1,84 @@
+/* 
+ * udpclient.c - A simple UDP client
+ * usage: udpclient <host> <port>
+ */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netdb.h> 
 
-int main(void){
-    int socket_desc;
-    struct sockaddr_in server_addr;
-    char server_message[2000], client_message[2000];
-    int server_struct_length = sizeof(server_addr);
-    
-    // Clean buffers:
-    memset(server_message, '\0', sizeof(server_message));
-    memset(client_message, '\0', sizeof(client_message));
-    
-    // Create socket:
-    socket_desc = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    
-    if(socket_desc < 0){
-        printf("Error while creating socket\n");
-        return -1;
+#define BUFSIZE 1024
+
+/* 
+ * error - wrapper for perror
+ */
+void error(char *msg) {
+    perror(msg);
+    exit(0);
+}
+
+int main(int argc, char **argv) {
+    int sockfd, portno, n;
+    int serverlen;
+    struct sockaddr_in serveraddr;
+    struct hostent *server;
+    char *hostname;
+    char buf[BUFSIZE];
+
+    /* check command line arguments */
+    if (argc != 3) {
+       fprintf(stderr,"usage: %s <hostname> <port>\n", argv[0]);
+       exit(0);
     }
-    printf("Socket created successfully\n");
-    
-    // Set port and IP:
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(2000);
-    server_addr.sin_addr.s_addr = inet_addr("192.168.1.3");
-    
-    // Get input from the user:
-    printf("Enter message: ");
-    gets(client_message);
-    
-    // Send the message to server:
-    if(sendto(socket_desc, client_message, strlen(client_message), 0,
-         (struct sockaddr*)&server_addr, server_struct_length) < 0){
-        printf("Unable to send message\n");
-        return -1;
+    hostname = argv[1];
+    portno = atoi(argv[2]);
+
+    /* socket: create the socket */
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd < 0) 
+        error("ERROR opening socket");
+
+    /* gethostbyname: get the server's DNS entry */
+    server = gethostbyname(hostname);
+    if (server == NULL) {
+        fprintf(stderr,"ERROR, no such host as %s\n", hostname);
+        exit(0);
     }
-    
-    // Receive the server's response:
-    if(recvfrom(socket_desc, server_message, sizeof(server_message), 0,
-         (struct sockaddr*)&server_addr, &server_struct_length) < 0){
-        printf("Error while receiving server's msg\n");
-        return -1;
+
+    /* build the server's Internet address */
+    bzero((char *) &serveraddr, sizeof(serveraddr));
+    serveraddr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, 
+	  (char *)&serveraddr.sin_addr.s_addr, server->h_length);
+    serveraddr.sin_port = htons(portno);
+
+    int m = 0;
+    while(m < 10)
+    {
+        /* get a message from the user */
+        bzero(buf, BUFSIZE);
+        // printf("Please enter msg: ");
+        // fgets(buf, BUFSIZE, stdin);
+        char snum[5];
+        sprintf(snum, "%d", m);
+        strcat(buf, snum);
+        m++;
+
+        /* send the message to the server */
+        serverlen = sizeof(serveraddr);
+        n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen);
+        if (n < 0) 
+        error("ERROR in sendto");
+        
+        /* print the server's reply */
+        n = recvfrom(sockfd, buf, strlen(buf), 0, &serveraddr, &serverlen);
+        if (n < 0) 
+        error("ERROR in recvfrom");
+        printf("Echo from server: %s \n", buf);
     }
-    
-    printf("Server's response: %s\n", server_message);
-    
-    // Close the socket:
-    close(socket_desc);
-    
     return 0;
 }
