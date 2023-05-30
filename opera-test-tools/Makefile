@@ -2,8 +2,8 @@ CC=gcc
 CFLAGS=-I.
 # DEPS = hellomake.h
 # OBJ = socket_client.o
-# OBJ = rtt_server.o
-OBJ = rtt_client.o
+OBJ = udp_s.o
+# OBJ = rtt_client.o
 
 # %.o: %.c $(DEPS)
 # 	$(CC) -c -o $@ $< $(CFLAGS)
@@ -14,8 +14,8 @@ OBJ = rtt_client.o
 # socket_client: $(OBJ)
 # 	$(CC) -o $@ $^ $(CFLAGS)
 
-# rtt_server: $(OBJ)
-# 	$(CC) -o $@ $^ $(CFLAGS)
-
-rtt_client: $(OBJ)
+udp_server: $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS)
+
+# rtt_client: $(OBJ)
+# 	$(CC) -o $@ $^ $(CFLAGS)
