@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
     // }    
 
     int m = 0;
-    while(m < 10)
+    while(m < 100)
     {
         msleep(1);
         /* get a message from the user */
