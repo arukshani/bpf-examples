@@ -122,9 +122,8 @@ int main(int argc, char **argv) {
     // }    
 
     int m = 0;
-    while(m < 100)
+    while(m < 6400)
     {
-        msleep(1);
         /* get a message from the user */
         bzero(buf, BUFSIZE);
         // printf("Please enter msg: ");
@@ -135,15 +134,16 @@ int main(int argc, char **argv) {
         m++;
 
         /* send the message to the server */
-        
+        // msleep(1);
+        usleep(920);
         n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen);
         if (n < 0) 
         error("ERROR in sendto");
         
         /* print the server's reply */
-        // n = recvfrom(sockfd, buf, strlen(buf), 0, &serveraddr, &serverlen);
-        // if (n < 0) 
-        // error("ERROR in recvfrom");
+        n = recvfrom(sockfd, buf, strlen(buf), 0, &serveraddr, &serverlen);
+        if (n < 0) 
+        error("ERROR in recvfrom");
         // printf("Echo from server: %s \n", buf);
     }
     // while (1) sleep(10) ; // would be better
