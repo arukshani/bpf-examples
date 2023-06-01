@@ -12,12 +12,12 @@ path = "/tmp/logs/2023-05-26_12-42-29/"
 node1_data = pd.read_csv(path+"node-1-link-log.csv" ,sep=',', header=0,
         names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
 node1_data['node_name'] = "node-1"
-n1_tail_df = node1_data.tail(20)
+n1_tail_df = node1_data.tail(100)
 
 node2_data = pd.read_csv(path+"node-2-link-log.csv" ,sep=',', header=0,
         names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
 node2_data['node_name'] = "node-2"
-n2_tail_df = node2_data.tail(20)
+n2_tail_df = node2_data.tail(100)
 
 # node4_data = pd.read_csv(path+"node-4-link-log.csv" ,sep=',', header=0,
 #         names=["node_ip", "slot", "topo_arr", "next_node", "time_ns", "time_part_sec", "time_part_nsec"])
@@ -205,13 +205,13 @@ def get_ping_rtt():
     # plt.show()
 
 def main(args):
-    # print(args)
-    if(args.analyze):
+    print(args)
+    # if(args.analyze):
         # get_ping_rtt()
         # forward_latency('node-2-link-log.csv')
         # rtt_us()
         # fw_us()
-        return_us()
+        # return_us()
         # hop_latency_5()
 
 def parse_args():
