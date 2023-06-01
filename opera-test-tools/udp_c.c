@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
     // }    
 
     int m = 0;
-    while(m < 100)
+    while(m < 6400)
     {
         /* get a message from the user */
         bzero(buf, BUFSIZE);
