@@ -12,7 +12,7 @@ USER = os.environ['USER']
 IDENTITY_FILE = '/users/{}/.ssh/{}_cloudlab.pem'.format(USER, USER)
 
 def add_arp_records_for_single_node():
-    node_info = pd.read_csv('/tmp/node_1_info.csv', header=None)
+    node_info = pd.read_csv('/tmp/node_32_info.csv', header=None)
     worker_info = pd.read_csv('/tmp/all_worker_info.csv', header=None)
     for index, row in node_info.iterrows():
         print("--- Add ARP records for {} ---".format(row[0]))
@@ -131,9 +131,9 @@ if __name__ == '__main__':
     # create_ssh_config()
     # export_environs()
     # setup_workers()
-    get_worker_mac()
+    # get_worker_mac()
     # add_arp_records()
-    copy_worker_info()
+    # copy_worker_info()
 
     #+++++++++++++ADDITIONAL FOR SPECIAL CASES+++++++++++++++++++++++++
     # add_arp_records_for_single_node()

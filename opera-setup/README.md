@@ -35,3 +35,17 @@ python3 opera_build.py -s //start
 local_IP,local_interface,node_mac,veth_mac,ptp_interface,ptp_clock_name,username,node_name,ip_in_hex
 ```
 
+### Testing Nodes
+```
+./test_nodes.sh 
+```
+
+### setup a single node
+```
+Restart the node
+Run setup_worker.sh on the node (eg: /bin/bash setup_worker.sh 192.168.1.32)
+Create an copy the single record to node_XX_info.csv file under /tmp in controller
+Copy /tmp/all_worker_info.csv to the node
+Run setup_cloudlab.py with just 'add_arp_records_for_single_node()' function
+```
+
