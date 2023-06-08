@@ -74,7 +74,7 @@
 // #include "network_stuff.h"
 #include "map.h"
 
-// #define DEBUG
+#define DEBUG 0
 
 // #define DEVICE "/dev/ptp3"
 
@@ -1292,7 +1292,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		struct mac_addr *dest_mac_val = mg_map_get(&mac_table, mac_index);
 
 		//Telemetry
-		#ifdef DEBUG
+		#if DEBUG == 1
 			timestamp_arr[time_index] = now;
 			node_ip[time_index] = src_ip;
 			slot[time_index]=0;
@@ -1357,7 +1357,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 			__builtin_memcpy(eth->h_source, out_eth_src, sizeof(eth->h_source));
 
 			//Telemetry
-			#ifdef DEBUG
+			#if DEBUG == 1
 				timestamp_arr[time_index] = now;
 				node_ip[time_index] = src_ip;
 				slot[time_index]=1;
@@ -1389,7 +1389,7 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 			memcpy(xsk_umem__get_data(params->bp->addr, addr), new_data, new_len);
 
 			//Telemetry
-			#ifdef DEBUG
+			#if DEBUG == 1
 				timestamp_arr[time_index] = now;
 				node_ip[time_index] = src_ip;
 				slot[time_index]=2;
@@ -1728,7 +1728,8 @@ int main(int argc, char **argv)
 
 	// printf("time_index: %ld \n", time_index);
 
-	#ifdef DEBUG
+	#if DEBUG == 1
+		printf("debug");
 		int z;
 		FILE *fpt;
 		fpt = fopen("/tmp/opera_data.csv", "w+");
