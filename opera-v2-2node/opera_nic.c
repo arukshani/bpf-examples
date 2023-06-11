@@ -19,11 +19,9 @@
 #include <getopt.h>
 #include <netinet/ether.h>
 #include <net/if.h>
-
 #include <linux/err.h>
 #include <linux/if_link.h>
 #include <linux/if_xdp.h>
-
 #include <xdp/libxdp.h>
 #include <xdp/xsk.h>
 #include <bpf/bpf.h>
@@ -37,7 +35,6 @@
 #include <linux/ip.h>
 #include <linux/icmp.h>
 #include <bpf/bpf_endian.h>
-
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -53,7 +50,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <assert.h>
-
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -67,213 +63,15 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <limits.h>
-
 #include <linux/ptp_clock.h>
+
 #include "data_structures.h"
 #include "common_funcs.h"
-// #include "network_stuff.h"
 #include "map.h"
-#include "thread_funcs.h"
-
-#define DEBUG 0
-
-// #define DEVICE "/dev/ptp3"
-
-#ifndef CLOCK_INVALID
-#define CLOCK_INVALID -1
-#endif
-
-#define CLOCKFD 3
-#define FD_TO_CLOCKID(fd)	((clockid_t) ((((unsigned int) ~fd) << 3) | CLOCKFD))
-#define CLOCKID_TO_FD(clk)	((unsigned int) ~((clk) >> 3))
-
-#define STRERR_BUFSIZE          1024
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-
-// #define INT2POINTER(a) ((char*)(intptr_t)(a))
-// #define POINTER2INT(a) ((int)(intptr_t)(a))
-
-typedef __u64 u64;
-typedef __u32 u32;
-typedef __u16 u16;
-typedef __u8  u8;
-
-struct ifaddrs *ifaddr, *ifa;
-char *nic_iface;
-struct HashNode** ip_set;
-mg_Map mac_table; //mac table
-mg_Map ip_table; //ip table
-struct ip_set {
-	int index;
-};
-char *ptp_clock_name;
-
-struct bpool_params {
-	u32 n_buffers;
-	u32 buffer_size;
-	int mmap_flags;
-
-	u32 n_users_max;
-	u32 n_buffers_per_slab;
-};
-
-/*
- * Port
- *
- * Each of the forwarding ports sits on top of an AF_XDP socket. In order for
- * packet forwarding to happen with no packet buffer copy, all the sockets need
- * to share the same UMEM area, which is used as the buffer pool memory.
- */
-#ifndef MAX_BURST_RX
-#define MAX_BURST_RX 1
-#endif
-
-#ifndef MAX_BURST_TX
-#define MAX_BURST_TX 64
-#endif
-
-struct burst_rx {
-	u64 addr[MAX_BURST_RX];
-	u32 len[MAX_BURST_RX];
-};
-
-struct burst_tx {
-	u64 addr[MAX_BURST_TX];
-	u32 len[MAX_BURST_TX];
-	u32 n_pkts;
-};
-
-struct port_params {
-	struct xsk_socket_config xsk_cfg;
-	struct bpool *bp;
-	const char *iface;
-	u32 iface_queue;
-};
-
-struct port {
-	struct port_params params;
-
-	struct bcache *bc;
-
-	struct xsk_ring_cons rxq;
-	struct xsk_ring_prod txq;
-	struct xsk_ring_prod umem_fq;
-	struct xsk_ring_cons umem_cq;
-	struct xsk_socket *xsk;
-	int umem_fq_initialized;
-
-	u64 n_pkts_rx;
-	u64 n_pkts_tx;
-};
-
-struct bpool {
-	struct bpool_params params;
-	pthread_mutex_t lock;
-	void *addr;
-
-	u64 **slabs;
-	u64 **slabs_reserved;
-	u64 *buffers;
-	u64 *buffers_reserved;
-
-	u64 n_slabs;
-	u64 n_slabs_reserved;
-	u64 n_buffers;
-
-	u64 n_slabs_available;
-	u64 n_slabs_reserved_available;
-
-	struct xsk_umem_config umem_cfg;
-	struct xsk_ring_prod umem_fq;
-	struct xsk_ring_cons umem_cq;
-	struct xsk_umem *umem;
-};
-
-/*
- * Process
- */
-static const struct bpool_params bpool_params_default = {
-	.n_buffers = 64 * 1024,
-	.buffer_size = XSK_UMEM__DEFAULT_FRAME_SIZE,
-	.mmap_flags = 0,
-
-	.n_users_max = 16,
-	.n_buffers_per_slab = XSK_RING_PROD__DEFAULT_NUM_DESCS * 2
-};
-
-static const struct xsk_umem_config umem_cfg_default = {
-	.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS * 2,
-	.comp_size = XSK_RING_CONS__DEFAULT_NUM_DESCS,
-	.frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE,
-	.frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM,
-	.flags = 0,
-};
-
-static const struct port_params port_params_default = {
-	.xsk_cfg = {
-		.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS,
-		.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
-		.libbpf_flags = XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD,
-		.xdp_flags = XDP_FLAGS_DRV_MODE,
-		.bind_flags = XDP_USE_NEED_WAKEUP,
-	},
-
-	.bp = NULL,
-	.iface = NULL,
-	.iface_queue = 0,
-};
+#include "structures.h"
+// #include "thread_funcs.h"
 
 
-#ifndef MAX_PORTS
-#define MAX_PORTS 64
-#endif
-
-#ifndef MAX_THREADS
-#define MAX_THREADS 64
-#endif
-
-static struct bpool_params bpool_params;
-static struct xsk_umem_config umem_cfg;
-static struct bpool *bp;
-
-static struct port_params port_params[MAX_PORTS];
-static struct port *ports[MAX_PORTS];
-static int n_ports;
-
-/*
- * Thread
- *
- * Packet forwarding threads.
- */
-#ifndef MAX_PORTS_PER_THREAD
-#define MAX_PORTS_PER_THREAD 16
-#endif
-
-
-
-struct thread_data {
-	struct port *ports_rx[MAX_PORTS_PER_THREAD];
-	struct port *ports_tx[MAX_PORTS_PER_THREAD];
-	u32 n_ports_rx;
-	struct burst_rx burst_rx;
-	struct burst_tx burst_tx[MAX_PORTS_PER_THREAD];
-	u32 cpu_core_id;
-	int quit;
-};
-
-static pthread_t threads[MAX_THREADS];
-static struct thread_data thread_data[MAX_THREADS];
-static int n_threads;
-
-struct bcache {
-	struct bpool *bp;
-
-	u64 *slab_cons;
-	u64 *slab_prod;
-
-	u64 n_buffers_cons;
-	u64 n_buffers_prod;
-};
 
 static void
 bcache_free(struct bcache *bc)
@@ -1406,39 +1204,157 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
     return false;
 }
 
-static void *
-thread_func(void *arg)
-{
+// static void *
+// thread_func(void *arg)
+// {
 	
-	struct thread_data *t = arg;
+// 	struct thread_data *t = arg;
+// 	cpu_set_t cpu_cores;
+// 	u32 i;
+
+// 	CPU_ZERO(&cpu_cores);
+// 	CPU_SET(t->cpu_core_id, &cpu_cores);
+// 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
+// 	clkid = get_nic_clock_id();
+	
+// 	for (i = 0; !t->quit; i = (i + 1) & (t->n_ports_rx - 1)) {
+// 		// printf("port rx %d \n", i);
+// 		// printf("n_buffers_cons %d, \n", t->ports_rx[i]->bc->n_buffers_cons);
+// 		struct port *port_rx = t->ports_rx[i];
+// 		struct port *port_tx = t->ports_tx[i];
+// 		struct burst_rx *brx = &t->burst_rx;
+// 		struct burst_tx *btx = &t->burst_tx[i];
+// 		u32 n_pkts, j;
+
+// 		// printf("RX \n");
+// 		/* RX. */
+// 		n_pkts = port_rx_burst(port_rx, brx, i);
+// 		// printf("bp->n_slabs_available %ld \n", port_rx->bc->bp->n_slabs_available);
+// 		// break;
+
+// 		// printf("n_pkts %d \n", n_pkts);
+// 		if (!n_pkts)
+// 			continue;
+
+// 		/* Process & TX. */
+// 		for (j = 0; j < n_pkts; j++) {
+
+// 			// printf("bp->n_slabs_available %ld \n", port_rx->bc->bp->n_slabs_available);
+
+// 			u64 addr = xsk_umem__add_offset_to_addr(brx->addr[j]);
+// 			u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
+// 						     addr);
+
+// 			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
+
+// 			//Needs to send packet back out NIC
+// 			if (new_len == 1) {
+// 				new_len = brx->len[j];
+// 				int x = (i + 1) & (t->n_ports_rx - 1);
+// 				port_tx = t->ports_tx[x];
+// 				btx = &t->burst_tx[x];
+// 			}
+
+// 			btx->addr[btx->n_pkts] = brx->addr[j];
+// 			// btx->len[btx->n_pkts] = brx->len[j];
+// 			btx->len[btx->n_pkts] = new_len;
+// 			btx->n_pkts++;
+
+// 			// if (btx->n_pkts == MAX_BURST_TX) {
+// 			if (btx->n_pkts == 1) {
+// 				port_tx_burst(port_tx, btx);
+// 				btx->n_pkts = 0;
+// 			}
+// 		}
+// 	}
+
+// 	return NULL;
+// }
+
+//from_VETH -> to_NIC
+static void *
+thread_func_veth(void *arg)
+{
+    struct thread_data *t = arg;
 	cpu_set_t cpu_cores;
 	u32 i;
 
 	CPU_ZERO(&cpu_cores);
 	CPU_SET(t->cpu_core_id, &cpu_cores);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
-	clkid = get_nic_clock_id();
-	
-	for (i = 0; !t->quit; i = (i + 1) & (t->n_ports_rx - 1)) {
-		// printf("port rx %d \n", i);
-		// printf("n_buffers_cons %d, \n", t->ports_rx[i]->bc->n_buffers_cons);
-		struct port *port_rx = t->ports_rx[i];
-		struct port *port_tx = t->ports_tx[i];
-		struct burst_rx *brx = &t->burst_rx;
-		struct burst_tx *btx = &t->burst_tx[i];
-		u32 n_pkts, j;
 
-		// printf("RX \n");
+    while (!t->quit) {
+		// printf("thread_func_veth \n");
+        struct port *port_rx = t->ports_rx[0];
+		struct port *port_tx = t->ports_tx[0];
+		struct burst_rx *brx = &t->burst_rx;
+		struct burst_tx *btx = &t->burst_tx[0];
+
+        u32 n_pkts, j;
+
 		/* RX. */
 		n_pkts = port_rx_burst(port_rx, brx, i);
-		// printf("bp->n_slabs_available %ld \n", port_rx->bc->bp->n_slabs_available);
-		// break;
 
-		// printf("n_pkts %d \n", n_pkts);
-		if (!n_pkts)
+        if (!n_pkts)
 			continue;
 
-		/* Process & TX. */
+        /* Process & TX. */
+		for (j = 0; j < n_pkts; j++) {
+
+			// printf("bp->n_slabs_available %ld \n", port_rx->bc->bp->n_slabs_available);
+
+			u64 addr = xsk_umem__add_offset_to_addr(brx->addr[j]);
+			u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
+						     addr);
+
+			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
+
+			btx->addr[btx->n_pkts] = brx->addr[j];
+			// btx->len[btx->n_pkts] = brx->len[j];
+			btx->len[btx->n_pkts] = new_len;
+			btx->n_pkts++;
+
+			// if (btx->n_pkts == MAX_BURST_TX) {
+			if (btx->n_pkts == 1) {
+				port_tx_burst(port_tx, btx);
+				btx->n_pkts = 0;
+			}
+		}
+
+    }
+
+    return NULL;
+}
+
+//from_NIC -> to_VETH or from_NIC -> to_NIC
+static void *
+thread_func_nic(void *arg)
+{
+    struct thread_data *t = arg;
+	cpu_set_t cpu_cores;
+	u32 i;
+
+	CPU_ZERO(&cpu_cores);
+	CPU_SET(t->cpu_core_id, &cpu_cores);
+	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
+
+    while (!t->quit) {
+		// printf("thread_func_nic \n");
+        struct port *port_rx = t->ports_rx[0];
+		struct port *port_tx = t->ports_tx[0];
+        // struct port *port_tx_nic = t->ports_tx[1];
+		struct burst_rx *brx = &t->burst_rx;
+		struct burst_tx *btx = &t->burst_tx[0];
+
+        u32 n_pkts, j;
+
+		/* RX. */
+		n_pkts = port_rx_burst(port_rx, brx, i);
+
+        if (!n_pkts)
+			continue;
+
+        /* Process & TX. */
 		for (j = 0; j < n_pkts; j++) {
 
 			// printf("bp->n_slabs_available %ld \n", port_rx->bc->bp->n_slabs_available);
@@ -1452,9 +1368,8 @@ thread_func(void *arg)
 			//Needs to send packet back out NIC
 			if (new_len == 1) {
 				new_len = brx->len[j];
-				int x = (i + 1) & (t->n_ports_rx - 1);
-				port_tx = t->ports_tx[x];
-				btx = &t->burst_tx[x];
+				port_tx = t->ports_tx[1];
+				btx = &t->burst_tx[1];
 			}
 
 			btx->addr[btx->n_pkts] = brx->addr[j];
@@ -1468,9 +1383,10 @@ thread_func(void *arg)
 				btx->n_pkts = 0;
 			}
 		}
-	}
 
-	return NULL;
+    }
+
+    return NULL;
 }
 
 static void read_time()
@@ -1554,7 +1470,7 @@ int main(int argc, char **argv)
     port_params[1].iface = nic_iface; //"enp65s0f0np0"
 	port_params[1].iface_queue = 0;
 
-    n_threads = 2; //only 1 thread
+    n_threads = 2; 
     thread_data[0].cpu_core_id = 10; //cat /proc/cpuinfo | grep 'core id'
 	thread_data[1].cpu_core_id = 11; //cat /proc/cpuinfo | grep 'core id'
 
@@ -1675,6 +1591,7 @@ int main(int argc, char **argv)
 		} else if (i == 1) { //nic-veth
 			t->ports_rx[0] = ports[1]; //nic
 			t->ports_tx[0] = ports[0]; //veth
+			t->ports_tx[1] = ports[1]; //nic
 		}
 		
 		t->n_ports_rx = 1;
@@ -1690,11 +1607,13 @@ int main(int argc, char **argv)
 					NULL,
 					thread_func_veth,
 					&thread_data[i]);
+			printf("Create thread %d \n", i);
 		} else if (i == 1) {
 			status = pthread_create(&threads[i],
 					NULL,
 					thread_func_nic,
 					&thread_data[i]);
+			printf("Create thread %d \n", i);
 		}
 		if (status) {
 			printf("Thread %d creation failed.\n", i);
@@ -1717,19 +1636,6 @@ int main(int argc, char **argv)
 		read_time();
 	}
 
-	// for ( ; !quit; ) {
-	// 	read_time();
-	// }
-
-	// printf("Quit.\n");
-
-	// read_time();
-	// for ( ; !quit; ) {
-	// 	sleep(1);
-	// }
-
-	// sleep(10);
-
 	/* Threads completion. */
 	printf("Quit.\n");
 
@@ -1750,8 +1656,10 @@ int main(int argc, char **argv)
 		fclose(fpt);
 	#endif
 
-	for (i = 0; i < n_threads; i++)
+	for (i = 0; i < n_threads; i++) {
 		thread_data[i].quit = 1;
+		printf("Quit thread %d \n", i);
+	}
 
 	for (i = 0; i < n_threads; i++)
 		pthread_join(threads[i], NULL);
