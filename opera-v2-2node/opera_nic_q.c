@@ -1284,7 +1284,6 @@ thread_func_veth(void *arg)
 	CPU_ZERO(&cpu_cores);
 	CPU_SET(t->cpu_core_id, &cpu_cores);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
-    ringbuf_t *q = t->rb;
 
     while (!t->quit) {
 		// printf("thread_func_veth \n");
@@ -1292,14 +1291,23 @@ thread_func_veth(void *arg)
 		struct port *port_tx = t->ports_tx[0];
 		struct burst_rx *brx = &t->burst_rx;
 		// struct burst_tx *btx = &t->burst_tx[0];
+        ringbuf_t *q = t->rb;
 
         u32 n_pkts, j;
 
+        // if (t1ms % 2 == 0) {
+        //     printf("slot 0 \n");
+        // } else {
+        //     printf("slot 1 \n");
+        // }
+
         //Drain Queue in even milliseconds
-        while((t1ms % 2 == 0 )  && (!ringbuf_is_empty(q))) {
+        while((t1ms % 2 == 0)  && (!ringbuf_is_empty(q))) {
+            // printf("even slot and queue not empty \n");
 			void *obj;
 			ringbuf_sc_dequeue(q, &obj);
 			struct burst_tx *btx = (struct burst_tx*)obj;
+            // printf("POP addr %lld \n", btx->addr[0]);
 			port_tx_burst(port_tx, btx, 1);
    	 	}
 
@@ -1323,7 +1331,9 @@ thread_func_veth(void *arg)
             if (btx != NULL) {
                 btx->addr[0] = brx->addr[j];
 			    btx->len[0] = new_len;
+                btx->n_pkts++;
                 if (!ringbuf_is_full(q)) {
+                    // printf("queue packet %lld \n", btx->addr[0]);
 					ringbuf_sp_enqueue(q, btx);
 				} else {
                     printf("QUEUE IS FULL \n");
