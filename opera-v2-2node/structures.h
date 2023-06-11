@@ -1,3 +1,5 @@
+#include "ringbuffer.h"
+
 typedef __u64 u64;
 typedef __u32 u32;
 typedef __u16 u16;
@@ -177,6 +179,7 @@ struct thread_data {
 	struct burst_tx burst_tx[MAX_PORTS_PER_THREAD];
 	u32 cpu_core_id;
 	int quit;
+	ringbuf_t *rb;
 };
 
 static pthread_t threads[MAX_THREADS];
@@ -192,3 +195,6 @@ struct bcache {
 	u64 n_buffers_cons;
 	u64 n_buffers_prod;
 };
+
+ringbuf_t *rb_forward;
+__u32 t1ms;
