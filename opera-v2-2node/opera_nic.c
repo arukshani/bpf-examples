@@ -73,6 +73,7 @@
 #include "common_funcs.h"
 // #include "network_stuff.h"
 #include "map.h"
+#include "thread_funcs.h"
 
 #define DEBUG 0
 
@@ -1553,8 +1554,9 @@ int main(int argc, char **argv)
     port_params[1].iface = nic_iface; //"enp65s0f0np0"
 	port_params[1].iface_queue = 0;
 
-    n_threads = 1; //only 1 thread
+    n_threads = 2; //only 1 thread
     thread_data[0].cpu_core_id = 10; //cat /proc/cpuinfo | grep 'core id'
+	thread_data[1].cpu_core_id = 11; //cat /proc/cpuinfo | grep 'core id'
 
     /* Buffer pool initialization. */
 	bp = bpool_init(&bpool_params, &umem_cfg);
@@ -1666,16 +1668,16 @@ int main(int argc, char **argv)
 	/* Threads. */
 	for (i = 0; i < n_threads; i++) {
 		struct thread_data *t = &thread_data[i];
-		u32 n_ports_per_thread = n_ports / n_threads, j;
 
-		for (j = 0; j < n_ports_per_thread; j++) {
-			t->ports_rx[j] = ports[i * n_ports_per_thread + j];
-			t->ports_tx[j] = ports[i * n_ports_per_thread +
-				(j + 1) % n_ports_per_thread];
-			printf("t->ports_rx n_buffers_cons %lld, \n", t->ports_rx[j]->bc->n_buffers_cons);
+		if (i == 0) { //veth->nic
+			t->ports_rx[0] = ports[0]; //veth
+			t->ports_tx[0] = ports[1]; //nic
+		} else if (i == 1) { //nic-veth
+			t->ports_rx[0] = ports[1]; //nic
+			t->ports_tx[0] = ports[0]; //veth
 		}
-
-		t->n_ports_rx = n_ports_per_thread;
+		
+		t->n_ports_rx = 1;
 
 		print_thread(i);
 	}
@@ -1683,10 +1685,17 @@ int main(int argc, char **argv)
 	for (i = 0; i < n_threads; i++) {
 		int status;
 
-		status = pthread_create(&threads[i],
+		if (i == 0) {
+			status = pthread_create(&threads[i],
 					NULL,
-					thread_func,
+					thread_func_veth,
 					&thread_data[i]);
+		} else if (i == 1) {
+			status = pthread_create(&threads[i],
+					NULL,
+					thread_func_nic,
+					&thread_data[i]);
+		}
 		if (status) {
 			printf("Thread %d creation failed.\n", i);
 			return -1;

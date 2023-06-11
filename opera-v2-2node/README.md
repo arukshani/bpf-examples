@@ -1,4 +1,4 @@
-### This is version 1 - Single Thread Implementation with 2 nodes
+### This is version 1 - Two Thread Implementation with 2 nodes
 
 ```
 sudo ip netns exec blue bash
