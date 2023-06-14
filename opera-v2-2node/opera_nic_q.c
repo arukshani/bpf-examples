@@ -1005,7 +1005,7 @@ static struct timespec get_nicclock(void)
 uint32_t node_ip[20000];
 // char description[20000][100]; //strcpy(description[0], aString);
 int slot[20000]; //0-from_veth, 1-intermediate_node, 2-to_veth
-struct timespec timestamp_arr[20000];
+struct timespec timestamp_arr[20000000];
 uint8_t topo_arr[20000];
 int next_node[20000];
 long time_index = 0;
@@ -1093,14 +1093,14 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		struct mac_addr *dest_mac_val = mg_map_get(&mac_table, mac_index);
 
 		//Telemetry
-		#if DEBUG == 1
-			timestamp_arr[time_index] = now;
-			node_ip[time_index] = src_ip;
-			slot[time_index]=0;
-			topo_arr[time_index] = topo;
-			next_node[time_index] = mac_index;
-			time_index++;
-		#endif
+		// #if DEBUG == 1
+		// 	timestamp_arr[time_index] = now;
+		// 	node_ip[time_index] = src_ip;
+		// 	slot[time_index]=0;
+		// 	topo_arr[time_index] = topo;
+		// 	next_node[time_index] = mac_index;
+		// 	time_index++;
+		// #endif
 
 		// For debug
 		// printf("mac_index = %d\n", mac_index);
@@ -1158,14 +1158,14 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 			__builtin_memcpy(eth->h_source, out_eth_src, sizeof(eth->h_source));
 
 			//Telemetry
-			#if DEBUG == 1
-				timestamp_arr[time_index] = now;
-				node_ip[time_index] = src_ip;
-				slot[time_index]=1;
-				topo_arr[time_index] = topo;
-				next_node[time_index] = next_mac_index;
-				time_index++;
-			#endif
+			// #if DEBUG == 1
+			// 	timestamp_arr[time_index] = now;
+			// 	node_ip[time_index] = src_ip;
+			// 	slot[time_index]=1;
+			// 	topo_arr[time_index] = topo;
+			// 	next_node[time_index] = next_mac_index;
+			// 	time_index++;
+			// #endif
 
 			//Debug
 			// printf("next_mac_index = %d\n", next_mac_index);
@@ -1190,14 +1190,14 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 			memcpy(xsk_umem__get_data(params->bp->addr, addr), new_data, new_len);
 
 			//Telemetry
-			#if DEBUG == 1
-				timestamp_arr[time_index] = now;
-				node_ip[time_index] = src_ip;
-				slot[time_index]=2;
-				topo_arr[time_index] = topo;
-				next_node[time_index] = 0;
-				time_index++;
-			#endif
+			// #if DEBUG == 1
+			// 	timestamp_arr[time_index] = now;
+			// 	node_ip[time_index] = src_ip;
+			// 	slot[time_index]=2;
+			// 	topo_arr[time_index] = topo;
+			// 	next_node[time_index] = 0;
+			// 	time_index++;
+			// #endif
 			
 			return new_len;
 		}
@@ -1303,6 +1303,10 @@ thread_func_veth(void *arg)
 
         //Drain Queue in even milliseconds
         while((t1ms % 2 == 0)  && (!ringbuf_is_empty(q))) {
+			#if DEBUG_PAUSE_Q == 1
+				timestamp_arr[time_index] = now;
+				time_index++;
+			#endif
             // printf("even slot and queue not empty \n");
 			void *obj;
 			ringbuf_sc_dequeue(q, &obj);
@@ -1670,15 +1674,27 @@ int main(int argc, char **argv)
 
 	// printf("time_index: %ld \n", time_index);
 
-	#if DEBUG == 1
-		printf("debug");
+	// #if DEBUG == 1
+	// 	printf("debug");
+	// 	int z;
+	// 	FILE *fpt;
+	// 	fpt = fopen("/tmp/opera_data.csv", "w+");
+	// 	fprintf(fpt,"node_ip,slot,topo_arr,next_node,time_ns,time_part_sec,time_part_nsec\n");
+	// 	for (z = 0; z < time_index; z++ ) {
+	// 		unsigned long now_ns = get_nsec(&timestamp_arr[z]);
+	// 		fprintf(fpt,"%d,%d,%d,%d,%ld,%ld,%ld\n",node_ip[z],slot[z],topo_arr[z],next_node[z],now_ns,timestamp_arr[z].tv_sec,timestamp_arr[z].tv_nsec);
+	// 	}
+	// 	fclose(fpt);
+	// #endif
+
+	#if DEBUG_PAUSE_Q == 1
 		int z;
 		FILE *fpt;
 		fpt = fopen("/tmp/opera_data.csv", "w+");
-		fprintf(fpt,"node_ip,slot,topo_arr,next_node,time_ns,time_part_sec,time_part_nsec\n");
+		fprintf(fpt,"time_ns,time_part_sec,time_part_nsec\n");
 		for (z = 0; z < time_index; z++ ) {
 			unsigned long now_ns = get_nsec(&timestamp_arr[z]);
-			fprintf(fpt,"%d,%d,%d,%d,%ld,%ld,%ld\n",node_ip[z],slot[z],topo_arr[z],next_node[z],now_ns,timestamp_arr[z].tv_sec,timestamp_arr[z].tv_nsec);
+			fprintf(fpt,"%ld,%ld,%ld\n",now_ns,timestamp_arr[z].tv_sec,timestamp_arr[z].tv_nsec);
 		}
 		fclose(fpt);
 	#endif
