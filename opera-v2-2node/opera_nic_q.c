@@ -1303,10 +1303,10 @@ thread_func_veth(void *arg)
 
         //Drain Queue in even milliseconds
         while((t1ms % 2 == 0)  && (!ringbuf_is_empty(q))) {
-			#if DEBUG_PAUSE_Q == 1
-				timestamp_arr[time_index] = now;
-				time_index++;
-			#endif
+			// #if DEBUG_PAUSE_Q == 1
+			// 	timestamp_arr[time_index] = now;
+			// 	time_index++;
+			// #endif
             // printf("even slot and queue not empty \n");
 			void *obj;
 			ringbuf_sc_dequeue(q, &obj);
@@ -1392,6 +1392,10 @@ thread_func_nic(void *arg)
 						     addr);
 
 			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
+			#if DEBUG_PAUSE_Q == 1
+				timestamp_arr[time_index] = now;
+				time_index++;
+			#endif
 
 			//Needs to send packet back out NIC
 			if (new_len == 1) {
