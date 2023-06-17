@@ -1128,6 +1128,10 @@ static int process_rx_packet(void *data, struct port_params *params, uint32_t le
 		
 	} else if (is_nic == 0)
 	{
+		#if DEBUG_PAUSE_Q == 1
+			timestamp_arr[time_index] = now;
+			time_index++;
+		#endif
 		// printf("From NIC \n");
 		struct ethhdr *eth = (struct ethhdr *) data;
 		struct iphdr *outer_ip_hdr = (struct iphdr *)(data +
@@ -1392,10 +1396,6 @@ thread_func_nic(void *arg)
 						     addr);
 
 			int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
-			#if DEBUG_PAUSE_Q == 1
-				timestamp_arr[time_index] = now;
-				time_index++;
-			#endif
 
 			//Needs to send packet back out NIC
 			if (new_len == 1) {
@@ -1530,7 +1530,7 @@ int main(int argc, char **argv)
 		// printf("af port_init %d, \n", ports[i]->bc->n_buffers_cons);
 	}
 	printf("All ports created successfully.\n");
-	// clkid = get_nic_clock_id();
+	clkid = get_nic_clock_id();
 
 	//+++++++Source MAC and IP++++++++++++++
 	getMACAddress(nic_iface, out_eth_src);
