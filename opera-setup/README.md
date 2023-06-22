@@ -10,11 +10,11 @@ python3 setup_cloudlab.py
 ```
 
 ### Maunally check whether all workers are there if not add them
-##### Comment SECTION1 and uncomment SECTION2 and run the script again
+<!-- ##### Comment SECTION1 and uncomment SECTION2 and run the script again
 
 ```
 python3 setup_cloudlab.py
-```
+``` -->
 
 ### PTP Start and Kill
 ```
@@ -35,12 +35,12 @@ python3 opera_build.py -s //start
 local_IP,local_interface,node_mac,veth_mac,ptp_interface,ptp_clock_name,username,node_name,ip_in_hex
 ```
 
-### Testing Nodes
+### Testing Nodes (Not needed)
 ```
 ./test_nodes.sh 
 ```
 
-### setup a single node
+### setup a single node (This is not needed)
 ```
 Restart the node
 Run setup_worker.sh on the node (eg: /bin/bash setup_worker.sh 192.168.1.32)
