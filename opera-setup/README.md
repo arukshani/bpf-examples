@@ -10,6 +10,9 @@ python3 setup_cloudlab.py
 ```
 
 ### Maunally check whether all workers are there if not add them
+```
+cat /tmp/all_nodes.csv
+```
 <!-- ##### Comment SECTION1 and uncomment SECTION2 and run the script again
 
 ```
