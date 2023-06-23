@@ -25,6 +25,7 @@ char *nic_iface;
 struct HashNode** ip_set;
 mg_Map mac_table; //mac table
 mg_Map ip_table; //ip table
+mg_Map dest_queue_table; //destination queue table
 struct ip_set {
 	int index;
 };
@@ -181,7 +182,9 @@ struct thread_data {
 	struct burst_tx burst_tx[MAX_PORTS_PER_THREAD];
 	u32 cpu_core_id;
 	int quit;
-	ringbuf_t *rb;
+	ringbuf_t *queue1;
+	ringbuf_t *queue2;
+	ringbuf_t *queue3;
 };
 
 static pthread_t threads[MAX_THREADS];
@@ -198,5 +201,12 @@ struct bcache {
 	u64 n_buffers_prod;
 };
 
-ringbuf_t *rb_forward;
+ringbuf_t *queue_1;
+ringbuf_t *queue_2;
+ringbuf_t *queue_3;
 __u32 t1ms;
+
+struct return_process_rx { 
+	int new_len;
+	ringbuf_t *dest_queue;
+};
