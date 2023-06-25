@@ -1092,6 +1092,7 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
     	getRouteElement(route_table, dest_ip_index->index, topo, &mac_index);
 		struct mac_addr *dest_mac_val = mg_map_get(&mac_table, mac_index);
 		ringbuf_t *dest_queue = mg_map_get(&dest_queue_table, mac_index);
+		// printf("dest_ip_index = %d, mac_index=%d \n", dest_ip_index->index, mac_index);
 
 		//Telemetry
 		// #if DEBUG == 1
@@ -1127,6 +1128,8 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 
 		return_val->dest_queue = dest_queue;
 		return_val->new_len = new_len;
+
+		// printf("From VETH packet received\n");
 		// return return_val;
 		
 	} else if (is_nic == 0)
@@ -1363,9 +1366,14 @@ thread_func_veth(void *arg)
                 btx->addr[0] = brx->addr[j];
 			    btx->len[0] = ret_val->new_len;
                 btx->n_pkts++;
+				// printf("b4 ring full check %d \n", ret_val->new_len);
+				// if (ret_val->dest_queue == NULL) {
+				// 	printf("dest queue is null \n");
+				// }
                 if (!ringbuf_is_full(ret_val->dest_queue)) {
                     // printf("queue packet %lld \n", btx->addr[0]);
 					ringbuf_sp_enqueue(ret_val->dest_queue, btx);
+					// printf("packet from veth is enqueued \n");
 				} else {
                     printf("QUEUE IS FULL \n");
                 }
@@ -1644,6 +1652,7 @@ int main(int argc, char **argv)
 	queue_2 = ringbuf_create(2048);
 	queue_3 = ringbuf_create(2048);
 
+	mg_map_init(&dest_queue_table, sizeof(ringbuf_t), 32);
 	mg_map_add(&dest_queue_table, 1, queue_1);
 	mg_map_add(&dest_queue_table, 2, queue_2);
 	mg_map_add(&dest_queue_table, 3, queue_3);
