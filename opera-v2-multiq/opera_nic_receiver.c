@@ -1303,9 +1303,13 @@ thread_func_veth(void *arg)
 		struct port *port_tx = t->ports_tx[0];
 		struct burst_rx *brx = &t->burst_rx;
 		// struct burst_tx *btx = &t->burst_tx[0];
-        ringbuf_t *q1 = t->queue1;
-		ringbuf_t *q2 = t->queue2;
-		ringbuf_t *q3 = t->queue3;
+        // ringbuf_t *q1 = t->queue1;
+		// ringbuf_t *q2 = t->queue2;
+		// ringbuf_t *q3 = t->queue3;
+
+		ringbuf_t *q1 = mg_map_get(&dest_queue_table, 1);
+		ringbuf_t *q2 = mg_map_get(&dest_queue_table, 2);
+		ringbuf_t *q3 = mg_map_get(&dest_queue_table, 3);
 
         u32 n_pkts, j;
 

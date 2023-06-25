@@ -1303,9 +1303,13 @@ thread_func_veth(void *arg)
 		struct port *port_tx = t->ports_tx[0];
 		struct burst_rx *brx = &t->burst_rx;
 		// struct burst_tx *btx = &t->burst_tx[0];
-        ringbuf_t *q1 = t->queue1;
-		ringbuf_t *q2 = t->queue2;
-		ringbuf_t *q3 = t->queue3;
+        // ringbuf_t *q1 = t->queue1;
+		// ringbuf_t *q2 = t->queue2;
+		// ringbuf_t *q3 = t->queue3;
+
+		ringbuf_t *q1 = mg_map_get(&dest_queue_table, 1);
+		ringbuf_t *q2 = mg_map_get(&dest_queue_table, 2);
+		ringbuf_t *q3 = mg_map_get(&dest_queue_table, 3);
 
         u32 n_pkts, j;
 
@@ -1315,13 +1319,13 @@ thread_func_veth(void *arg)
         //     printf("slot 1 \n");
         // }
 
-        //Drain Queue1 in even milliseconds
+        //Drain Queue2 in even milliseconds
         while((t1ms % 2 == 0)  && (!ringbuf_is_empty(q2))) {
 			// #if DEBUG_PAUSE_Q == 1
 			// 	timestamp_arr[time_index] = now;
 			// 	time_index++;
 			// #endif
-            // printf("even slot and queue not empty \n");
+            // printf("even slot and queue2 not empty \n");
 			void *obj;
 			ringbuf_sc_dequeue(q2, &obj);
 			struct burst_tx *btx = (struct burst_tx*)obj;
@@ -1329,13 +1333,13 @@ thread_func_veth(void *arg)
 			port_tx_burst(port_tx, btx, 1);
    	 	}
 
-		//Drain Queue2 in odd milliseconds
+		//Drain Queue3 in odd milliseconds
         while((t1ms % 2 != 0)  && (!ringbuf_is_empty(q3))) {
 			// #if DEBUG_PAUSE_Q == 1
 			// 	timestamp_arr[time_index] = now;
 			// 	time_index++;
 			// #endif
-            // printf("even slot and queue not empty \n");
+            // printf("odd slot and queue3 not empty \n");
 			void *obj;
 			ringbuf_sc_dequeue(q3, &obj);
 			struct burst_tx *btx = (struct burst_tx*)obj;
