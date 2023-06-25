@@ -1092,7 +1092,7 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
     	getRouteElement(route_table, dest_ip_index->index, topo, &mac_index);
 		struct mac_addr *dest_mac_val = mg_map_get(&mac_table, mac_index);
 		ringbuf_t *dest_queue = mg_map_get(&dest_queue_table, mac_index);
-		// printf("dest_ip_index = %d, mac_index=%d \n", dest_ip_index->index, mac_index);
+		printf("dest_ip_index = %d, mac_index=%d \n", dest_ip_index->index, mac_index);
 
 		//Telemetry
 		// #if DEBUG == 1
@@ -1297,10 +1297,6 @@ thread_func_veth(void *arg)
 	CPU_SET(t->cpu_core_id, &cpu_cores);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
 
-	ringbuf_t *q1 = mg_map_get(&dest_queue_table, 1);
-	ringbuf_t *q2 = mg_map_get(&dest_queue_table, 2);
-	ringbuf_t *q3 = mg_map_get(&dest_queue_table, 3);
-
     while (!t->quit) {
 		// printf("thread_func_veth \n");
         struct port *port_rx = t->ports_rx[0];
@@ -1311,40 +1307,30 @@ thread_func_veth(void *arg)
 		// ringbuf_t *q2 = t->queue2;
 		// ringbuf_t *q3 = t->queue3;
 
+		ringbuf_t *q1 = mg_map_get(&dest_queue_table, 1);
+		ringbuf_t *q2 = mg_map_get(&dest_queue_table, 2);
+		ringbuf_t *q3 = mg_map_get(&dest_queue_table, 3);
+
         u32 n_pkts, j;
 
-        // if (t1ms % 2 == 0) {
-        //     printf("slot 0 \n");
-        // } else {
-        //     printf("slot 1 \n");
-        // }
+		u32 slot = t1ms % 2;
+		void *obj1;
+		void *obj2;
 
         //Drain Queue2 in even milliseconds
-        while((t1ms % 2 == 0)  && (!ringbuf_is_empty(q2))) {
-			// #if DEBUG_PAUSE_Q == 1
-			// 	timestamp_arr[time_index] = now;
-			// 	time_index++;
-			// #endif
-            // printf("even slot and queue2 not empty \n");
-			void *obj;
-			ringbuf_sc_dequeue(q2, &obj);
-			struct burst_tx *btx = (struct burst_tx*)obj;
-            // printf("POP addr %lld \n", btx->addr[0]);
-			port_tx_burst(port_tx, btx, 1);
+        while((slot == 0) && (!ringbuf_is_empty(q2))) {
+            printf("even slot and queue2 not empty \n");
+			ringbuf_sc_dequeue(q2, &obj1);
+			struct burst_tx *btx1 = (struct burst_tx*)obj1;
+			port_tx_burst(port_tx, btx1, 1);
    	 	}
 
 		//Drain Queue3 in odd milliseconds
-        while((t1ms % 2 != 0)  && (!ringbuf_is_empty(q3))) {
-			// #if DEBUG_PAUSE_Q == 1
-			// 	timestamp_arr[time_index] = now;
-			// 	time_index++;
-			// #endif
-            // printf("odd slot and queue3 not empty \n");
-			void *obj;
-			ringbuf_sc_dequeue(q3, &obj);
-			struct burst_tx *btx = (struct burst_tx*)obj;
-            // printf("POP addr %lld \n", btx->addr[0]);
-			port_tx_burst(port_tx, btx, 1);
+        while((slot != 0) && (!ringbuf_is_empty(q3))) {
+            printf("odd slot and queue3 not empty \n");
+			ringbuf_sc_dequeue(q3, &obj2);
+			struct burst_tx *btx2 = (struct burst_tx*)obj2;
+			port_tx_burst(port_tx, btx2, 1);
    	 	}
 
 		/* RX. */
@@ -1370,14 +1356,14 @@ thread_func_veth(void *arg)
                 btx->addr[0] = brx->addr[j];
 			    btx->len[0] = ret_val->new_len;
                 btx->n_pkts++;
-				// printf("b4 ring full check %d \n", ret_val->new_len);
+				printf("b4 ring full check %d \n", ret_val->new_len);
 				// if (ret_val->dest_queue == NULL) {
 				// 	printf("dest queue is null \n");
 				// }
                 if (!ringbuf_is_full(ret_val->dest_queue)) {
-                    // printf("queue packet %lld \n", btx->addr[0]);
+                    printf("queue packet %lld \n", btx->addr[0]);
 					ringbuf_sp_enqueue(ret_val->dest_queue, btx);
-					// printf("packet from veth is enqueued \n");
+					printf("packet from veth is enqueued \n");
 				} else {
                     printf("QUEUE IS FULL \n");
                 }
@@ -1656,7 +1642,7 @@ int main(int argc, char **argv)
 	queue_2 = ringbuf_create(2048);
 	queue_3 = ringbuf_create(2048);
 
-	mg_map_init(&dest_queue_table, sizeof(ringbuf_t), 32);
+	mg_map_init(&dest_queue_table, sizeof(ringbuf_t), 3);
 	mg_map_add(&dest_queue_table, 1, queue_1);
 	mg_map_add(&dest_queue_table, 2, queue_2);
 	mg_map_add(&dest_queue_table, 3, queue_3);
