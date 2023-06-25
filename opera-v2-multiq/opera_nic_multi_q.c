@@ -1297,6 +1297,10 @@ thread_func_veth(void *arg)
 	CPU_SET(t->cpu_core_id, &cpu_cores);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
 
+	ringbuf_t *q1 = mg_map_get(&dest_queue_table, 1);
+	ringbuf_t *q2 = mg_map_get(&dest_queue_table, 2);
+	ringbuf_t *q3 = mg_map_get(&dest_queue_table, 3);
+
     while (!t->quit) {
 		// printf("thread_func_veth \n");
         struct port *port_rx = t->ports_rx[0];
@@ -1306,10 +1310,6 @@ thread_func_veth(void *arg)
         // ringbuf_t *q1 = t->queue1;
 		// ringbuf_t *q2 = t->queue2;
 		// ringbuf_t *q3 = t->queue3;
-
-		ringbuf_t *q1 = mg_map_get(&dest_queue_table, 1);
-		ringbuf_t *q2 = mg_map_get(&dest_queue_table, 2);
-		ringbuf_t *q3 = mg_map_get(&dest_queue_table, 3);
 
         u32 n_pkts, j;
 
