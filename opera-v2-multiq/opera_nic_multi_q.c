@@ -1092,7 +1092,7 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
     	getRouteElement(route_table, dest_ip_index->index, topo, &mac_index);
 		struct mac_addr *dest_mac_val = mg_map_get(&mac_table, mac_index);
 		// ringbuf_t *dest_queue = mg_map_get(&dest_queue_table, mac_index);
-		printf("dest_ip_index = %d, mac_index=%d \n", dest_ip_index->index, mac_index);
+		// printf("dest_ip_index = %d, mac_index=%d \n", dest_ip_index->index, mac_index);
 		return_val->ring_buf_index = dest_ip_index->index - 1;
 
 		//Telemetry
