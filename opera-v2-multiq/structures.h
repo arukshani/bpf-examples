@@ -172,8 +172,6 @@ static int n_ports;
 #define MAX_PORTS_PER_THREAD 16
 #endif
 
-
-
 struct thread_data {
 	struct port *ports_rx[MAX_PORTS_PER_THREAD];
 	struct port *ports_tx[MAX_PORTS_PER_THREAD];
@@ -182,9 +180,7 @@ struct thread_data {
 	struct burst_tx burst_tx[MAX_PORTS_PER_THREAD];
 	u32 cpu_core_id;
 	int quit;
-	ringbuf_t *queue1;
-	ringbuf_t *queue2;
-	ringbuf_t *queue3;
+	ringbuf_t *ring_bf_array[3];
 };
 
 static pthread_t threads[MAX_THREADS];
@@ -201,12 +197,11 @@ struct bcache {
 	u64 n_buffers_prod;
 };
 
-ringbuf_t *queue_1;
-ringbuf_t *queue_2;
-ringbuf_t *queue_3;
+ringbuf_t *ring_array[3];
+
 __u32 t1ms;
 
 struct return_process_rx { 
 	int new_len;
-	ringbuf_t *dest_queue;
+	int ring_buf_index;
 };
