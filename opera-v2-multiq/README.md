@@ -1,7 +1,7 @@
 ### This is version 2 - Two Thread Implementation 
 
-#### No queue version - opera_nic.c
-#### With queue pause - opera_nic_q.c
+#### With multi-queue pause - opera_nic_multi_q.c
+#### Receiver with no pause - opera_nic_receiver.c
 
 ```
 sudo ip netns exec blue bash
