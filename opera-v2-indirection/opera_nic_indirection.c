@@ -1321,7 +1321,6 @@ thread_func_veth(void *arg)
 		//++++++++++++++++++++++DRAIN LOCAL QUEUES++++++++++++++++++++++++++++
         if (ring_buff[0] != NULL) {
 			while((!ringbuf_is_empty(ring_buff[0]))) {
-				// printf("odd slot and queue3 not empty \n");
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[0], &obj2);
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
@@ -1331,7 +1330,6 @@ thread_func_veth(void *arg)
 
 		if (ring_buff[1] != NULL) {
 			while((!ringbuf_is_empty(ring_buff[1]))) {
-				// printf("odd slot and queue3 not empty \n");
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[1], &obj2);
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
@@ -1341,7 +1339,6 @@ thread_func_veth(void *arg)
 
 		if (ring_buff[2] != NULL) {
 			while((!ringbuf_is_empty(ring_buff[2]))) {
-				// printf("odd slot and queue3 not empty \n");
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[2], &obj2);
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
