@@ -1311,28 +1311,36 @@ thread_func_veth(void *arg)
 		struct burst_rx *brx = &t->burst_rx;
 		// struct burst_tx *btx = &t->burst_tx[0];
 
-		// ringbuf_t *q1 = mg_map_get(&dest_queue_table, 1);
-		// ringbuf_t *q2 = mg_map_get(&dest_queue_table, 2);
-		// ringbuf_t *q3 = mg_map_get(&dest_queue_table, 3);
-
         u32 n_pkts, j;
 
 		u32 slot = t1ms % 2;
+
+		//++++++++++++++++++++++DRAIN NON-LOCAL QUEUES++++++++++++++++++++++++
+		//TODO:
 		
-        //Drain Queue2 in even milliseconds
-		if (ring_buff[1] != NULL) {
-			while((slot == 0) && (!ringbuf_is_empty(ring_buff[1]))) {
-				// printf("even slot and queue2 not empty \n");
-				void *obj1;
-				ringbuf_sc_dequeue(ring_buff[1], &obj1);
-				struct burst_tx *btx1 = (struct burst_tx*)obj1;
-				port_tx_burst(port_tx, btx1, 1);
+		//++++++++++++++++++++++DRAIN LOCAL QUEUES++++++++++++++++++++++++++++
+        if (ring_buff[0] != NULL) {
+			while((!ringbuf_is_empty(ring_buff[0]))) {
+				// printf("odd slot and queue3 not empty \n");
+				void *obj2;
+				ringbuf_sc_dequeue(ring_buff[0], &obj2);
+				struct burst_tx *btx2 = (struct burst_tx*)obj2;
+				port_tx_burst(port_tx, btx2, 1);
    	 		}
 		}
 
-		//Drain Queue3 in odd milliseconds
+		if (ring_buff[1] != NULL) {
+			while((!ringbuf_is_empty(ring_buff[1]))) {
+				// printf("odd slot and queue3 not empty \n");
+				void *obj2;
+				ringbuf_sc_dequeue(ring_buff[1], &obj2);
+				struct burst_tx *btx2 = (struct burst_tx*)obj2;
+				port_tx_burst(port_tx, btx2, 1);
+   	 		}
+		}
+
 		if (ring_buff[2] != NULL) {
-			while((slot != 0) && (!ringbuf_is_empty(ring_buff[2]))) {
+			while((!ringbuf_is_empty(ring_buff[2]))) {
 				// printf("odd slot and queue3 not empty \n");
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[2], &obj2);
@@ -1397,9 +1405,9 @@ thread_func_nic(void *arg)
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
 
 	ringbuf_t *ring_buff_non_local[3];
-	ring_buff_non_local[0] = t->ring_bf_array[0];
-	ring_buff_non_local[1] = t->ring_bf_array[1];
-	ring_buff_non_local[2] = t->ring_bf_array[2];
+	ring_buff_non_local[0] = t->non_loca_ring_bf_array[0];
+	ring_buff_non_local[1] = t->non_loca_ring_bf_array[1];
+	ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
 
     while (!t->quit) {
 		// printf("thread_func_nic \n");
