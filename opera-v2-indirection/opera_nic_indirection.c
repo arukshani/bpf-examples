@@ -1167,6 +1167,7 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 			struct mac_addr *next_dest_mac_val = mg_map_get(&mac_table, next_mac_index);
 			__builtin_memcpy(eth->h_dest, next_dest_mac_val->bytes, sizeof(eth->h_dest));
 			__builtin_memcpy(eth->h_source, out_eth_src, sizeof(eth->h_source));
+			return_val->ring_buf_index = next_dest_ip_index->index - 1;
 
 			//Telemetry
 			// #if DEBUG == 1
@@ -1394,6 +1395,11 @@ thread_func_nic(void *arg)
 	CPU_ZERO(&cpu_cores);
 	CPU_SET(t->cpu_core_id, &cpu_cores);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
+
+	ringbuf_t *ring_buff_non_local[3];
+	ring_buff_non_local[0] = t->ring_bf_array[0];
+	ring_buff_non_local[1] = t->ring_bf_array[1];
+	ring_buff_non_local[2] = t->ring_bf_array[2];
 
     while (!t->quit) {
 		// printf("thread_func_nic \n");
@@ -1645,6 +1651,10 @@ int main(int argc, char **argv)
 	ring_array[1] = ringbuf_create(2048);
 	ring_array[2] = ringbuf_create(2048);
 
+	non_local_ring_array[0] = ringbuf_create(2048);
+	non_local_ring_array[1] = ringbuf_create(2048);
+	non_local_ring_array[2] = ringbuf_create(2048);
+
 	// mg_map_init(&dest_queue_table, sizeof(ringbuf_t), 3);
 	// mg_map_add(&dest_queue_table, 1, queue_1);
 	// mg_map_add(&dest_queue_table, 2, queue_2);
@@ -1660,10 +1670,16 @@ int main(int argc, char **argv)
             t->ring_bf_array[0] = ring_array[0];
 			t->ring_bf_array[1] = ring_array[1];
 			t->ring_bf_array[2] = ring_array[2];
+			t->non_loca_ring_bf_array[0] = non_local_ring_array[0];
+			t->non_loca_ring_bf_array[1] = non_local_ring_array[1];
+			t->non_loca_ring_bf_array[2] = non_local_ring_array[2];
 		} else if (i == 1) { //nic-veth
 			t->ports_rx[0] = ports[1]; //nic
 			t->ports_tx[0] = ports[0]; //veth
 			t->ports_tx[1] = ports[1]; //nic
+			t->non_loca_ring_bf_array[0] = non_local_ring_array[0];
+			t->non_loca_ring_bf_array[1] = non_local_ring_array[1];
+			t->non_loca_ring_bf_array[2] = non_local_ring_array[2];
 		}
 		
 		t->n_ports_rx = 1;
@@ -1762,6 +1778,9 @@ int main(int argc, char **argv)
     ringbuf_free(ring_array[0]);
 	ringbuf_free(ring_array[1]);
 	ringbuf_free(ring_array[2]);
+	ringbuf_free(non_local_ring_array[0]);
+	ringbuf_free(non_local_ring_array[1]);
+	ringbuf_free(non_local_ring_array[2]);
 
     return 0;
 }
