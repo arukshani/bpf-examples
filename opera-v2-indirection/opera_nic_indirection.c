@@ -1435,17 +1435,26 @@ thread_func_nic(void *arg)
 				ret_val->new_len = brx->len[j];
 				port_tx = t->ports_tx[1];
 				btx = &t->burst_tx[1];
-			}
-
-			btx->addr[btx->n_pkts] = brx->addr[j];
-			// btx->len[btx->n_pkts] = brx->len[j];
-			btx->len[btx->n_pkts] = ret_val->new_len;
-			btx->n_pkts++;
-
-			// if (btx->n_pkts == MAX_BURST_TX) {
-			if (btx->n_pkts == 1) {
-				port_tx_burst(port_tx, btx, 0);
-				btx->n_pkts = 0;
+				ringbuf_t *dest_queue = ring_buff_non_local[ret_val->ring_buf_index];
+				//queue packet in non-local queue
+				if (dest_queue != NULL) {
+					if (!ringbuf_is_full(dest_queue)) {
+						ringbuf_sp_enqueue(dest_queue, btx);
+					} else {
+						printf("NON-LCOAL QUEUE IS FULL \n");
+					}
+				} else {
+					printf("TODO: There is no non-local queue to push the packet \n");
+				}
+			} else {
+				btx->addr[btx->n_pkts] = brx->addr[j];
+				btx->len[btx->n_pkts] = ret_val->new_len;
+				btx->n_pkts++;
+				
+				if (btx->n_pkts == 1) {
+					port_tx_burst(port_tx, btx, 0);
+					btx->n_pkts = 0;
+				}
 			}
 			free(ret_val);
 		}
