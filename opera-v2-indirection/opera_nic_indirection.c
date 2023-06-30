@@ -1304,6 +1304,11 @@ thread_func_veth(void *arg)
 	ring_buff[1] = t->ring_bf_array[1];
 	ring_buff[2] = t->ring_bf_array[2];
 
+	ringbuf_t *ring_buff_non_local[3];
+	ring_buff_non_local[0] = t->non_loca_ring_bf_array[0];
+	ring_buff_non_local[1] = t->non_loca_ring_bf_array[1];
+	ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
+
     while (!t->quit) {
 		// printf("thread_func_veth \n");
         struct port *port_rx = t->ports_rx[0];
@@ -1316,7 +1321,32 @@ thread_func_veth(void *arg)
 		u32 slot = t1ms % 2;
 
 		//++++++++++++++++++++++DRAIN NON-LOCAL QUEUES++++++++++++++++++++++++
-		//TODO:
+		if (ring_buff_non_local[0] != NULL) {
+			while((!ringbuf_is_empty(ring_buff_non_local[0]))) {
+				void *obj;
+				ringbuf_sc_dequeue(ring_buff_non_local[0], &obj);
+				struct burst_tx *btx = (struct burst_tx*)obj;
+				port_tx_burst(port_tx, btx, 1);
+   	 		}
+		}
+
+		if (ring_buff_non_local[1] != NULL) {
+			while((!ringbuf_is_empty(ring_buff_non_local[1]))) {
+				void *obj;
+				ringbuf_sc_dequeue(ring_buff_non_local[1], &obj);
+				struct burst_tx *btx = (struct burst_tx*)obj;
+				port_tx_burst(port_tx, btx, 1);
+   	 		}
+		}
+
+		if (ring_buff_non_local[2] != NULL) {
+			while((!ringbuf_is_empty(ring_buff_non_local[2]))) {
+				void *obj;
+				ringbuf_sc_dequeue(ring_buff_non_local[2], &obj);
+				struct burst_tx *btx = (struct burst_tx*)obj;
+				port_tx_burst(port_tx, btx, 1);
+   	 		}
+		}
 		
 		//++++++++++++++++++++++DRAIN LOCAL QUEUES++++++++++++++++++++++++++++
         if (ring_buff[0] != NULL) {
@@ -1668,11 +1698,6 @@ int main(int argc, char **argv)
 	non_local_ring_array[0] = ringbuf_create(2048);
 	non_local_ring_array[1] = ringbuf_create(2048);
 	non_local_ring_array[2] = ringbuf_create(2048);
-
-	// mg_map_init(&dest_queue_table, sizeof(ringbuf_t), 3);
-	// mg_map_add(&dest_queue_table, 1, queue_1);
-	// mg_map_add(&dest_queue_table, 2, queue_2);
-	// mg_map_add(&dest_queue_table, 3, queue_3);
 
 	/* Threads. */
 	for (i = 0; i < n_threads; i++) {
