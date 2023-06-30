@@ -1344,6 +1344,7 @@ thread_func_veth(void *arg)
 				void *obj;
 				ringbuf_sc_dequeue(ring_buff_non_local[2], &obj);
 				struct burst_tx *btx = (struct burst_tx*)obj;
+				// printf("de-queue packet %lld \n", btx->addr[0]);
 				port_tx_burst(port_tx, btx, 1);
    	 		}
 		}
@@ -1467,13 +1468,16 @@ thread_func_nic(void *arg)
 			struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
 			//Needs to send packet back out NIC
 			if (ret_val->new_len == 1) {
-				ret_val->new_len = brx->len[j];
-				port_tx = t->ports_tx[1];
-				btx = &t->burst_tx[1];
+				// ret_val->new_len = brx->len[j];
+				// port_tx = t->ports_tx[1];
+				// btx = &t->burst_tx[1];
+				btx->addr[0] = brx->addr[j];
+				btx->len[0] = brx->len[j];
 				ringbuf_t *dest_queue = ring_buff_non_local[ret_val->ring_buf_index];
 				//queue packet in non-local queue
 				if (dest_queue != NULL) {
 					if (!ringbuf_is_full(dest_queue)) {
+						// printf("queue packet %lld \n", btx->addr[0]);
 						ringbuf_sp_enqueue(dest_queue, btx);
 					} else {
 						printf("NON-LCOAL QUEUE IS FULL \n");
@@ -1487,7 +1491,7 @@ thread_func_nic(void *arg)
 				btx->n_pkts++;
 				
 				if (btx->n_pkts == 1) {
-					port_tx_burst(port_tx, btx, 0);
+					port_tx_burst(port_tx, btx, 1);
 					btx->n_pkts = 0;
 				}
 			}
