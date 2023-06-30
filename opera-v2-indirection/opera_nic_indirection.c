@@ -1442,7 +1442,7 @@ thread_func_nic(void *arg)
 		struct port *port_tx = t->ports_tx[0];
         // struct port *port_tx_nic = t->ports_tx[1];
 		struct burst_rx *brx = &t->burst_rx;
-		struct burst_tx *btx = &t->burst_tx[0];
+		// struct burst_tx *btx = &t->burst_tx[0];
 
         u32 n_pkts, j;
 
@@ -1464,7 +1464,7 @@ thread_func_nic(void *arg)
 			struct return_process_rx *ret_val = calloc(1, sizeof(struct return_process_rx));
 			// int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 			process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j], ret_val);
-
+			struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
 			//Needs to send packet back out NIC
 			if (ret_val->new_len == 1) {
 				ret_val->new_len = brx->len[j];
