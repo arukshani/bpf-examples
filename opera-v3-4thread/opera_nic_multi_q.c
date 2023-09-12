@@ -1317,6 +1317,17 @@ thread_func_veth(void *arg)
         u32 n_pkts, j;
 
 		// u32 slot = t1ms % 2;
+
+		//Drain Queue1 in even milliseconds
+		if (ring_buff[1] != NULL) {
+			while((!ringbuf_is_empty(ring_buff[0]))) {
+				// printf("even slot and queue2 not empty \n");
+				void *obj0;
+				ringbuf_sc_dequeue(ring_buff[1], &obj0);
+				struct burst_tx *btx0 = (struct burst_tx*)obj0;
+				port_tx_burst(port_tx, btx0, 1);
+   	 		}
+		}
 		
         //Drain Queue2 in even milliseconds
 		if (ring_buff[1] != NULL) {
