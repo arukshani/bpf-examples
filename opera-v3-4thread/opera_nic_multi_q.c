@@ -1318,18 +1318,18 @@ thread_func_veth(void *arg)
 
 		// u32 slot = t1ms % 2;
 
-		//Drain Queue1 in even milliseconds
+		//Drain Queue1 
 		if (ring_buff[0] != NULL) {
 			while((!ringbuf_is_empty(ring_buff[0]))) {
 				// printf("even slot and queue2 not empty \n");
 				void *obj0;
-				ringbuf_sc_dequeue(ring_buff[1], &obj0);
+				ringbuf_sc_dequeue(ring_buff[0], &obj0);
 				struct burst_tx *btx0 = (struct burst_tx*)obj0;
 				port_tx_burst(port_tx, btx0, 1);
    	 		}
 		}
 		
-        //Drain Queue2 in even milliseconds
+        //Drain Queue2 
 		if (ring_buff[1] != NULL) {
 			while((!ringbuf_is_empty(ring_buff[1]))) {
 				// printf("even slot and queue2 not empty \n");
@@ -1340,7 +1340,7 @@ thread_func_veth(void *arg)
    	 		}
 		}
 
-		//Drain Queue3 in odd milliseconds
+		//Drain Queue3 
 		if (ring_buff[2] != NULL) {
 			while((!ringbuf_is_empty(ring_buff[2]))) {
 				// printf("odd slot and queue3 not empty \n");
