@@ -1319,7 +1319,7 @@ thread_func_veth(void *arg)
 		// u32 slot = t1ms % 2;
 
 		//Drain Queue1 in even milliseconds
-		if (ring_buff[1] != NULL) {
+		if (ring_buff[0] != NULL) {
 			while((!ringbuf_is_empty(ring_buff[0]))) {
 				// printf("even slot and queue2 not empty \n");
 				void *obj0;
