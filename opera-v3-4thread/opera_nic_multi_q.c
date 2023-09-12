@@ -1316,11 +1316,11 @@ thread_func_veth(void *arg)
 
         u32 n_pkts, j;
 
-		u32 slot = t1ms % 2;
+		// u32 slot = t1ms % 2;
 		
         //Drain Queue2 in even milliseconds
 		if (ring_buff[1] != NULL) {
-			while((slot == 0) && (!ringbuf_is_empty(ring_buff[1]))) {
+			while((!ringbuf_is_empty(ring_buff[1]))) {
 				// printf("even slot and queue2 not empty \n");
 				void *obj1;
 				ringbuf_sc_dequeue(ring_buff[1], &obj1);
@@ -1331,7 +1331,7 @@ thread_func_veth(void *arg)
 
 		//Drain Queue3 in odd milliseconds
 		if (ring_buff[2] != NULL) {
-			while((slot != 0) && (!ringbuf_is_empty(ring_buff[2]))) {
+			while((!ringbuf_is_empty(ring_buff[2]))) {
 				// printf("odd slot and queue3 not empty \n");
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[2], &obj2);
