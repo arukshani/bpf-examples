@@ -1167,6 +1167,7 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 			struct mac_addr *next_dest_mac_val = mg_map_get(&mac_table, next_mac_index);
 			__builtin_memcpy(eth->h_dest, next_dest_mac_val->bytes, sizeof(eth->h_dest));
 			__builtin_memcpy(eth->h_source, out_eth_src, sizeof(eth->h_source));
+			return_val->ring_buf_index = next_dest_ip_index->index - 1;
 
 			//Telemetry
 			// #if DEBUG == 1
@@ -1303,6 +1304,11 @@ thread_func_veth(void *arg)
 	ring_buff[1] = t->ring_bf_array[1];
 	ring_buff[2] = t->ring_bf_array[2];
 
+	ringbuf_t *ring_buff_non_local[3];
+	ring_buff_non_local[0] = t->non_loca_ring_bf_array[0];
+	ring_buff_non_local[1] = t->non_loca_ring_bf_array[1];
+	ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
+
     while (!t->quit) {
 		// printf("thread_func_veth \n");
         struct port *port_rx = t->ports_rx[0];
@@ -1310,40 +1316,60 @@ thread_func_veth(void *arg)
 		struct burst_rx *brx = &t->burst_rx;
 		// struct burst_tx *btx = &t->burst_tx[0];
 
-		// ringbuf_t *q1 = mg_map_get(&dest_queue_table, 1);
-		// ringbuf_t *q2 = mg_map_get(&dest_queue_table, 2);
-		// ringbuf_t *q3 = mg_map_get(&dest_queue_table, 3);
-
         u32 n_pkts, j;
 
-		// u32 slot = t1ms % 2;
+		u32 slot = t1ms % 2;
 
-		//Drain Queue1 
-		if (ring_buff[0] != NULL) {
-			while((!ringbuf_is_empty(ring_buff[0]))) {
-				// printf("even slot and queue2 not empty \n");
-				void *obj0;
-				ringbuf_sc_dequeue(ring_buff[0], &obj0);
-				struct burst_tx *btx0 = (struct burst_tx*)obj0;
-				port_tx_burst(port_tx, btx0, 1);
+		//++++++++++++++++++++++DRAIN NON-LOCAL QUEUES++++++++++++++++++++++++
+		if (ring_buff_non_local[0] != NULL) {
+			while((!ringbuf_is_empty(ring_buff_non_local[0]))) {
+				void *obj;
+				ringbuf_sc_dequeue(ring_buff_non_local[0], &obj);
+				struct burst_tx *btx = (struct burst_tx*)obj;
+				port_tx_burst(port_tx, btx, 1);
+   	 		}
+		}
+
+		if (ring_buff_non_local[1] != NULL) {
+			while((!ringbuf_is_empty(ring_buff_non_local[1]))) {
+				void *obj;
+				ringbuf_sc_dequeue(ring_buff_non_local[1], &obj);
+				struct burst_tx *btx = (struct burst_tx*)obj;
+				port_tx_burst(port_tx, btx, 1);
+   	 		}
+		}
+
+		if (ring_buff_non_local[2] != NULL) {
+			while((!ringbuf_is_empty(ring_buff_non_local[2]))) {
+				void *obj;
+				ringbuf_sc_dequeue(ring_buff_non_local[2], &obj);
+				struct burst_tx *btx = (struct burst_tx*)obj;
+				// printf("de-queue packet %lld \n", btx->addr[0]);
+				port_tx_burst(port_tx, btx, 1);
    	 		}
 		}
 		
-        //Drain Queue2 
-		if (ring_buff[1] != NULL) {
-			while((!ringbuf_is_empty(ring_buff[1]))) {
-				// printf("even slot and queue2 not empty \n");
-				void *obj1;
-				ringbuf_sc_dequeue(ring_buff[1], &obj1);
-				struct burst_tx *btx1 = (struct burst_tx*)obj1;
-				port_tx_burst(port_tx, btx1, 1);
+		//++++++++++++++++++++++DRAIN LOCAL QUEUES++++++++++++++++++++++++++++
+        if (ring_buff[0] != NULL) {
+			while((!ringbuf_is_empty(ring_buff[0]))) {
+				void *obj2;
+				ringbuf_sc_dequeue(ring_buff[0], &obj2);
+				struct burst_tx *btx2 = (struct burst_tx*)obj2;
+				port_tx_burst(port_tx, btx2, 1);
    	 		}
 		}
 
-		//Drain Queue3 
+		if (ring_buff[1] != NULL) {
+			while((!ringbuf_is_empty(ring_buff[1]))) {
+				void *obj2;
+				ringbuf_sc_dequeue(ring_buff[1], &obj2);
+				struct burst_tx *btx2 = (struct burst_tx*)obj2;
+				port_tx_burst(port_tx, btx2, 1);
+   	 		}
+		}
+
 		if (ring_buff[2] != NULL) {
 			while((!ringbuf_is_empty(ring_buff[2]))) {
-				// printf("odd slot and queue3 not empty \n");
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[2], &obj2);
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
@@ -1406,13 +1432,18 @@ thread_func_nic(void *arg)
 	CPU_SET(t->cpu_core_id, &cpu_cores);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
 
+	ringbuf_t *ring_buff_non_local[3];
+	ring_buff_non_local[0] = t->non_loca_ring_bf_array[0];
+	ring_buff_non_local[1] = t->non_loca_ring_bf_array[1];
+	ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
+
     while (!t->quit) {
 		// printf("thread_func_nic \n");
         struct port *port_rx = t->ports_rx[0];
 		struct port *port_tx = t->ports_tx[0];
         // struct port *port_tx_nic = t->ports_tx[1];
 		struct burst_rx *brx = &t->burst_rx;
-		struct burst_tx *btx = &t->burst_tx[0];
+		// struct burst_tx *btx = &t->burst_tx[0];
 
         u32 n_pkts, j;
 
@@ -1434,23 +1465,33 @@ thread_func_nic(void *arg)
 			struct return_process_rx *ret_val = calloc(1, sizeof(struct return_process_rx));
 			// int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 			process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j], ret_val);
-
+			struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
 			//Needs to send packet back out NIC
 			if (ret_val->new_len == 1) {
-				ret_val->new_len = brx->len[j];
-				port_tx = t->ports_tx[1];
-				btx = &t->burst_tx[1];
-			}
-
-			btx->addr[btx->n_pkts] = brx->addr[j];
-			// btx->len[btx->n_pkts] = brx->len[j];
-			btx->len[btx->n_pkts] = ret_val->new_len;
-			btx->n_pkts++;
-
-			// if (btx->n_pkts == MAX_BURST_TX) {
-			if (btx->n_pkts == 1) {
-				port_tx_burst(port_tx, btx, 0);
-				btx->n_pkts = 0;
+				btx->addr[0] = brx->addr[j];
+				btx->len[0] = brx->len[j];
+				btx->n_pkts++;
+				ringbuf_t *dest_queue = ring_buff_non_local[ret_val->ring_buf_index];
+				//queue packet in non-local queue
+				if (dest_queue != NULL) {
+					if (!ringbuf_is_full(dest_queue)) {
+						// printf("queue packet %lld \n", btx->addr[0]);
+						ringbuf_sp_enqueue(dest_queue, btx);
+					} else {
+						printf("NON-LCOAL QUEUE IS FULL \n");
+					}
+				} else {
+					printf("TODO: There is no non-local queue to push the packet \n");
+				}
+			} else {
+				btx->addr[btx->n_pkts] = brx->addr[j];
+				btx->len[btx->n_pkts] = ret_val->new_len;
+				btx->n_pkts++;
+				
+				if (btx->n_pkts == 1) {
+					port_tx_burst(port_tx, btx, 1);
+					btx->n_pkts = 0;
+				}
 			}
 			free(ret_val);
 		}
@@ -1656,10 +1697,9 @@ int main(int argc, char **argv)
 	ring_array[1] = ringbuf_create(2048);
 	ring_array[2] = ringbuf_create(2048);
 
-	// mg_map_init(&dest_queue_table, sizeof(ringbuf_t), 3);
-	// mg_map_add(&dest_queue_table, 1, queue_1);
-	// mg_map_add(&dest_queue_table, 2, queue_2);
-	// mg_map_add(&dest_queue_table, 3, queue_3);
+	non_local_ring_array[0] = ringbuf_create(2048);
+	non_local_ring_array[1] = ringbuf_create(2048);
+	non_local_ring_array[2] = ringbuf_create(2048);
 
 	/* Threads. */
 	for (i = 0; i < n_threads; i++) {
@@ -1671,10 +1711,16 @@ int main(int argc, char **argv)
             t->ring_bf_array[0] = ring_array[0];
 			t->ring_bf_array[1] = ring_array[1];
 			t->ring_bf_array[2] = ring_array[2];
+			t->non_loca_ring_bf_array[0] = non_local_ring_array[0];
+			t->non_loca_ring_bf_array[1] = non_local_ring_array[1];
+			t->non_loca_ring_bf_array[2] = non_local_ring_array[2];
 		} else if (i == 1) { //nic-veth
 			t->ports_rx[0] = ports[1]; //nic
 			t->ports_tx[0] = ports[0]; //veth
 			t->ports_tx[1] = ports[1]; //nic
+			t->non_loca_ring_bf_array[0] = non_local_ring_array[0];
+			t->non_loca_ring_bf_array[1] = non_local_ring_array[1];
+			t->non_loca_ring_bf_array[2] = non_local_ring_array[2];
 		}
 		
 		t->n_ports_rx = 1;
@@ -1773,6 +1819,9 @@ int main(int argc, char **argv)
     ringbuf_free(ring_array[0]);
 	ringbuf_free(ring_array[1]);
 	ringbuf_free(ring_array[2]);
+	ringbuf_free(non_local_ring_array[0]);
+	ringbuf_free(non_local_ring_array[1]);
+	ringbuf_free(non_local_ring_array[2]);
 
     return 0;
 }
