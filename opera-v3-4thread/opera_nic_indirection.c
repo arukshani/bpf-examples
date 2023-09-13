@@ -1287,11 +1287,11 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 // 	return NULL;
 // }
 
-//from_VETH -> to_NIC
+//from_VETH -> to_NIC (TX)
 static void *
-thread_func_veth(void *arg)
+thread_func_veth_to_nic_tx(void *arg)
 {
-    struct thread_data *t = arg;
+	struct thread_data *t = arg;
 	cpu_set_t cpu_cores;
 	u32 i;
 
@@ -1309,17 +1309,8 @@ thread_func_veth(void *arg)
 	ring_buff_non_local[1] = t->non_loca_ring_bf_array[1];
 	ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
 
-    while (!t->quit) {
-		// printf("thread_func_veth \n");
-        struct port *port_rx = t->ports_rx[0];
+	while (!t->quit) {
 		struct port *port_tx = t->ports_tx[0];
-		struct burst_rx *brx = &t->burst_rx;
-		// struct burst_tx *btx = &t->burst_tx[0];
-
-        u32 n_pkts, j;
-
-		u32 slot = t1ms % 2;
-
 		//++++++++++++++++++++++DRAIN NON-LOCAL QUEUES++++++++++++++++++++++++
 		if (ring_buff_non_local[0] != NULL) {
 			while((!ringbuf_is_empty(ring_buff_non_local[0]))) {
@@ -1376,6 +1367,43 @@ thread_func_veth(void *arg)
 				port_tx_burst(port_tx, btx2, 1);
    	 		}
 		}
+	}
+	
+	return NULL;
+}
+
+//from_VETH -> to_NIC
+static void *
+thread_func_veth(void *arg)
+{
+    struct thread_data *t = arg;
+	cpu_set_t cpu_cores;
+	u32 i;
+
+	CPU_ZERO(&cpu_cores);
+	CPU_SET(t->cpu_core_id, &cpu_cores);
+	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
+
+	ringbuf_t *ring_buff[3];
+	ring_buff[0] = t->ring_bf_array[0];
+	ring_buff[1] = t->ring_bf_array[1];
+	ring_buff[2] = t->ring_bf_array[2];
+
+	// ringbuf_t *ring_buff_non_local[3];
+	// ring_buff_non_local[0] = t->non_loca_ring_bf_array[0];
+	// ring_buff_non_local[1] = t->non_loca_ring_bf_array[1];
+	// ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
+
+    while (!t->quit) {
+		// printf("thread_func_veth \n");
+        struct port *port_rx = t->ports_rx[0];
+		struct port *port_tx = t->ports_tx[0];
+		struct burst_rx *brx = &t->burst_rx;
+		// struct burst_tx *btx = &t->burst_tx[0];
+
+        u32 n_pkts, j;
+
+		u32 slot = t1ms % 2;
 
 		/* RX. */
 		n_pkts = port_rx_burst(port_rx, brx, i);
@@ -1582,9 +1610,11 @@ int main(int argc, char **argv)
     port_params[1].iface = nic_iface; //"enp65s0f0np0"
 	port_params[1].iface_queue = 0;
 
-    n_threads = 2; 
+    n_threads = 3; 
     thread_data[0].cpu_core_id = 10; //cat /proc/cpuinfo | grep 'core id'
 	thread_data[1].cpu_core_id = 11; //cat /proc/cpuinfo | grep 'core id'
+	thread_data[2].cpu_core_id = 12; //cat /proc/cpuinfo | grep 'core id'
+	// thread_data[3].cpu_core_id = 13; //cat /proc/cpuinfo | grep 'core id'
 
     /* Buffer pool initialization. */
 	bp = bpool_init(&bpool_params, &umem_cfg);
@@ -1693,10 +1723,12 @@ int main(int argc, char **argv)
 		fclose(stream3);
 	}
 
+	//local queues
 	ring_array[0] = ringbuf_create(2048);
 	ring_array[1] = ringbuf_create(2048);
 	ring_array[2] = ringbuf_create(2048);
 
+	//non-local queues
 	non_local_ring_array[0] = ringbuf_create(2048);
 	non_local_ring_array[1] = ringbuf_create(2048);
 	non_local_ring_array[2] = ringbuf_create(2048);
@@ -1705,19 +1737,24 @@ int main(int argc, char **argv)
 	for (i = 0; i < n_threads; i++) {
 		struct thread_data *t = &thread_data[i];
 
-		if (i == 0) { //veth->nic
+		if (i == 0) { //veth->nic (veth rx: push to local queues)
 			t->ports_rx[0] = ports[0]; //veth
 			t->ports_tx[0] = ports[1]; //nic
             t->ring_bf_array[0] = ring_array[0];
 			t->ring_bf_array[1] = ring_array[1];
 			t->ring_bf_array[2] = ring_array[2];
-			t->non_loca_ring_bf_array[0] = non_local_ring_array[0];
-			t->non_loca_ring_bf_array[1] = non_local_ring_array[1];
-			t->non_loca_ring_bf_array[2] = non_local_ring_array[2];
-		} else if (i == 1) { //nic-veth
+		} else if (i == 1) { //nic-veth (push to non-local and tx to veth)
 			t->ports_rx[0] = ports[1]; //nic
 			t->ports_tx[0] = ports[0]; //veth
 			t->ports_tx[1] = ports[1]; //nic
+			t->non_loca_ring_bf_array[0] = non_local_ring_array[0];
+			t->non_loca_ring_bf_array[1] = non_local_ring_array[1];
+			t->non_loca_ring_bf_array[2] = non_local_ring_array[2];
+		} else if (i == 2) { //veth->nic (nic tx: pull from local and non-local)
+			t->ports_tx[0] = ports[1]; //nic
+			t->ring_bf_array[0] = ring_array[0];
+			t->ring_bf_array[1] = ring_array[1];
+			t->ring_bf_array[2] = ring_array[2];
 			t->non_loca_ring_bf_array[0] = non_local_ring_array[0];
 			t->non_loca_ring_bf_array[1] = non_local_ring_array[1];
 			t->non_loca_ring_bf_array[2] = non_local_ring_array[2];
@@ -1725,7 +1762,7 @@ int main(int argc, char **argv)
 		
 		t->n_ports_rx = 1;
 
-		print_thread(i);
+		// print_thread(i);
 	}
 
 	for (i = 0; i < n_threads; i++) {
@@ -1741,6 +1778,12 @@ int main(int argc, char **argv)
 			status = pthread_create(&threads[i],
 					NULL,
 					thread_func_nic,
+					&thread_data[i]);
+			printf("Create thread %d \n", i);
+		} else if (i == 2) {
+			status = pthread_create(&threads[i],
+					NULL,
+					thread_func_veth_to_nic_tx,
 					&thread_data[i]);
 			printf("Create thread %d \n", i);
 		}
