@@ -1448,6 +1448,36 @@ thread_func_veth(void *arg)
     return NULL;
 }
 
+//from_NIC -> to_VETH tx
+static void *
+thread_func_nic_to_veth_tx(void *arg)
+{
+	struct thread_data *t = arg;
+	cpu_set_t cpu_cores;
+	u32 i;
+
+	CPU_ZERO(&cpu_cores);
+	CPU_SET(t->cpu_core_id, &cpu_cores);
+	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
+
+	ringbuf_t *veth_side_queue = t->veth_side_queue;
+	while (!t->quit) {
+		struct port *port_tx = t->ports_tx[0];
+
+		//++++++++++++++++++++++DRAIN VETH SIDE QUEUE++++++++++++++++++++++++
+		if (veth_side_queue != NULL) {
+			while((!ringbuf_is_empty(veth_side_queue))) {
+				void *obj;
+				ringbuf_sc_dequeue(veth_side_queue, &obj);
+				struct burst_tx *btx = (struct burst_tx*)obj;
+				port_tx_burst(port_tx, btx, 1);
+   	 		}
+		}
+	}
+
+	return NULL;
+}
+
 //from_NIC -> to_VETH or from_NIC -> to_NIC
 static void *
 thread_func_nic(void *arg)
@@ -1464,6 +1494,8 @@ thread_func_nic(void *arg)
 	ring_buff_non_local[0] = t->non_loca_ring_bf_array[0];
 	ring_buff_non_local[1] = t->non_loca_ring_bf_array[1];
 	ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
+
+	ringbuf_t *veth_side_queue = t->veth_side_queue;
 
     while (!t->quit) {
 		// printf("thread_func_nic \n");
@@ -1516,10 +1548,21 @@ thread_func_nic(void *arg)
 				btx->len[btx->n_pkts] = ret_val->new_len;
 				btx->n_pkts++;
 				
-				if (btx->n_pkts == 1) {
-					port_tx_burst(port_tx, btx, 1);
-					btx->n_pkts = 0;
+				// if (btx->n_pkts == 1) {
+				if (veth_side_queue != NULL) {
+					if (!ringbuf_is_full(veth_side_queue)) {
+						// printf("queue packet %lld \n", btx->addr[0]);
+						ringbuf_sp_enqueue(veth_side_queue, btx);
+						// printf("packet from veth is enqueued \n");
+					} else {
+						printf("QUEUE IS FULL \n");
+					}
+				} else {
+					printf("TODO: There is no veth_side_queue to push the packet \n");
 				}
+					// port_tx_burst(port_tx, btx, 1);
+					// btx->n_pkts = 0;
+				// }
 			}
 			free(ret_val);
 		}
@@ -1610,11 +1653,11 @@ int main(int argc, char **argv)
     port_params[1].iface = nic_iface; //"enp65s0f0np0"
 	port_params[1].iface_queue = 0;
 
-    n_threads = 3; 
+    n_threads = 4; 
     thread_data[0].cpu_core_id = 10; //cat /proc/cpuinfo | grep 'core id'
 	thread_data[1].cpu_core_id = 11; //cat /proc/cpuinfo | grep 'core id'
 	thread_data[2].cpu_core_id = 12; //cat /proc/cpuinfo | grep 'core id'
-	// thread_data[3].cpu_core_id = 13; //cat /proc/cpuinfo | grep 'core id'
+	thread_data[3].cpu_core_id = 13; //cat /proc/cpuinfo | grep 'core id'
 
     /* Buffer pool initialization. */
 	bp = bpool_init(&bpool_params, &umem_cfg);
@@ -1733,6 +1776,8 @@ int main(int argc, char **argv)
 	non_local_ring_array[1] = ringbuf_create(2048);
 	non_local_ring_array[2] = ringbuf_create(2048);
 
+	veth_side_queue = ringbuf_create(2048);
+
 	/* Threads. */
 	for (i = 0; i < n_threads; i++) {
 		struct thread_data *t = &thread_data[i];
@@ -1743,13 +1788,14 @@ int main(int argc, char **argv)
             t->ring_bf_array[0] = ring_array[0];
 			t->ring_bf_array[1] = ring_array[1];
 			t->ring_bf_array[2] = ring_array[2];
-		} else if (i == 1) { //nic-veth (push to non-local and tx to veth)
+		} else if (i == 1) { //nic-veth (nic rx: push to non-local and veth_side_queue)
 			t->ports_rx[0] = ports[1]; //nic
 			t->ports_tx[0] = ports[0]; //veth
 			t->ports_tx[1] = ports[1]; //nic
 			t->non_loca_ring_bf_array[0] = non_local_ring_array[0];
 			t->non_loca_ring_bf_array[1] = non_local_ring_array[1];
 			t->non_loca_ring_bf_array[2] = non_local_ring_array[2];
+			t->veth_side_queue = veth_side_queue;
 		} else if (i == 2) { //veth->nic (nic tx: pull from local and non-local)
 			t->ports_tx[0] = ports[1]; //nic
 			t->ring_bf_array[0] = ring_array[0];
@@ -1758,6 +1804,9 @@ int main(int argc, char **argv)
 			t->non_loca_ring_bf_array[0] = non_local_ring_array[0];
 			t->non_loca_ring_bf_array[1] = non_local_ring_array[1];
 			t->non_loca_ring_bf_array[2] = non_local_ring_array[2];
+		} else if (i == 3) { //nic-veth (veth tx: pull from veth_side_queue)
+			t->ports_tx[0] = ports[0]; //veth
+			t->veth_side_queue = veth_side_queue;
 		}
 		
 		t->n_ports_rx = 1;
@@ -1784,6 +1833,12 @@ int main(int argc, char **argv)
 			status = pthread_create(&threads[i],
 					NULL,
 					thread_func_veth_to_nic_tx,
+					&thread_data[i]);
+			printf("Create thread %d \n", i);
+		} else if (i == 3) {
+			status = pthread_create(&threads[i],
+					NULL,
+					thread_func_nic_to_veth_tx,
 					&thread_data[i]);
 			printf("Create thread %d \n", i);
 		}
@@ -1865,6 +1920,7 @@ int main(int argc, char **argv)
 	ringbuf_free(non_local_ring_array[0]);
 	ringbuf_free(non_local_ring_array[1]);
 	ringbuf_free(non_local_ring_array[2]);
+	ringbuf_free(veth_side_queue);
 
     return 0;
 }
