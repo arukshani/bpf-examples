@@ -793,9 +793,11 @@ port_tx_burst(struct port *p, struct burst_tx *b, int free_btx)
 
 	for ( ; ; ) {
 		status = xsk_ring_prod__reserve(&p->txq, n_pkts, &pos);
-		if (status == n_pkts)
+		if (status == n_pkts) {
+			// printf("status == n_pkts \n");
 			break;
-
+		}
+		
 		if (xsk_ring_prod__needs_wakeup(&p->txq))
 			sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT,
 			       NULL, 0);
@@ -1368,7 +1370,7 @@ thread_func_veth_to_nic_tx(void *arg)
    	 		}
 		}
 	}
-	
+	printf("return from thread_func_veth_to_nic_tx \n");
 	return NULL;
 }
 
@@ -1445,6 +1447,7 @@ thread_func_veth(void *arg)
 			free(ret_val);
 		}
     }
+	printf("return from thread_func_veth \n");
     return NULL;
 }
 
@@ -1461,20 +1464,29 @@ thread_func_nic_to_veth_tx(void *arg)
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
 
 	ringbuf_t *veth_side_queue = t->veth_side_queue;
-	while (!t->quit) {
+
+	time_t starttime = time(NULL);
+    time_t seconds = 120; 
+    time_t endtime = starttime + seconds;
+
+	while (starttime < endtime) { //A hack to get the thread to return
+	// while (!t->quit) {
+		starttime = time(NULL);
 		struct port *port_tx = t->ports_tx[0];
 
 		//++++++++++++++++++++++DRAIN VETH SIDE QUEUE++++++++++++++++++++++++
 		if (veth_side_queue != NULL) {
 			while((!ringbuf_is_empty(veth_side_queue))) {
+				// printf("veth side queue is not empty \n");
 				void *obj;
 				ringbuf_sc_dequeue(veth_side_queue, &obj);
 				struct burst_tx *btx = (struct burst_tx*)obj;
 				port_tx_burst(port_tx, btx, 1);
    	 		}
 		}
+		// printf("thread is still running \n");
 	}
-
+	printf("return from thread_func_nic_to_veth_tx \n");
 	return NULL;
 }
 
@@ -1568,7 +1580,7 @@ thread_func_nic(void *arg)
 		}
 
     }
-
+	printf("return from thread_func_nic \n");
     return NULL;
 }
 
@@ -1900,8 +1912,12 @@ int main(int argc, char **argv)
 		printf("Quit thread %d \n", i);
 	}
 
+	// thread_data[3].quit = 1;
+
 	for (i = 0; i < n_threads; i++)
 		pthread_join(threads[i], NULL);
+
+	printf("After thread join \n");
 
 	for (i = 0; i < n_ports; i++)
 		port_free(ports[i]);
