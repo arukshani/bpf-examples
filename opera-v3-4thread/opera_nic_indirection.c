@@ -767,7 +767,7 @@ port_rx_burst(struct port *p, struct burst_rx *b, int index)
 }
 
 static inline void
-port_tx_burst(struct port *p, struct burst_tx *b, int free_btx)
+port_tx_burst(struct port *p, struct burst_tx *b, int free_btx, int wait_all)
 {
 	u32 n_pkts, pos, i;
 	int status;
@@ -798,9 +798,17 @@ port_tx_burst(struct port *p, struct burst_tx *b, int free_btx)
 			break;
 		}
 		
-		if (xsk_ring_prod__needs_wakeup(&p->txq))
-			sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT,
+		if (xsk_ring_prod__needs_wakeup(&p->txq)) {
+			if (wait_all) {
+				sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_WAITALL,
 			       NULL, 0);
+			} else {
+				sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT,
+			       NULL, 0);
+			}
+			
+		}
+			
 	}
 
 	// printf("Fill tx desc for n_pkts %ld \n", n_pkts);
@@ -816,9 +824,22 @@ port_tx_burst(struct port *p, struct burst_tx *b, int free_btx)
     }
 
 	xsk_ring_prod__submit(&p->txq, n_pkts);
-	if (xsk_ring_prod__needs_wakeup(&p->txq))
-		sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
+	if (xsk_ring_prod__needs_wakeup(&p->txq)) {
+		if (wait_all) {
+			sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_WAITALL, NULL, 0);
+		} else {
+			sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
+		}
+	}
+		
 	p->n_pkts_tx += n_pkts;
+}
+
+static inline void
+flush_tx(struct port *p) {
+	if (xsk_ring_prod__needs_wakeup(&p->txq)) {
+		sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
+	}
 }
 
 
@@ -1319,8 +1340,9 @@ thread_func_veth_to_nic_tx(void *arg)
 				void *obj;
 				ringbuf_sc_dequeue(ring_buff_non_local[0], &obj);
 				struct burst_tx *btx = (struct burst_tx*)obj;
-				port_tx_burst(port_tx, btx, 1);
+				port_tx_burst(port_tx, btx, 1, 1);
    	 		}
+			flush_tx(port_tx);
 		}
 
 		if (ring_buff_non_local[1] != NULL) {
@@ -1328,8 +1350,9 @@ thread_func_veth_to_nic_tx(void *arg)
 				void *obj;
 				ringbuf_sc_dequeue(ring_buff_non_local[1], &obj);
 				struct burst_tx *btx = (struct burst_tx*)obj;
-				port_tx_burst(port_tx, btx, 1);
+				port_tx_burst(port_tx, btx, 1, 1);
    	 		}
+			flush_tx(port_tx);
 		}
 
 		if (ring_buff_non_local[2] != NULL) {
@@ -1338,8 +1361,9 @@ thread_func_veth_to_nic_tx(void *arg)
 				ringbuf_sc_dequeue(ring_buff_non_local[2], &obj);
 				struct burst_tx *btx = (struct burst_tx*)obj;
 				// printf("de-queue packet %lld \n", btx->addr[0]);
-				port_tx_burst(port_tx, btx, 1);
+				port_tx_burst(port_tx, btx, 1, 1);
    	 		}
+			flush_tx(port_tx);
 		}
 		
 		//++++++++++++++++++++++DRAIN LOCAL QUEUES++++++++++++++++++++++++++++
@@ -1348,8 +1372,9 @@ thread_func_veth_to_nic_tx(void *arg)
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[0], &obj2);
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
-				port_tx_burst(port_tx, btx2, 1);
+				port_tx_burst(port_tx, btx2, 1, 1);
    	 		}
+			flush_tx(port_tx);
 		}
 
 		if (ring_buff[1] != NULL) {
@@ -1357,8 +1382,9 @@ thread_func_veth_to_nic_tx(void *arg)
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[1], &obj2);
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
-				port_tx_burst(port_tx, btx2, 1);
+				port_tx_burst(port_tx, btx2, 1, 1);
    	 		}
+			flush_tx(port_tx);
 		}
 
 		if (ring_buff[2] != NULL) {
@@ -1366,8 +1392,9 @@ thread_func_veth_to_nic_tx(void *arg)
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[2], &obj2);
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
-				port_tx_burst(port_tx, btx2, 1);
+				port_tx_burst(port_tx, btx2, 1, 1);
    	 		}
+			flush_tx(port_tx);
 		}
 	}
 	printf("return from thread_func_veth_to_nic_tx \n");
@@ -1481,8 +1508,9 @@ thread_func_nic_to_veth_tx(void *arg)
 				void *obj;
 				ringbuf_sc_dequeue(veth_side_queue, &obj);
 				struct burst_tx *btx = (struct burst_tx*)obj;
-				port_tx_burst(port_tx, btx, 1);
+				port_tx_burst(port_tx, btx, 1, 1);
    	 		}
+			flush_tx(port_tx);
 		}
 		// printf("thread is still running \n");
 	}
