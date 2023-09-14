@@ -1342,7 +1342,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				struct burst_tx *btx = (struct burst_tx*)obj;
 				port_tx_burst(port_tx, btx, 1, 1);
    	 		}
-			flush_tx(port_tx);
+			// flush_tx(port_tx);
 		}
 
 		if (ring_buff_non_local[1] != NULL) {
@@ -1352,7 +1352,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				struct burst_tx *btx = (struct burst_tx*)obj;
 				port_tx_burst(port_tx, btx, 1, 1);
    	 		}
-			flush_tx(port_tx);
+			// flush_tx(port_tx);
 		}
 
 		if (ring_buff_non_local[2] != NULL) {
@@ -1363,7 +1363,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				// printf("de-queue packet %lld \n", btx->addr[0]);
 				port_tx_burst(port_tx, btx, 1, 1);
    	 		}
-			flush_tx(port_tx);
+			// flush_tx(port_tx);
 		}
 		
 		//++++++++++++++++++++++DRAIN LOCAL QUEUES++++++++++++++++++++++++++++
@@ -1374,7 +1374,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
 				port_tx_burst(port_tx, btx2, 1, 1);
    	 		}
-			flush_tx(port_tx);
+			// flush_tx(port_tx);
 		}
 
 		if (ring_buff[1] != NULL) {
@@ -1384,7 +1384,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
 				port_tx_burst(port_tx, btx2, 1, 1);
    	 		}
-			flush_tx(port_tx);
+			// flush_tx(port_tx);
 		}
 
 		if (ring_buff[2] != NULL) {
@@ -1394,8 +1394,9 @@ thread_func_veth_to_nic_tx(void *arg)
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
 				port_tx_burst(port_tx, btx2, 1, 1);
    	 		}
-			flush_tx(port_tx);
+			// flush_tx(port_tx);
 		}
+		flush_tx(port_tx);
 	}
 	printf("return from thread_func_veth_to_nic_tx \n");
 	return NULL;
