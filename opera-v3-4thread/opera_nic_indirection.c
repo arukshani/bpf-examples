@@ -1333,6 +1333,7 @@ thread_func_veth_to_nic_tx(void *arg)
 	ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
 
 	while (!t->quit) {
+		int need_to_flush = 0;
 		struct port *port_tx = t->ports_tx[0];
 		//++++++++++++++++++++++DRAIN NON-LOCAL QUEUES++++++++++++++++++++++++
 		if (ring_buff_non_local[0] != NULL) {
@@ -1341,6 +1342,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				ringbuf_sc_dequeue(ring_buff_non_local[0], &obj);
 				struct burst_tx *btx = (struct burst_tx*)obj;
 				port_tx_burst(port_tx, btx, 1, 1);
+				need_to_flush = 1;
    	 		}
 			// flush_tx(port_tx);
 		}
@@ -1351,6 +1353,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				ringbuf_sc_dequeue(ring_buff_non_local[1], &obj);
 				struct burst_tx *btx = (struct burst_tx*)obj;
 				port_tx_burst(port_tx, btx, 1, 1);
+				need_to_flush = 1;
    	 		}
 			// flush_tx(port_tx);
 		}
@@ -1362,6 +1365,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				struct burst_tx *btx = (struct burst_tx*)obj;
 				// printf("de-queue packet %lld \n", btx->addr[0]);
 				port_tx_burst(port_tx, btx, 1, 1);
+				need_to_flush = 1;
    	 		}
 			// flush_tx(port_tx);
 		}
@@ -1373,6 +1377,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				ringbuf_sc_dequeue(ring_buff[0], &obj2);
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
 				port_tx_burst(port_tx, btx2, 1, 1);
+				need_to_flush = 1;
    	 		}
 			// flush_tx(port_tx);
 		}
@@ -1383,6 +1388,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				ringbuf_sc_dequeue(ring_buff[1], &obj2);
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
 				port_tx_burst(port_tx, btx2, 1, 1);
+				need_to_flush = 1;
    	 		}
 			// flush_tx(port_tx);
 		}
@@ -1393,9 +1399,14 @@ thread_func_veth_to_nic_tx(void *arg)
 				ringbuf_sc_dequeue(ring_buff[2], &obj2);
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
 				port_tx_burst(port_tx, btx2, 1, 1);
+				need_to_flush = 1;
    	 		}
 			// flush_tx(port_tx);
 		}
+		// if (need_to_flush != 0) {
+		// 	printf("need to flush %d \n", need_to_flush);
+		// 	flush_tx(port_tx);
+		// }
 		flush_tx(port_tx);
 	}
 	printf("return from thread_func_veth_to_nic_tx \n");
@@ -1494,8 +1505,9 @@ thread_func_nic_to_veth_tx(void *arg)
 	ringbuf_t *veth_side_queue = t->veth_side_queue;
 
 	time_t starttime = time(NULL);
-    time_t seconds = 120; 
+    time_t seconds = 70; 
     time_t endtime = starttime + seconds;
+	int need_to_flush = 0;
 
 	while (starttime < endtime) { //A hack to get the thread to return
 	// while (!t->quit) {
@@ -1510,9 +1522,14 @@ thread_func_nic_to_veth_tx(void *arg)
 				ringbuf_sc_dequeue(veth_side_queue, &obj);
 				struct burst_tx *btx = (struct burst_tx*)obj;
 				port_tx_burst(port_tx, btx, 1, 1);
+				need_to_flush = 1;
    	 		}
-			flush_tx(port_tx);
 		}
+		flush_tx(port_tx);
+		// if (need_to_flush) {
+		// 	flush_tx(port_tx);
+		// 	need_to_flush = 0;
+		// }
 		// printf("thread is still running \n");
 	}
 	printf("return from thread_func_nic_to_veth_tx \n");
