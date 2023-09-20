@@ -1573,12 +1573,12 @@ thread_func_nic_to_veth_tx(void *arg)
 		starttime = time(NULL);
 		struct port *port_tx = t->ports_tx[0];
 
-        struct timespec veth_tx_start = get_realtime();
-		unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
-
         // struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
         int btx_index = 0;
         btx_collector->n_pkts = 0;
+
+        struct timespec veth_tx_start = get_realtime();
+		unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
 
 		//++++++++++++++++++++++DRAIN VETH SIDE QUEUE++++++++++++++++++++++++
 		if (veth_side_queue != NULL) {
@@ -1589,7 +1589,6 @@ thread_func_nic_to_veth_tx(void *arg)
 				struct burst_tx *btx = (struct burst_tx*)obj;
                 btx_collector->addr[btx_index] = btx->addr[0];
                 btx_collector->len[btx_index] = btx->len[0];
-
                 free(btx);
 
                 btx_index++;
