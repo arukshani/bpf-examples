@@ -1562,19 +1562,19 @@ thread_func_nic_to_veth_tx(void *arg)
 	ringbuf_t *veth_side_queue = t->veth_side_queue;
 
 	time_t starttime = time(NULL);
-    time_t seconds = 70; 
+    time_t seconds = 60; 
     time_t endtime = starttime + seconds;
 	int need_to_flush = 0;
 
     struct burst_tx *btx_collector = &t->burst_tx[0];
 
-	// while (starttime < endtime) { //A hack to get the thread to return
-	while (!t->quit) {
-		// starttime = time(NULL);
+	while (starttime < endtime) { //A hack to get the thread to return
+	// while (!t->quit) {
+		starttime = time(NULL);
 		struct port *port_tx = t->ports_tx[0];
 
-        // struct timespec veth_tx_start = get_realtime();
-		// unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
+        struct timespec veth_tx_start = get_realtime();
+		unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
 
         // struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
         int btx_index = 0;
@@ -1589,7 +1589,9 @@ thread_func_nic_to_veth_tx(void *arg)
 				struct burst_tx *btx = (struct burst_tx*)obj;
                 btx_collector->addr[btx_index] = btx->addr[0];
                 btx_collector->len[btx_index] = btx->len[0];
+
                 free(btx);
+
                 btx_index++;
                 btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx, 1, 1);
@@ -1597,16 +1599,16 @@ thread_func_nic_to_veth_tx(void *arg)
    	 		}
 		}
 
+        struct timespec veth_tx_end = get_realtime();
+        unsigned long veth_tx_end_ns = get_nsec(&veth_tx_end);
+        unsigned long detla_veth_tx = veth_tx_end_ns - veth_tx_start_ns;
+        total_veth_tx = total_veth_tx + detla_veth_tx;
+
         if (btx_index) {
             // printf("btx_index %d \n", btx_index);
             port_tx_burst(port_tx, btx_collector, 0, 0);
         }
 		// flush_tx(port_tx);
-
-        // struct timespec veth_tx_end = get_realtime();
-        // unsigned long veth_tx_end_ns = get_nsec(&veth_tx_end);
-        // unsigned long detla_veth_tx = veth_tx_end_ns - veth_tx_start_ns;
-        // total_veth_tx = total_veth_tx + detla_veth_tx;
        
 		// if (need_to_flush) {
 		// 	flush_tx(port_tx);
