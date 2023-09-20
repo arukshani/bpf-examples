@@ -1557,9 +1557,9 @@ thread_func_nic_to_veth_tx(void *arg)
     time_t endtime = starttime + seconds;
 	int need_to_flush = 0;
 
-	while (starttime < endtime) { //A hack to get the thread to return
-	// while (!t->quit) {
-		starttime = time(NULL);
+	// while (starttime < endtime) { //A hack to get the thread to return
+	while (!t->quit) {
+		// starttime = time(NULL);
 		struct port *port_tx = t->ports_tx[0];
 
         struct timespec veth_tx_start = get_realtime();
