@@ -1346,16 +1346,16 @@ thread_func_veth_to_nic_tx(void *arg)
 
 		//++++++++++++++++++++++DRAIN NON-LOCAL QUEUES++++++++++++++++++++++++
 		if (ring_buff_non_local[0] != NULL) {
-			while((!ringbuf_is_empty(ring_buff_non_local[0]))) {
+			while((!ringbuf_is_empty(ring_buff_non_local[0])) && (btx_index < MAX_BURST_TX)) {
 				void *obj;
 				ringbuf_sc_dequeue(ring_buff_non_local[0], &obj);
 				struct burst_tx *btx = (struct burst_tx*)obj;
-                btx_collector->addr[btx_index] = btx->addr[0];
-                btx_collector->len[btx_index] = btx->len[0];
-                free(btx);
+                // btx_collector->addr[btx_index] = btx->addr[0];
+                // btx_collector->len[btx_index] = btx->len[0];
+                // free(btx);
                 btx_index++;
-                btx_collector->n_pkts = btx_index;
-				// port_tx_burst(port_tx, btx, 1, 1);
+                // btx_collector->n_pkts = btx_index;
+				port_tx_burst(port_tx, btx, 1, 1);
 				need_to_flush = 1;
    	 		}
 			// flush_tx(port_tx);
@@ -1366,12 +1366,12 @@ thread_func_veth_to_nic_tx(void *arg)
 				void *obj;
 				ringbuf_sc_dequeue(ring_buff_non_local[1], &obj);
 				struct burst_tx *btx = (struct burst_tx*)obj;
-                btx_collector->addr[btx_index] = btx->addr[0];
-                btx_collector->len[btx_index] = btx->len[0];
-                free(btx);
+                // btx_collector->addr[btx_index] = btx->addr[0];
+                // btx_collector->len[btx_index] = btx->len[0];
+                // free(btx);
                 btx_index++;
-                btx_collector->n_pkts = btx_index;
-				// port_tx_burst(port_tx, btx, 1, 1);
+                // btx_collector->n_pkts = btx_index;
+				port_tx_burst(port_tx, btx, 1, 1);
 				need_to_flush = 1;
    	 		}
 			// flush_tx(port_tx);
@@ -1383,12 +1383,12 @@ thread_func_veth_to_nic_tx(void *arg)
 				ringbuf_sc_dequeue(ring_buff_non_local[2], &obj);
 				struct burst_tx *btx = (struct burst_tx*)obj;
 				// printf("de-queue packet %lld \n", btx->addr[0]);
-                btx_collector->addr[btx_index] = btx->addr[0];
-                btx_collector->len[btx_index] = btx->len[0];
-                free(btx);
+                // btx_collector->addr[btx_index] = btx->addr[0];
+                // btx_collector->len[btx_index] = btx->len[0];
+                // free(btx);
                 btx_index++;
-                btx_collector->n_pkts = btx_index;
-				// port_tx_burst(port_tx, btx, 1, 1);
+                // btx_collector->n_pkts = btx_index;
+				port_tx_burst(port_tx, btx, 1, 1);
 				need_to_flush = 1;
    	 		}
 			// flush_tx(port_tx);
@@ -1400,12 +1400,12 @@ thread_func_veth_to_nic_tx(void *arg)
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[0], &obj2);
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
-                btx_collector->addr[btx_index] = btx2->addr[0];
-                btx_collector->len[btx_index] = btx2->len[0];
-                free(btx2);
+                // btx_collector->addr[btx_index] = btx2->addr[0];
+                // btx_collector->len[btx_index] = btx2->len[0];
+                // free(btx2);
                 btx_index++;
-                btx_collector->n_pkts = btx_index;
-				// port_tx_burst(port_tx, btx2, 1, 1);
+                // btx_collector->n_pkts = btx_index;
+				port_tx_burst(port_tx, btx2, 1, 1);
 				need_to_flush = 1;
    	 		}
 			// flush_tx(port_tx);
@@ -1416,12 +1416,12 @@ thread_func_veth_to_nic_tx(void *arg)
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[1], &obj2);
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
-                btx_collector->addr[btx_index] = btx2->addr[0];
-                btx_collector->len[btx_index] = btx2->len[0];
-                free(btx2);
+                // btx_collector->addr[btx_index] = btx2->addr[0];
+                // btx_collector->len[btx_index] = btx2->len[0];
+                // free(btx2);
                 btx_index++;
-                btx_collector->n_pkts = btx_index;
-				// port_tx_burst(port_tx, btx2, 1, 1);
+                // btx_collector->n_pkts = btx_index;
+				port_tx_burst(port_tx, btx2, 1, 1);
 				need_to_flush = 1;
    	 		}
 			// flush_tx(port_tx);
@@ -1432,12 +1432,12 @@ thread_func_veth_to_nic_tx(void *arg)
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[2], &obj2);
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
-                btx_collector->addr[btx_index] = btx2->addr[0];
-                btx_collector->len[btx_index] = btx2->len[0];
-                free(btx2);
+                // btx_collector->addr[btx_index] = btx2->addr[0];
+                // btx_collector->len[btx_index] = btx2->len[0];
+                // free(btx2);
                 btx_index++;
-                btx_collector->n_pkts = btx_index;
-				// port_tx_burst(port_tx, btx2, 1, 1);
+                // btx_collector->n_pkts = btx_index;
+				port_tx_burst(port_tx, btx2, 1, 1);
 				need_to_flush = 1;
    	 		}
 			// flush_tx(port_tx);
@@ -1450,7 +1450,8 @@ thread_func_veth_to_nic_tx(void *arg)
         // printf("btx_index %d \n", btx_index);
         if (btx_index) {
             // printf("btx_index %d \n", btx_index);
-            port_tx_burst(port_tx, btx_collector, 0, 0);
+            // port_tx_burst(port_tx, btx_collector, 0, 0);
+            flush_tx(port_tx);
         }
         btx_collector->n_pkts = 0;
         // struct timespec nic_tx_end = get_realtime();
@@ -1577,8 +1578,7 @@ thread_func_nic_to_veth_tx(void *arg)
         int btx_index = 0;
         btx_collector->n_pkts = 0;
 
-        struct timespec veth_tx_start = get_realtime();
-		unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
+       
 
 		//++++++++++++++++++++++DRAIN VETH SIDE QUEUE++++++++++++++++++++++++
 		if (veth_side_queue != NULL) {
@@ -1587,26 +1587,30 @@ thread_func_nic_to_veth_tx(void *arg)
 				void *obj;
 				ringbuf_sc_dequeue(veth_side_queue, &obj);
 				struct burst_tx *btx = (struct burst_tx*)obj;
-                btx_collector->addr[btx_index] = btx->addr[0];
-                btx_collector->len[btx_index] = btx->len[0];
-                free(btx);
+                // btx_collector->addr[btx_index] = btx->addr[0];
+                // btx_collector->len[btx_index] = btx->len[0];
+                // free(btx);
 
                 btx_index++;
-                btx_collector->n_pkts = btx_index;
-				// port_tx_burst(port_tx, btx, 1, 1);
+                // btx_collector->n_pkts = btx_index;
+				port_tx_burst(port_tx, btx, 1, 1);
 				need_to_flush = 1;
    	 		}
 		}
+
+        struct timespec veth_tx_start = get_realtime();
+		unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
+
+        if (btx_index) {
+            // printf("btx_index %d \n", btx_index);
+            // port_tx_burst(port_tx, btx_collector, 0, 0);
+            flush_tx(port_tx);
+        }
 
         struct timespec veth_tx_end = get_realtime();
         unsigned long veth_tx_end_ns = get_nsec(&veth_tx_end);
         unsigned long detla_veth_tx = veth_tx_end_ns - veth_tx_start_ns;
         total_veth_tx = total_veth_tx + detla_veth_tx;
-
-        if (btx_index) {
-            // printf("btx_index %d \n", btx_index);
-            port_tx_burst(port_tx, btx_collector, 0, 0);
-        }
 		// flush_tx(port_tx);
        
 		// if (need_to_flush) {
