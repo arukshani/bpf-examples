@@ -1448,11 +1448,12 @@ thread_func_veth_to_nic_tx(void *arg)
 		// }
 		// flush_tx(port_tx);
         // printf("btx_index %d \n", btx_index);
-        if (btx_index) {
-            // printf("btx_index %d \n", btx_index);
-            port_tx_burst(port_tx, btx_collector, 0, 0);
-            // flush_tx(port_tx);
-        }
+        // if (btx_index) {
+        //     // printf("btx_index %d \n", btx_index);
+        //     port_tx_burst(port_tx, btx_collector, 0, 0);
+        //     // flush_tx(port_tx);
+        // }
+        port_tx_burst(port_tx, btx_collector, 0, 0);
         btx_collector->n_pkts = 0;
         // struct timespec nic_tx_end = get_realtime();
         // unsigned long nic_tx_end_ns = get_nsec(&nic_tx_end);
@@ -1598,19 +1599,21 @@ thread_func_nic_to_veth_tx(void *arg)
    	 		}
 		}
 
-        struct timespec veth_tx_start = get_realtime();
-		unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
+        // struct timespec veth_tx_start = get_realtime();
+		// unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
 
-        if (btx_index) {
-            // printf("btx_index %d \n", btx_index);
-            port_tx_burst(port_tx, btx_collector, 0, 0);
-            // flush_tx(port_tx);
-        }
+        // if (btx_index) {
+        //     // printf("btx_index %d \n", btx_index);
+        //     port_tx_burst(port_tx, btx_collector, 0, 0);
+        //     // flush_tx(port_tx);
+        // }
 
-        struct timespec veth_tx_end = get_realtime();
-        unsigned long veth_tx_end_ns = get_nsec(&veth_tx_end);
-        unsigned long detla_veth_tx = veth_tx_end_ns - veth_tx_start_ns;
-        total_veth_tx = total_veth_tx + detla_veth_tx;
+        port_tx_burst(port_tx, btx_collector, 0, 0);
+
+        // struct timespec veth_tx_end = get_realtime();
+        // unsigned long veth_tx_end_ns = get_nsec(&veth_tx_end);
+        // unsigned long detla_veth_tx = veth_tx_end_ns - veth_tx_start_ns;
+        // total_veth_tx = total_veth_tx + detla_veth_tx;
 		// flush_tx(port_tx);
        
 		// if (need_to_flush) {
