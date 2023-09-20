@@ -1602,13 +1602,13 @@ thread_func_nic_to_veth_tx(void *arg)
         // struct timespec veth_tx_start = get_realtime();
 		// unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
 
-        // if (btx_index) {
-        //     // printf("btx_index %d \n", btx_index);
-        //     port_tx_burst(port_tx, btx_collector, 0, 0);
-        //     // flush_tx(port_tx);
-        // }
+        if (btx_index) {
+            // printf("btx_index %d \n", btx_index);
+            port_tx_burst(port_tx, btx_collector, 0, 0);
+            // flush_tx(port_tx);
+        }
 
-        port_tx_burst(port_tx, btx_collector, 0, 0);
+        // port_tx_burst(port_tx, btx_collector, 0, 0);
 
         // struct timespec veth_tx_end = get_realtime();
         // unsigned long veth_tx_end_ns = get_nsec(&veth_tx_end);
