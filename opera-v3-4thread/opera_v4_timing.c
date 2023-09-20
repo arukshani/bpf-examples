@@ -1352,6 +1352,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				struct burst_tx *btx = (struct burst_tx*)obj;
                 btx_collector->addr[btx_index] = btx->addr[0];
                 btx_collector->len[btx_index] = btx->len[0];
+                free(btx);
                 btx_index++;
                 btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx, 1, 1);
@@ -1367,6 +1368,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				struct burst_tx *btx = (struct burst_tx*)obj;
                 btx_collector->addr[btx_index] = btx->addr[0];
                 btx_collector->len[btx_index] = btx->len[0];
+                free(btx);
                 btx_index++;
                 btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx, 1, 1);
@@ -1383,6 +1385,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				// printf("de-queue packet %lld \n", btx->addr[0]);
                 btx_collector->addr[btx_index] = btx->addr[0];
                 btx_collector->len[btx_index] = btx->len[0];
+                free(btx);
                 btx_index++;
                 btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx, 1, 1);
@@ -1399,6 +1402,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
                 btx_collector->addr[btx_index] = btx2->addr[0];
                 btx_collector->len[btx_index] = btx2->len[0];
+                free(btx2);
                 btx_index++;
                 btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx2, 1, 1);
@@ -1414,6 +1418,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
                 btx_collector->addr[btx_index] = btx2->addr[0];
                 btx_collector->len[btx_index] = btx2->len[0];
+                free(btx2);
                 btx_index++;
                 btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx2, 1, 1);
@@ -1429,6 +1434,7 @@ thread_func_veth_to_nic_tx(void *arg)
 				struct burst_tx *btx2 = (struct burst_tx*)obj2;
                 btx_collector->addr[btx_index] = btx2->addr[0];
                 btx_collector->len[btx_index] = btx2->len[0];
+                free(btx2);
                 btx_index++;
                 btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx2, 1, 1);
@@ -1582,6 +1588,7 @@ thread_func_nic_to_veth_tx(void *arg)
 				struct burst_tx *btx = (struct burst_tx*)obj;
                 btx_collector->addr[btx_index] = btx->addr[0];
                 btx_collector->len[btx_index] = btx->len[0];
+                free(btx);
                 btx_index++;
                 btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx, 1, 1);
