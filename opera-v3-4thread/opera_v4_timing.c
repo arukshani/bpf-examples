@@ -1332,11 +1332,13 @@ thread_func_veth_to_nic_tx(void *arg)
 	ring_buff_non_local[1] = t->non_loca_ring_bf_array[1];
 	ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
 
+    struct burst_tx *btx_collector = &t->burst_tx[0];
+
 	while (!t->quit) {
 		int need_to_flush = 0;
 		struct port *port_tx = t->ports_tx[0];
 
-        struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
+        // struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
         int btx_index = 0;
 
         struct timespec nic_tx_start = get_realtime();
@@ -1442,8 +1444,9 @@ thread_func_veth_to_nic_tx(void *arg)
         // printf("btx_index %d \n", btx_index);
         if (btx_index) {
             // printf("btx_index %d \n", btx_index);
-            port_tx_burst(port_tx, btx_collector, 1, 0);
+            port_tx_burst(port_tx, btx_collector, 0, 0);
         }
+        btx_collector->n_pkts = 0;
         struct timespec nic_tx_end = get_realtime();
         unsigned long nic_tx_end_ns = get_nsec(&nic_tx_end);
         unsigned long detla_nic_tx = nic_tx_end_ns - nic_tx_start_ns;
@@ -1557,6 +1560,8 @@ thread_func_nic_to_veth_tx(void *arg)
     time_t endtime = starttime + seconds;
 	int need_to_flush = 0;
 
+    struct burst_tx *btx_collector = &t->burst_tx[0];
+
 	// while (starttime < endtime) { //A hack to get the thread to return
 	while (!t->quit) {
 		// starttime = time(NULL);
@@ -1565,7 +1570,7 @@ thread_func_nic_to_veth_tx(void *arg)
         struct timespec veth_tx_start = get_realtime();
 		unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
 
-        struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
+        // struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
         int btx_index = 0;
 
 		//++++++++++++++++++++++DRAIN VETH SIDE QUEUE++++++++++++++++++++++++
@@ -1586,13 +1591,16 @@ thread_func_nic_to_veth_tx(void *arg)
 
         if (btx_index) {
             // printf("btx_index %d \n", btx_index);
-            port_tx_burst(port_tx, btx_collector, 1, 0);
+            port_tx_burst(port_tx, btx_collector, 0, 0);
         }
+        btx_collector->n_pkts = 0;
 		// flush_tx(port_tx);
+
         struct timespec veth_tx_end = get_realtime();
         unsigned long veth_tx_end_ns = get_nsec(&veth_tx_end);
         unsigned long detla_veth_tx = veth_tx_end_ns - veth_tx_start_ns;
         total_veth_tx = total_veth_tx + detla_veth_tx;
+       
 		// if (need_to_flush) {
 		// 	flush_tx(port_tx);
 		// 	need_to_flush = 0;
