@@ -1578,6 +1578,7 @@ thread_func_nic_to_veth_tx(void *arg)
 
         // struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
         int btx_index = 0;
+        btx_collector->n_pkts = 0;
 
 		//++++++++++++++++++++++DRAIN VETH SIDE QUEUE++++++++++++++++++++++++
 		if (veth_side_queue != NULL) {
@@ -1600,7 +1601,6 @@ thread_func_nic_to_veth_tx(void *arg)
             // printf("btx_index %d \n", btx_index);
             port_tx_burst(port_tx, btx_collector, 0, 0);
         }
-        btx_collector->n_pkts = 0;
 		// flush_tx(port_tx);
 
         struct timespec veth_tx_end = get_realtime();
