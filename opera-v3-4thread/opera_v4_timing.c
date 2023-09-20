@@ -1341,8 +1341,8 @@ thread_func_veth_to_nic_tx(void *arg)
         // struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
         int btx_index = 0;
 
-        struct timespec nic_tx_start = get_realtime();
-		unsigned long nic_tx_start_ns = get_nsec(&nic_tx_start);
+        // struct timespec nic_tx_start = get_realtime();
+		// unsigned long nic_tx_start_ns = get_nsec(&nic_tx_start);
 
 		//++++++++++++++++++++++DRAIN NON-LOCAL QUEUES++++++++++++++++++++++++
 		if (ring_buff_non_local[0] != NULL) {
@@ -1453,10 +1453,10 @@ thread_func_veth_to_nic_tx(void *arg)
             port_tx_burst(port_tx, btx_collector, 0, 0);
         }
         btx_collector->n_pkts = 0;
-        struct timespec nic_tx_end = get_realtime();
-        unsigned long nic_tx_end_ns = get_nsec(&nic_tx_end);
-        unsigned long detla_nic_tx = nic_tx_end_ns - nic_tx_start_ns;
-        total_nic_tx = total_nic_tx + detla_nic_tx;
+        // struct timespec nic_tx_end = get_realtime();
+        // unsigned long nic_tx_end_ns = get_nsec(&nic_tx_end);
+        // unsigned long detla_nic_tx = nic_tx_end_ns - nic_tx_start_ns;
+        // total_nic_tx = total_nic_tx + detla_nic_tx;
 	}
 	printf("return from thread_func_veth_to_nic_tx \n");
 	return NULL;
@@ -1495,8 +1495,8 @@ thread_func_veth(void *arg)
 
 		u32 slot = t1ms % 2;
 
-        struct timespec veth_rx_start = get_realtime();
-		unsigned long veth_rx_start_ns = get_nsec(&veth_rx_start);
+        // struct timespec veth_rx_start = get_realtime();
+		// unsigned long veth_rx_start_ns = get_nsec(&veth_rx_start);
 
 		/* RX. */
 		n_pkts = port_rx_burst(port_rx, brx, i);
@@ -1538,10 +1538,10 @@ thread_func_veth(void *arg)
 			free(ret_val);
 		}
 
-        struct timespec veth_rx_end = get_realtime();
-        unsigned long veth_rx_end_ns = get_nsec(&veth_rx_end);
-        unsigned long detla_veth_rx = veth_rx_end_ns - veth_rx_start_ns;
-        total_veth_rx = total_veth_rx + detla_veth_rx;
+        // struct timespec veth_rx_end = get_realtime();
+        // unsigned long veth_rx_end_ns = get_nsec(&veth_rx_end);
+        // unsigned long detla_veth_rx = veth_rx_end_ns - veth_rx_start_ns;
+        // total_veth_rx = total_veth_rx + detla_veth_rx;
     }
 	printf("return from thread_func_veth \n");
     return NULL;
@@ -1573,8 +1573,8 @@ thread_func_nic_to_veth_tx(void *arg)
 		// starttime = time(NULL);
 		struct port *port_tx = t->ports_tx[0];
 
-        struct timespec veth_tx_start = get_realtime();
-		unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
+        // struct timespec veth_tx_start = get_realtime();
+		// unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
 
         // struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
         int btx_index = 0;
@@ -1603,10 +1603,10 @@ thread_func_nic_to_veth_tx(void *arg)
         }
 		// flush_tx(port_tx);
 
-        struct timespec veth_tx_end = get_realtime();
-        unsigned long veth_tx_end_ns = get_nsec(&veth_tx_end);
-        unsigned long detla_veth_tx = veth_tx_end_ns - veth_tx_start_ns;
-        total_veth_tx = total_veth_tx + detla_veth_tx;
+        // struct timespec veth_tx_end = get_realtime();
+        // unsigned long veth_tx_end_ns = get_nsec(&veth_tx_end);
+        // unsigned long detla_veth_tx = veth_tx_end_ns - veth_tx_start_ns;
+        // total_veth_tx = total_veth_tx + detla_veth_tx;
        
 		// if (need_to_flush) {
 		// 	flush_tx(port_tx);
@@ -1647,8 +1647,8 @@ thread_func_nic(void *arg)
 
         u32 n_pkts, j;
 
-        struct timespec nic_rx_start = get_realtime();
-		unsigned long nic_rx_start_ns = get_nsec(&nic_rx_start);
+        // struct timespec nic_rx_start = get_realtime();
+		// unsigned long nic_rx_start_ns = get_nsec(&nic_rx_start);
 
 		/* RX. */
 		n_pkts = port_rx_burst(port_rx, brx, i);
@@ -1710,10 +1710,10 @@ thread_func_nic(void *arg)
 			free(ret_val);
 		}
 
-        struct timespec nic_rx_end = get_realtime();
-        unsigned long nic_rx_end_ns = get_nsec(&nic_rx_end);
-        unsigned long detla_nic_rx = nic_rx_end_ns - nic_rx_start_ns;
-        total_nic_rx = total_nic_rx + detla_nic_rx;
+        // struct timespec nic_rx_end = get_realtime();
+        // unsigned long nic_rx_end_ns = get_nsec(&nic_rx_end);
+        // unsigned long detla_nic_rx = nic_rx_end_ns - nic_rx_start_ns;
+        // total_nic_rx = total_nic_rx + detla_nic_rx;
 
     }
 	printf("return from thread_func_nic \n");
