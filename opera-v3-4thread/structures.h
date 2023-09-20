@@ -209,3 +209,8 @@ struct return_process_rx {
 	int new_len;
 	int ring_buf_index;
 };
+
+unsigned long total_veth_rx = 0;
+unsigned long total_veth_tx = 0;
+unsigned long total_nic_rx = 0;
+unsigned long total_nic_tx = 0;
