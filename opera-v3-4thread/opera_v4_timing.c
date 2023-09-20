@@ -1565,18 +1565,30 @@ thread_func_nic_to_veth_tx(void *arg)
         struct timespec veth_tx_start = get_realtime();
 		unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
 
+        struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
+        int btx_index = 0;
+
 		//++++++++++++++++++++++DRAIN VETH SIDE QUEUE++++++++++++++++++++++++
 		if (veth_side_queue != NULL) {
-			while((!ringbuf_is_empty(veth_side_queue))) {
+			while((!ringbuf_is_empty(veth_side_queue)) && (btx_index < MAX_BURST_TX)) {
 				// printf("veth side queue is not empty \n");
 				void *obj;
 				ringbuf_sc_dequeue(veth_side_queue, &obj);
 				struct burst_tx *btx = (struct burst_tx*)obj;
-				port_tx_burst(port_tx, btx, 1, 1);
+                btx_collector->addr[btx_index] = btx->addr[0];
+                btx_collector->len[btx_index] = btx->len[0];
+                btx_index++;
+                btx_collector->n_pkts = btx_index;
+				// port_tx_burst(port_tx, btx, 1, 1);
 				need_to_flush = 1;
    	 		}
 		}
-		flush_tx(port_tx);
+
+        if (btx_index) {
+            // printf("btx_index %d \n", btx_index);
+            port_tx_burst(port_tx, btx_collector, 1, 0);
+        }
+		// flush_tx(port_tx);
         struct timespec veth_tx_end = get_realtime();
         unsigned long veth_tx_end_ns = get_nsec(&veth_tx_end);
         unsigned long detla_veth_tx = veth_tx_end_ns - veth_tx_start_ns;
