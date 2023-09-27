@@ -70,7 +70,6 @@
 #include "map.h"
 #include "structures.h"
 
-
 static void
 bcache_free(struct bcache *bc)
 {
@@ -131,14 +130,12 @@ bcache_cons_check(struct bcache *bc, u32 n_buffers)
 	 * look for more buffers from the pool when the ask can only be
 	 * partially satisfied.
 	 */
-	
-	if (n_buffers_cons) {
+
+	if (n_buffers_cons)
+	{
 		// printf("bc->n_buffers_cons %lld not empty \n", n_buffers_cons);
-		return (n_buffers_cons < n_buffers) ?
-			n_buffers_cons :
-			n_buffers;
+		return (n_buffers_cons < n_buffers) ? n_buffers_cons : n_buffers;
 	}
-		
 
 	/*
 	 * Consumer slab is empty: look to trade the current consumer slab
@@ -147,7 +144,8 @@ bcache_cons_check(struct bcache *bc, u32 n_buffers)
 	pthread_mutex_lock(&bp->lock);
 	n_slabs_available = bp->n_slabs_available;
 	// printf("n_buffers_cons %lld \n", n_buffers_cons);
-	if (!n_slabs_available) {
+	if (!n_slabs_available)
+	{
 		pthread_mutex_unlock(&bp->lock);
 		return 0;
 	}
@@ -187,7 +185,8 @@ bcache_init(struct bpool *bp)
 	bc->n_buffers_prod = 0;
 
 	pthread_mutex_lock(&bp->lock);
-	if (bp->n_slabs_reserved_available == 0) {
+	if (bp->n_slabs_reserved_available == 0)
+	{
 		pthread_mutex_unlock(&bp->lock);
 		free(bc);
 		return NULL;
@@ -225,7 +224,8 @@ bcache_prod(struct bcache *bc, u64 buffer)
 	/*
 	 * Producer slab is not yet full: store the current buffer to it.
 	 */
-	if (n_buffers_prod < n_buffers_per_slab) {
+	if (n_buffers_prod < n_buffers_per_slab)
+	{
 		// printf("prod slab is NOT full; %ld n_slabs_available %d n_buffers_prod \n", bp->n_slabs_available, n_buffers_prod);
 		bc->slab_prod[n_buffers_prod] = buffer;
 		bc->n_buffers_prod = n_buffers_prod + 1;
@@ -264,20 +264,19 @@ static void apply_setsockopt(struct xsk_socket *xsk)
 
 	sock_opt = 1;
 	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_PREFER_BUSY_POLL,
-		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+				   (void *)&sock_opt, sizeof(sock_opt)) < 0)
 		printf("Error!!!");
 
 	sock_opt = 20;
 	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_BUSY_POLL,
-		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+				   (void *)&sock_opt, sizeof(sock_opt)) < 0)
 		printf("Error!!!");
 
 	sock_opt = 1;
 	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_BUSY_POLL_BUDGET,
-		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+				   (void *)&sock_opt, sizeof(sock_opt)) < 0)
 		printf("Error!!!");
 }
-
 
 static struct port *
 port_init(struct port_params *params)
@@ -297,8 +296,9 @@ port_init(struct port_params *params)
 	/* bcache. */
 	p->bc = bcache_init(params->bp);
 	if (!p->bc ||
-	    (bcache_slab_size(p->bc) < umem_fq_size) ||
-	    (bcache_cons_check(p->bc, umem_fq_size) < umem_fq_size)) {
+		(bcache_slab_size(p->bc) < umem_fq_size) ||
+		(bcache_cons_check(p->bc, umem_fq_size) < umem_fq_size))
+	{
 		port_free(p);
 		return NULL;
 	}
@@ -312,14 +312,14 @@ port_init(struct port_params *params)
 
 	/* xsk socket. */
 	status = xsk_socket__create_shared(&p->xsk,
-					   params->iface,
-					   params->iface_queue,
-					   params->bp->umem,
-					   &p->rxq,
-					   &p->txq,
-					   &p->umem_fq,
-					   &p->umem_cq,
-					   &params->xsk_cfg);
+									   params->iface,
+									   params->iface_queue,
+									   params->bp->umem,
+									   &p->rxq,
+									   &p->txq,
+									   &p->umem_fq,
+									   &p->umem_cq,
+									   &params->xsk_cfg);
 
 	apply_setsockopt(p->xsk);
 	// printf("xsk_socket__create_shared returns %d\n", status) ;
@@ -333,12 +333,12 @@ port_init(struct port_params *params)
 	// 				   &p->umem_fq,
 	// 				   &p->umem_cq,
 	// 				   &params->xsk_cfg);
-	if (status) {
+	if (status)
+	{
 		printf("ERROR in xsk_socket__create_shared \n");
 		port_free(p);
 		return NULL;
 	}
-	
 
 	/* umem fq. */
 	xsk_ring_prod__reserve(&p->umem_fq, umem_fq_size, &pos);
@@ -357,9 +357,9 @@ port_init(struct port_params *params)
 
 static struct bpool *
 bpool_init(struct bpool_params *params,
-	   struct xsk_umem_config *umem_cfg)
+		   struct xsk_umem_config *umem_cfg)
 {
-    printf("Hello \n");
+	printf("Hello \n");
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	u64 n_slabs, n_slabs_reserved, n_buffers, n_buffers_reserved;
 	u64 slabs_size, slabs_reserved_size;
@@ -375,7 +375,7 @@ bpool_init(struct bpool_params *params,
 
 	/* bpool internals dimensioning. */
 	n_slabs = (params->n_buffers + params->n_buffers_per_slab - 1) /
-		params->n_buffers_per_slab;
+			  params->n_buffers_per_slab;
 	n_slabs_reserved = params->n_users_max * 2;
 	n_buffers = n_slabs * params->n_buffers_per_slab;
 	n_buffers_reserved = n_slabs_reserved * params->n_buffers_per_slab;
@@ -386,21 +386,21 @@ bpool_init(struct bpool_params *params,
 	buffers_reserved_size = n_buffers_reserved * sizeof(u64);
 
 	total_size = sizeof(struct bpool) +
-		slabs_size + slabs_reserved_size +
-		buffers_size + buffers_reserved_size;
+				 slabs_size + slabs_reserved_size +
+				 buffers_size + buffers_reserved_size;
 
-    printf("n_slabs %lld \n", n_slabs);
-    printf("n_slabs_reserved %lld \n", n_slabs_reserved);
-    printf("n_buffers %lld \n", n_buffers);
-    printf("n_buffers_reserved %lld \n", n_buffers_reserved);
-    printf("slabs_size %lld \n", slabs_size);
-    printf("slabs_reserved_size %lld \n", slabs_reserved_size);
-    printf("buffers_size %lld \n", buffers_size);
-    printf("buffers_reserved_size %lld \n", buffers_reserved_size);
-    printf("total_size %lld \n", total_size);
+	printf("n_slabs %lld \n", n_slabs);
+	printf("n_slabs_reserved %lld \n", n_slabs_reserved);
+	printf("n_buffers %lld \n", n_buffers);
+	printf("n_buffers_reserved %lld \n", n_buffers_reserved);
+	printf("slabs_size %lld \n", slabs_size);
+	printf("slabs_reserved_size %lld \n", slabs_reserved_size);
+	printf("buffers_size %lld \n", buffers_size);
+	printf("buffers_reserved_size %lld \n", buffers_reserved_size);
+	printf("total_size %lld \n", total_size);
 
 	/* bpool memory allocation. */
-	p = calloc(total_size, sizeof(u8)); //store the address of the bool memory block
+	p = calloc(total_size, sizeof(u8)); // store the address of the bool memory block
 	if (!p)
 		return NULL;
 
@@ -412,17 +412,17 @@ bpool_init(struct bpool_params *params,
 	printf("============= \n");
 
 	/* bpool memory initialization. */
-	bp = (struct bpool *)p; //address of bpool
+	bp = (struct bpool *)p; // address of bpool
 	memcpy(&bp->params, params, sizeof(*params));
 	bp->params.n_buffers = n_buffers;
 
 	bp->slabs = (u64 **)&p[sizeof(struct bpool)];
 	bp->slabs_reserved = (u64 **)&p[sizeof(struct bpool) +
-		slabs_size];
+									slabs_size];
 	bp->buffers = (u64 *)&p[sizeof(struct bpool) +
-		slabs_size + slabs_reserved_size];
+							slabs_size + slabs_reserved_size];
 	bp->buffers_reserved = (u64 *)&p[sizeof(struct bpool) +
-		slabs_size + slabs_reserved_size + buffers_size];
+									 slabs_size + slabs_reserved_size + buffers_size];
 
 	bp->n_slabs = n_slabs;
 	bp->n_slabs_reserved = n_slabs_reserved;
@@ -434,7 +434,7 @@ bpool_init(struct bpool_params *params,
 
 	for (i = 0; i < n_slabs_reserved; i++)
 		bp->slabs_reserved[i] = &bp->buffers_reserved[i *
-			params->n_buffers_per_slab];
+													  params->n_buffers_per_slab];
 	bp->n_slabs_reserved_available = n_slabs_reserved;
 
 	for (i = 0; i < n_buffers; i++)
@@ -442,19 +442,21 @@ bpool_init(struct bpool_params *params,
 
 	/* lock. */
 	status = pthread_mutex_init(&bp->lock, NULL);
-	if (status) {
+	if (status)
+	{
 		free(p);
 		return NULL;
 	}
 
 	/* mmap. */
 	bp->addr = mmap(NULL,
-			n_buffers * params->buffer_size,
-			PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS | params->mmap_flags,
-			-1,
-			0);
-	if (bp->addr == MAP_FAILED) {
+					n_buffers * params->buffer_size,
+					PROT_READ | PROT_WRITE,
+					MAP_PRIVATE | MAP_ANONYMOUS | params->mmap_flags,
+					-1,
+					0);
+	if (bp->addr == MAP_FAILED)
+	{
 		pthread_mutex_destroy(&bp->lock);
 		free(p);
 		return NULL;
@@ -462,12 +464,13 @@ bpool_init(struct bpool_params *params,
 
 	/* umem. */
 	status = xsk_umem__create(&bp->umem,
-				  bp->addr,
-				  bp->params.n_buffers * bp->params.buffer_size,
-				  &bp->umem_fq,
-				  &bp->umem_cq,
-				  umem_cfg);
-	if (status) {
+							  bp->addr,
+							  bp->params.n_buffers * bp->params.buffer_size,
+							  &bp->umem_fq,
+							  &bp->umem_cq,
+							  umem_cfg);
+	if (status)
+	{
 		munmap(bp->addr, bp->params.n_buffers * bp->params.buffer_size);
 		pthread_mutex_destroy(&bp->lock);
 		free(p);
@@ -475,13 +478,13 @@ bpool_init(struct bpool_params *params,
 	}
 	memcpy(&bp->umem_cfg, umem_cfg, sizeof(*umem_cfg));
 
-    printf("bp->params.n_buffers %d \n", bp->params.n_buffers);
-    printf("bp->params.buffer_size %d \n", bp->params.buffer_size);
-    printf("total_size umem %d \n", bp->params.n_buffers * bp->params.buffer_size);
-    printf("bp->n_slabs %lld \n", bp->n_slabs);
-    printf("bp->n_buffers %lld \n", bp->n_buffers);
-    printf("params->n_buffers_per_slab %d \n", params->n_buffers_per_slab);
-    printf("bp->n_slabs_reserved %lld \n", bp->n_slabs_reserved);
+	printf("bp->params.n_buffers %d \n", bp->params.n_buffers);
+	printf("bp->params.buffer_size %d \n", bp->params.buffer_size);
+	printf("total_size umem %d \n", bp->params.n_buffers * bp->params.buffer_size);
+	printf("bp->n_slabs %lld \n", bp->n_slabs);
+	printf("bp->n_buffers %lld \n", bp->n_buffers);
+	printf("params->n_buffers_per_slab %d \n", params->n_buffers_per_slab);
+	printf("bp->n_slabs_reserved %lld \n", bp->n_slabs_reserved);
 
 	return bp;
 }
@@ -504,7 +507,7 @@ print_port(u32 port_id)
 	struct port *port = ports[port_id];
 
 	printf("Port %u: interface = %s, queue = %u\n",
-	       port_id, port->params.iface, port->params.iface_queue);
+		   port_id, port->params.iface, port->params.iface_queue);
 }
 
 static void
@@ -514,17 +517,18 @@ print_thread(u32 thread_id)
 	u32 i;
 
 	printf("Thread %u (CPU core %u): ",
-	       thread_id, t->cpu_core_id);
+		   thread_id, t->cpu_core_id);
 
-	for (i = 0; i < t->n_ports_rx; i++) {
+	for (i = 0; i < t->n_ports_rx; i++)
+	{
 		struct port *port_rx = t->ports_rx[i];
 		struct port *port_tx = t->ports_tx[i];
 
 		printf("(%s, %u) -> (%s, %u), ",
-		       port_rx->params.iface,
-		       port_rx->params.iface_queue,
-		       port_tx->params.iface,
-		       port_tx->params.iface_queue);
+			   port_rx->params.iface,
+			   port_rx->params.iface_queue,
+			   port_tx->params.iface,
+			   port_tx->params.iface_queue);
 	}
 
 	printf("\n");
@@ -535,16 +539,18 @@ static void remove_xdp_program(void)
 	struct xdp_multiprog *mp;
 	int i, err;
 
-	for (i = 0 ; i < n_ports; i++) {
-	        mp = xdp_multiprog__get_from_ifindex(if_nametoindex(port_params[i].iface));
-	        if (IS_ERR_OR_NULL(mp)) {
-	        	printf("No XDP program loaded on %s\n", port_params[i].iface);
-	        	continue;
-	        }
+	for (i = 0; i < n_ports; i++)
+	{
+		mp = xdp_multiprog__get_from_ifindex(if_nametoindex(port_params[i].iface));
+		if (IS_ERR_OR_NULL(mp))
+		{
+			printf("No XDP program loaded on %s\n", port_params[i].iface);
+			continue;
+		}
 
-                err = xdp_multiprog__detach(mp);
-                if (err)
-                        printf("Unable to detach XDP program: %s\n", strerror(-err));
+		err = xdp_multiprog__detach(mp);
+		if (err)
+			printf("Unable to detach XDP program: %s\n", strerror(-err));
 	}
 }
 
@@ -574,25 +580,29 @@ static int lookup_bpf_map(int prog_fd)
 	prog_info.map_ids = (__u64)(unsigned long)map_ids;
 
 	err = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &prog_len);
-	if (err) {
+	if (err)
+	{
 		free(map_ids);
 		return err;
 	}
 
-	for (i = 0; i < prog_info.nr_map_ids; i++) {
+	for (i = 0; i < prog_info.nr_map_ids; i++)
+	{
 		fd = bpf_map_get_fd_by_id(map_ids[i]);
 		if (fd < 0)
 			continue;
 
 		memset(&map_info, 0, map_len);
 		err = bpf_obj_get_info_by_fd(fd, &map_info, &map_len);
-		if (err) {
+		if (err)
+		{
 			close(fd);
 			continue;
 		}
 
 		if (!strncmp(map_info.name, "xsks_map", sizeof(map_info.name)) &&
-		    map_info.key_size == 4 && map_info.value_size == 4) {
+			map_info.key_size == 4 && map_info.value_size == 4)
+		{
 			xsks_map_fd = fd;
 			break;
 		}
@@ -604,16 +614,16 @@ static int lookup_bpf_map(int prog_fd)
 	return xsks_map_fd;
 }
 
-
 static void enter_xsks_into_map(u32 index)
 {
 	int i, xsks_map;
 
 	xsks_map = lookup_bpf_map(xdp_program__fd(xdp_prog[index]));
-	if (xsks_map < 0) {
+	if (xsks_map < 0)
+	{
 		fprintf(stderr, "ERROR: no xsks map found: %s\n",
-			strerror(xsks_map));
-			exit(EXIT_FAILURE);
+				strerror(xsks_map));
+		exit(EXIT_FAILURE);
 	}
 
 	printf("Update bpf map for xdp_prog[%d] %s, \n", index, port_params[index].iface);
@@ -623,13 +633,15 @@ static void enter_xsks_into_map(u32 index)
 	i = 0;
 	key = i;
 	ret = bpf_map_update_elem(xsks_map, &key, &fd, 0);
-	if (ret) {
+	if (ret)
+	{
 		fprintf(stderr, "ERROR: bpf_map_update_elem %d %d\n", i, ret);
 		exit(EXIT_FAILURE);
 	}
 }
 
-struct config {
+struct config
+{
 	int ifindex;
 	char *ifname;
 	bool reuse_maps;
@@ -647,30 +659,29 @@ static void load_xdp_program(void)
 	int veth_ifindex = if_nametoindex("veth1");
 	int nic_ifindex = if_nametoindex(nic_iface);
 
-	//Outer veth 
-    struct config veth_cfg = {
+	// Outer veth
+	struct config veth_cfg = {
 		.ifindex = veth_ifindex,
 		.ifname = "veth1",
 		.xsk_if_queue = 0,
 		.xsk_poll_mode = true,
 		.filename = "veth_kern.o",
-		.progsec = "xdp_sock_0"
-	};
+		.progsec = "xdp_sock_0"};
 
-	//Physical NIC
-    struct config nic_cfg = {
+	// Physical NIC
+	struct config nic_cfg = {
 		.ifindex = nic_ifindex,
 		.ifname = nic_iface,
 		.xsk_if_queue = 0,
 		.xsk_poll_mode = true,
 		.filename = "nic_kern.o",
-		.progsec = "xdp_sock_1"
-	};
+		.progsec = "xdp_sock_1"};
 
 	struct config cfgs[2] = {veth_cfg, nic_cfg};
 
 	int i;
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < 2; i++)
+	{
 
 		char errmsg[STRERR_BUFSIZE];
 		int err;
@@ -679,14 +690,16 @@ static void load_xdp_program(void)
 
 		xdp_prog[i] = xdp_program__open_file(cfgs[i].filename, cfgs[i].progsec, NULL);
 		err = libxdp_get_error(xdp_prog[i]);
-		if (err) {
+		if (err)
+		{
 			libxdp_strerror(err, errmsg, sizeof(errmsg));
 			fprintf(stderr, "ERROR: program loading failed: %s\n", errmsg);
 			exit(EXIT_FAILURE);
 		}
 
 		err = xdp_program__attach(xdp_prog[i], cfgs[i].ifindex, XDP_FLAGS_DRV_MODE, 0);
-		if (err) {
+		if (err)
+		{
 			libxdp_strerror(err, errmsg, sizeof(errmsg));
 			fprintf(stderr, "ERROR: attaching program failed: %s\n", errmsg);
 			exit(EXIT_FAILURE);
@@ -709,7 +722,7 @@ port_rx_burst(struct port *p, struct burst_rx *b, int index)
 
 	/* Free buffers for FQ replenish. */
 	n_pkts = ARRAY_SIZE(b->addr);
-	
+
 	n_pkts = bcache_cons_check(p->bc, n_pkts);
 
 	if (!n_pkts)
@@ -719,8 +732,10 @@ port_rx_burst(struct port *p, struct burst_rx *b, int index)
 
 	/* RXQ. */
 	n_pkts = xsk_ring_cons__peek(&p->rxq, n_pkts, &pos);
-	if (!n_pkts) {
-		if (xsk_ring_prod__needs_wakeup(&p->umem_fq)) {
+	if (!n_pkts)
+	{
+		if (xsk_ring_prod__needs_wakeup(&p->umem_fq))
+		{
 			struct pollfd pollfd = {
 				.fd = xsk_socket__fd(p->xsk),
 				.events = POLLIN,
@@ -731,7 +746,8 @@ port_rx_burst(struct port *p, struct burst_rx *b, int index)
 		return 0;
 	}
 
-	for (i = 0; i < n_pkts; i++) {
+	for (i = 0; i < n_pkts; i++)
+	{
 		b->addr[i] = xsk_ring_cons__rx_desc(&p->rxq, pos + i)->addr;
 		b->len[i] = xsk_ring_cons__rx_desc(&p->rxq, pos + i)->len;
 	}
@@ -740,14 +756,16 @@ port_rx_burst(struct port *p, struct burst_rx *b, int index)
 	p->n_pkts_rx += n_pkts;
 
 	/* UMEM FQ. */
-	for ( ; ; ) {
+	for (;;)
+	{
 		int status;
 
 		status = xsk_ring_prod__reserve(&p->umem_fq, n_pkts, &pos);
 		if (status == n_pkts)
 			break;
 
-		if (xsk_ring_prod__needs_wakeup(&p->umem_fq)) {
+		if (xsk_ring_prod__needs_wakeup(&p->umem_fq))
+		{
 			struct pollfd pollfd = {
 				.fd = xsk_socket__fd(p->xsk),
 				.events = POLLIN,
@@ -780,7 +798,8 @@ port_tx_burst(struct port *p, struct burst_tx *b, int free_btx, int wait_all)
 	// printf("n_pkts in port_tx_burst %ld \n", n_pkts);
 	// printf("bp->n_slabs_available %ld \n", p->bc->bp->n_slabs_available);
 
-	for (i = 0; i < n_pkts; i++) {
+	for (i = 0; i < n_pkts; i++)
+	{
 		u64 addr = *xsk_ring_cons__comp_addr(&p->umem_cq, pos + i);
 
 		bcache_prod(p->bc, addr);
@@ -791,57 +810,68 @@ port_tx_burst(struct port *p, struct burst_tx *b, int free_btx, int wait_all)
 	/* TXQ. */
 	n_pkts = b->n_pkts;
 
-	for ( ; ; ) {
+	for (;;)
+	{
 		status = xsk_ring_prod__reserve(&p->txq, n_pkts, &pos);
-		if (status == n_pkts) {
+		if (status == n_pkts)
+		{
 			// printf("status == n_pkts \n");
 			break;
 		}
-		
-		if (xsk_ring_prod__needs_wakeup(&p->txq)) {
-			if (wait_all) {
+
+		if (xsk_ring_prod__needs_wakeup(&p->txq))
+		{
+			if (wait_all)
+			{
 				sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_WAITALL,
-			       NULL, 0);
-			} else {
-				sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT,
-			       NULL, 0);
+					   NULL, 0);
 			}
-			
+			else
+			{
+				sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT,
+					   NULL, 0);
+			}
 		}
-			
 	}
 
 	// printf("Fill tx desc for n_pkts %ld \n", n_pkts);
 	// printf("Port tx burst \n");
 
-	for (i = 0; i < n_pkts; i++) {
+	for (i = 0; i < n_pkts; i++)
+	{
 		xsk_ring_prod__tx_desc(&p->txq, pos + i)->addr = b->addr[i];
 		xsk_ring_prod__tx_desc(&p->txq, pos + i)->len = b->len[i];
 	}
 
-    if(free_btx) {
-        free(b);
-    }
+	if (free_btx)
+	{
+		free(b);
+	}
 
 	xsk_ring_prod__submit(&p->txq, n_pkts);
-	if (xsk_ring_prod__needs_wakeup(&p->txq)) {
-		if (wait_all) {
+	if (xsk_ring_prod__needs_wakeup(&p->txq))
+	{
+		if (wait_all)
+		{
 			sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_WAITALL, NULL, 0);
-		} else {
+		}
+		else
+		{
 			sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
 		}
 	}
-		
+
 	p->n_pkts_tx += n_pkts;
 }
 
 static inline void
-flush_tx(struct port *p) {
-	if (xsk_ring_prod__needs_wakeup(&p->txq)) {
+flush_tx(struct port *p)
+{
+	if (xsk_ring_prod__needs_wakeup(&p->txq))
+	{
 		sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
 	}
 }
-
 
 /*
  * This function code has been taken from
@@ -868,7 +898,8 @@ static unsigned int do_csum(const unsigned char *buff, int len)
 	if (len <= 0)
 		goto out;
 	odd = 1 & (unsigned long)buff;
-	if (odd) {
+	if (odd)
+	{
 #ifdef __LITTLE_ENDIAN
 		result += (*buff << 8);
 #else
@@ -877,18 +908,22 @@ static unsigned int do_csum(const unsigned char *buff, int len)
 		len--;
 		buff++;
 	}
-	if (len >= 2) {
-		if (2 & (unsigned long)buff) {
+	if (len >= 2)
+	{
+		if (2 & (unsigned long)buff)
+		{
 			result += *(unsigned short *)buff;
 			len -= 2;
 			buff += 2;
 		}
-		if (len >= 4) {
+		if (len >= 4)
+		{
 			const unsigned char *end = buff +
-						   ((unsigned int)len & ~3);
+									   ((unsigned int)len & ~3);
 			unsigned int carry = 0;
 
-			do {
+			do
+			{
 				unsigned int w = *(unsigned int *)buff;
 
 				buff += 4;
@@ -899,7 +934,8 @@ static unsigned int do_csum(const unsigned char *buff, int len)
 			result += carry;
 			result = (result & 0xffff) + (result >> 16);
 		}
-		if (len & 2) {
+		if (len & 2)
+		{
 			result += *(unsigned short *)buff;
 			buff += 2;
 		}
@@ -928,13 +964,15 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 	return (__sum16)~do_csum(iph, ihl * 4);
 }
 
-struct gre_hdr {
+struct gre_hdr
+{
 	__be16 flags;
 	__be16 proto;
 } __attribute__((packed));
 
 /* Header cursor to keep track of current parsing position */
-struct hdr_cursor {
+struct hdr_cursor
+{
 	void *pos;
 };
 
@@ -980,17 +1018,19 @@ clockid_t clkid;
 static clockid_t get_nic_clock_id(void)
 {
 	int fd;
-    // char *device = DEVICE;
-    clockid_t clkid;
+	// char *device = DEVICE;
+	clockid_t clkid;
 
-    fd = open(ptp_clock_name, O_RDWR);
-	if (fd < 0) {
+	fd = open(ptp_clock_name, O_RDWR);
+	if (fd < 0)
+	{
 		fprintf(stderr, "opening %s: %s\n", ptp_clock_name, strerror(errno));
 		return -1;
 	}
 
 	clkid = FD_TO_CLOCKID(fd);
-	if (CLOCK_INVALID == clkid) {
+	if (CLOCK_INVALID == clkid)
+	{
 		fprintf(stderr, "failed to read clock id\n");
 		return -1;
 	}
@@ -1006,7 +1046,7 @@ static clockid_t get_nic_clock_id(void)
 
 static unsigned long get_nsec(struct timespec *ts)
 {
-    return ts->tv_sec * 1000000000UL + ts->tv_nsec;
+	return ts->tv_sec * 1000000000UL + ts->tv_nsec;
 }
 
 static struct timespec get_realtime(void)
@@ -1024,10 +1064,10 @@ static struct timespec get_nicclock(void)
 	return ts;
 }
 
-//Telemetry
+// Telemetry
 uint32_t node_ip[20000];
 // char description[20000][100]; //strcpy(description[0], aString);
-int slot[20000]; //0-from_veth, 1-intermediate_node, 2-to_veth
+int slot[20000]; // 0-from_veth, 1-intermediate_node, 2-to_veth
 struct timespec timestamp_arr[20000000];
 uint8_t topo_arr[20000];
 int next_node[20000];
@@ -1037,8 +1077,8 @@ __u32 t1ms;
 struct timespec now;
 uint64_t time_into_cycle_ns;
 uint8_t topo;
-uint64_t slot_time_ns = 1000000;	// 1 ms
-uint64_t cycle_time_ns = 2000000;	// 2 ms
+uint64_t slot_time_ns = 1000000;  // 1 ms
+uint64_t cycle_time_ns = 2000000; // 2 ms
 
 //++++++++++++++++++++++END TIME RELATED+++++++++++++++++++++++++++++
 
@@ -1048,45 +1088,45 @@ uint64_t cycle_time_ns = 2000000;	// 2 ms
 //     int value;
 // };
 
-//Header structure of GRE tap packet:
-    // Ethernet type of GRE encapsulated packet is ETH_P_TEB (gretap)
-	// outer eth
-	// outer ip
-	// gre
-    // inner eth
-	// inner ip
-	// payload
+// Header structure of GRE tap packet:
+//  Ethernet type of GRE encapsulated packet is ETH_P_TEB (gretap)
+//  outer eth
+//  outer ip
+//  gre
+//  inner eth
+//  inner ip
+//  payload
 static void process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr, struct return_process_rx *return_val)
 {
-	int is_veth = strcmp(params->iface, "veth1"); 
-	int is_nic = strcmp(params->iface, nic_iface); 
+	int is_veth = strcmp(params->iface, "veth1");
+	int is_nic = strcmp(params->iface, nic_iface);
 
 	if (is_veth == 0)
 	{
 		// printf("From VETH \n");
-		struct iphdr *outer_iphdr; 
-		struct iphdr encap_outer_iphdr; 
-		struct ethhdr *outer_eth_hdr; 
+		struct iphdr *outer_iphdr;
+		struct iphdr encap_outer_iphdr;
+		struct ethhdr *outer_eth_hdr;
 
 		struct iphdr *inner_ip_hdr_tmp = (struct iphdr *)(data +
-						sizeof(struct ethhdr));
+														  sizeof(struct ethhdr));
 		__builtin_memcpy(&encap_outer_iphdr, inner_ip_hdr_tmp, sizeof(encap_outer_iphdr));
 		encap_outer_iphdr.protocol = IPPROTO_GRE;
 
 		int olen = 0;
-		olen += ETH_HLEN; 
-		olen += sizeof(struct gre_hdr); 
+		olen += ETH_HLEN;
+		olen += sizeof(struct gre_hdr);
 
 		encap_outer_iphdr.tot_len = bpf_htons(olen + bpf_ntohs(inner_ip_hdr_tmp->tot_len));
 
-		int encap_size = 0; //outer_eth + outer_ip + gre
+		int encap_size = 0; // outer_eth + outer_ip + gre
 		int encap_outer_eth_len = ETH_HLEN;
 		int encap_outer_ip_len = sizeof(struct iphdr);
 		int encap_gre_len = sizeof(struct gre_hdr);
-		
-		encap_size += encap_outer_eth_len; 
-		encap_size += encap_outer_ip_len; 
-		encap_size += encap_gre_len; 
+
+		encap_size += encap_outer_eth_len;
+		encap_size += encap_outer_ip_len;
+		encap_size += encap_gre_len;
 
 		int offset = 0 + encap_size;
 		u64 new_addr = addr + offset;
@@ -1096,56 +1136,56 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 		memcpy(xsk_umem__get_data(params->bp->addr, new_new_addr), data, len);
 		u8 *new_data = xsk_umem__get_data(params->bp->addr, new_new_addr);
 
-		struct ethhdr *eth = (struct ethhdr *) new_data;
+		struct ethhdr *eth = (struct ethhdr *)new_data;
 		struct iphdr *inner_ip_hdr = (struct iphdr *)(new_data +
-						sizeof(struct ethhdr));
+													  sizeof(struct ethhdr));
 
 		if (ntohs(eth->h_proto) != ETH_P_IP ||
-		    len < (sizeof(*eth) + sizeof(*inner_ip_hdr)))
-			{
-				printf("not ETH_P_IP or size is not within the len \n");
-				return false;
-			}
- 
-		outer_eth_hdr = (struct ethhdr *) data;
+			len < (sizeof(*eth) + sizeof(*inner_ip_hdr)))
+		{
+			printf("not ETH_P_IP or size is not within the len \n");
+			return false;
+		}
+
+		outer_eth_hdr = (struct ethhdr *)data;
 		__builtin_memcpy(outer_eth_hdr->h_source, out_eth_src, sizeof(outer_eth_hdr->h_source));
 		struct ip_set *dest_ip_index = mg_map_get(&ip_table, inner_ip_hdr_tmp->daddr);
 		// printf("dest_ip_index = %d\n", dest_ip_index->index);
 		int mac_index;
-    	getRouteElement(route_table, dest_ip_index->index, topo, &mac_index);
+		getRouteElement(route_table, dest_ip_index->index, topo, &mac_index);
 		struct mac_addr *dest_mac_val = mg_map_get(&mac_table, mac_index);
 		// ringbuf_t *dest_queue = mg_map_get(&dest_queue_table, mac_index);
 		// printf("dest_ip_index = %d, mac_index=%d \n", dest_ip_index->index, mac_index);
 		return_val->ring_buf_index = dest_ip_index->index - 1;
 
-		//Telemetry
-		// #if DEBUG == 1
-		// 	timestamp_arr[time_index] = now;
-		// 	node_ip[time_index] = src_ip;
-		// 	slot[time_index]=0;
-		// 	topo_arr[time_index] = topo;
-		// 	next_node[time_index] = mac_index;
-		// 	time_index++;
-		// #endif
+		// Telemetry
+		//  #if DEBUG == 1
+		//  	timestamp_arr[time_index] = now;
+		//  	node_ip[time_index] = src_ip;
+		//  	slot[time_index]=0;
+		//  	topo_arr[time_index] = topo;
+		//  	next_node[time_index] = mac_index;
+		//  	time_index++;
+		//  #endif
 
 		// For debug
 		// printf("mac_index = %d\n", mac_index);
 		// int i;
 		// for (i = 0; i < 6; ++i)
-      	// 	printf(" %02x", (unsigned char) dest_mac_val->bytes[i]);
-    	// puts("\n");
+		// 	printf(" %02x", (unsigned char) dest_mac_val->bytes[i]);
+		// puts("\n");
 
 		__builtin_memcpy(outer_eth_hdr->h_dest, dest_mac_val->bytes, sizeof(outer_eth_hdr->h_dest));
 
 		outer_eth_hdr->h_proto = htons(ETH_P_IP);
 
 		outer_iphdr = (struct iphdr *)(data +
-						sizeof(struct ethhdr));
+									   sizeof(struct ethhdr));
 		__builtin_memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
 
 		struct gre_hdr *gre_hdr;
 		gre_hdr = (struct gre_hdr *)(data +
-						sizeof(struct ethhdr) + sizeof(struct iphdr));
+									 sizeof(struct ethhdr) + sizeof(struct iphdr));
 
 		gre_hdr->proto = bpf_htons(ETH_P_TEB);
 		gre_hdr->flags = 1;
@@ -1155,66 +1195,68 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 
 		// printf("From VETH packet received\n");
 		// return return_val;
-		
-	} else if (is_nic == 0)
+	}
+	else if (is_nic == 0)
 	{
-		#if DEBUG_PAUSE_Q == 1
-			timestamp_arr[time_index] = now;
-			time_index++;
-		#endif
+#if DEBUG_PAUSE_Q == 1
+		timestamp_arr[time_index] = now;
+		time_index++;
+#endif
 		// printf("From NIC \n");
-		struct ethhdr *eth = (struct ethhdr *) data;
+		struct ethhdr *eth = (struct ethhdr *)data;
 		struct iphdr *outer_ip_hdr = (struct iphdr *)(data +
-						sizeof(struct ethhdr));
-		struct gre_hdr *greh = (struct gre_hdr *) (outer_ip_hdr + 1);
-		
-		// if (ntohs(eth->h_proto) != ETH_P_IP || outer_ip_hdr->protocol != IPPROTO_GRE || 
+													  sizeof(struct ethhdr));
+		struct gre_hdr *greh = (struct gre_hdr *)(outer_ip_hdr + 1);
+
+		// if (ntohs(eth->h_proto) != ETH_P_IP || outer_ip_hdr->protocol != IPPROTO_GRE ||
 		// 			ntohs(greh->proto) != ETH_P_TEB)
 		// {
 		// 	printf("not a GRE packet \n");
 		// 	return false;
 		// }
-		struct ethhdr *inner_eth = (struct ethhdr *) (greh +  1);
+		struct ethhdr *inner_eth = (struct ethhdr *)(greh + 1);
 		// if (ntohs(inner_eth->h_proto) != ETH_P_IP) {
 		// 	printf("inner eth proto is not ETH_P_IP %x \n", inner_eth->h_proto);
-        //     return false;
+		//     return false;
 		// }
 
 		struct iphdr *inner_ip_hdr = (struct iphdr *)(inner_eth + 1);
-		if (src_ip != (inner_ip_hdr->daddr)) {
+		if (src_ip != (inner_ip_hdr->daddr))
+		{
 			// printf("Not destined for local node \n");
-			//send it back out NIC
+			// send it back out NIC
 			struct ip_set *next_dest_ip_index = mg_map_get(&ip_table, inner_ip_hdr->daddr);
 			int next_mac_index;
-    		getRouteElement(route_table, next_dest_ip_index->index, topo, &next_mac_index);
+			getRouteElement(route_table, next_dest_ip_index->index, topo, &next_mac_index);
 			struct mac_addr *next_dest_mac_val = mg_map_get(&mac_table, next_mac_index);
 			__builtin_memcpy(eth->h_dest, next_dest_mac_val->bytes, sizeof(eth->h_dest));
 			__builtin_memcpy(eth->h_source, out_eth_src, sizeof(eth->h_source));
 			return_val->ring_buf_index = next_dest_ip_index->index - 1;
 
-			//Telemetry
-			// #if DEBUG == 1
-			// 	timestamp_arr[time_index] = now;
-			// 	node_ip[time_index] = src_ip;
-			// 	slot[time_index]=1;
-			// 	topo_arr[time_index] = topo;
-			// 	next_node[time_index] = next_mac_index;
-			// 	time_index++;
-			// #endif
+			// Telemetry
+			//  #if DEBUG == 1
+			//  	timestamp_arr[time_index] = now;
+			//  	node_ip[time_index] = src_ip;
+			//  	slot[time_index]=1;
+			//  	topo_arr[time_index] = topo;
+			//  	next_node[time_index] = next_mac_index;
+			//  	time_index++;
+			//  #endif
 
-			//Debug
-			// printf("next_mac_index = %d\n", next_mac_index);
-			// int i;
-			// for (i = 0; i < 6; ++i)
-			// 	printf(" %02x", (unsigned char) next_dest_mac_val->bytes[i]);
-			// puts("\n");
+			// Debug
+			//  printf("next_mac_index = %d\n", next_mac_index);
+			//  int i;
+			//  for (i = 0; i < 6; ++i)
+			//  	printf(" %02x", (unsigned char) next_dest_mac_val->bytes[i]);
+			//  puts("\n");
 
-			return_val->new_len = 1; //indicates that packet should go back out through NIC
+			return_val->new_len = 1; // indicates that packet should go back out through NIC
 			// return return_val;
-
-		} else {
+		}
+		else
+		{
 			// printf("Destined for local node \n");
-			//send it to local veth
+			// send it to local veth
 			void *cutoff_pos = greh + 1;
 			int cutoff_len = (int)(cutoff_pos - data);
 			int new_len = len - cutoff_len;
@@ -1225,28 +1267,28 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 			u8 *new_data = xsk_umem__get_data(params->bp->addr, inner_eth_start_addr);
 			memcpy(xsk_umem__get_data(params->bp->addr, addr), new_data, new_len);
 
-			//Telemetry
-			// #if DEBUG == 1
-			// 	timestamp_arr[time_index] = now;
-			// 	node_ip[time_index] = src_ip;
-			// 	slot[time_index]=2;
-			// 	topo_arr[time_index] = topo;
-			// 	next_node[time_index] = 0;
-			// 	time_index++;
-			// #endif
+			// Telemetry
+			//  #if DEBUG == 1
+			//  	timestamp_arr[time_index] = now;
+			//  	node_ip[time_index] = src_ip;
+			//  	slot[time_index]=2;
+			//  	topo_arr[time_index] = topo;
+			//  	next_node[time_index] = 0;
+			//  	time_index++;
+			//  #endif
 
 			return_val->new_len = new_len;
 			// return return_val;
 		}
 	}
 
-    // return return_val;
+	// return return_val;
 }
 
 // static void *
 // thread_func(void *arg)
 // {
-	
+
 // 	struct thread_data *t = arg;
 // 	cpu_set_t cpu_cores;
 // 	u32 i;
@@ -1255,7 +1297,7 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 // 	CPU_SET(t->cpu_core_id, &cpu_cores);
 // 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
 // 	clkid = get_nic_clock_id();
-	
+
 // 	for (i = 0; !t->quit; i = (i + 1) & (t->n_ports_rx - 1)) {
 // 		// printf("port rx %d \n", i);
 // 		// printf("n_buffers_cons %d, \n", t->ports_rx[i]->bc->n_buffers_cons);
@@ -1310,7 +1352,7 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 // 	return NULL;
 // }
 
-//from_VETH -> to_NIC (TX)
+// from_VETH -> to_NIC (TX)
 static void *
 thread_func_veth_to_nic_tx(void *arg)
 {
@@ -1332,114 +1374,127 @@ thread_func_veth_to_nic_tx(void *arg)
 	ring_buff_non_local[1] = t->non_loca_ring_bf_array[1];
 	ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
 
-    struct burst_tx *btx_collector = &t->burst_tx[0];
+	struct burst_tx *btx_collector = &t->burst_tx[0];
 
-	while (!t->quit) {
+	while (!t->quit)
+	{
 		// int need_to_flush = 0;
 		struct port *port_tx = t->ports_tx[0];
 
-        // struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
-        int btx_index = 0;
+		// struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
+		int btx_index = 0;
 
-        // struct timespec nic_tx_start = get_realtime();
+		// struct timespec nic_tx_start = get_realtime();
 		// unsigned long nic_tx_start_ns = get_nsec(&nic_tx_start);
 
 		//++++++++++++++++++++++DRAIN NON-LOCAL QUEUES++++++++++++++++++++++++
-		if (ring_buff_non_local[0] != NULL) {
-			while((!ringbuf_is_empty(ring_buff_non_local[0])) && (btx_index < MAX_BURST_TX)) {
+		if (ring_buff_non_local[0] != NULL)
+		{
+			while ((!ringbuf_is_empty(ring_buff_non_local[0])) && (btx_index < MAX_BURST_TX))
+			{
 				void *obj;
 				ringbuf_sc_dequeue(ring_buff_non_local[0], &obj);
-				struct burst_tx *btx = (struct burst_tx*)obj;
-                btx_collector->addr[btx_index] = btx->addr[0];
-                btx_collector->len[btx_index] = btx->len[0];
-                free(btx);
-                btx_index++;
-                btx_collector->n_pkts = btx_index;
+				struct burst_tx *btx = (struct burst_tx *)obj;
+				btx_collector->addr[btx_index] = btx->addr[0];
+				btx_collector->len[btx_index] = btx->len[0];
+				free(btx);
+				btx_index++;
+				btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx, 1, 1);
 				// need_to_flush = 1;
-   	 		}
+			}
 			// flush_tx(port_tx);
 		}
 
-		if (ring_buff_non_local[1] != NULL) {
-			while((!ringbuf_is_empty(ring_buff_non_local[1])) && (btx_index < MAX_BURST_TX)) {
+		if (ring_buff_non_local[1] != NULL)
+		{
+			while ((!ringbuf_is_empty(ring_buff_non_local[1])) && (btx_index < MAX_BURST_TX))
+			{
 				void *obj;
 				ringbuf_sc_dequeue(ring_buff_non_local[1], &obj);
-				struct burst_tx *btx = (struct burst_tx*)obj;
-                btx_collector->addr[btx_index] = btx->addr[0];
-                btx_collector->len[btx_index] = btx->len[0];
-                free(btx);
-                btx_index++;
-                btx_collector->n_pkts = btx_index;
+				struct burst_tx *btx = (struct burst_tx *)obj;
+				btx_collector->addr[btx_index] = btx->addr[0];
+				btx_collector->len[btx_index] = btx->len[0];
+				free(btx);
+				btx_index++;
+				btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx, 1, 1);
 				// need_to_flush = 1;
-   	 		}
+			}
 			// flush_tx(port_tx);
 		}
 
-		if (ring_buff_non_local[2] != NULL) {
-			while((!ringbuf_is_empty(ring_buff_non_local[2])) && (btx_index < MAX_BURST_TX)) {
+		if (ring_buff_non_local[2] != NULL)
+		{
+			while ((!ringbuf_is_empty(ring_buff_non_local[2])) && (btx_index < MAX_BURST_TX))
+			{
 				void *obj;
 				ringbuf_sc_dequeue(ring_buff_non_local[2], &obj);
-				struct burst_tx *btx = (struct burst_tx*)obj;
+				struct burst_tx *btx = (struct burst_tx *)obj;
 				// printf("de-queue packet %lld \n", btx->addr[0]);
-                btx_collector->addr[btx_index] = btx->addr[0];
-                btx_collector->len[btx_index] = btx->len[0];
-                free(btx);
-                btx_index++;
-                btx_collector->n_pkts = btx_index;
+				btx_collector->addr[btx_index] = btx->addr[0];
+				btx_collector->len[btx_index] = btx->len[0];
+				free(btx);
+				btx_index++;
+				btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx, 1, 1);
 				// need_to_flush = 1;
-   	 		}
+			}
 			// flush_tx(port_tx);
 		}
-		
+
 		//++++++++++++++++++++++DRAIN LOCAL QUEUES++++++++++++++++++++++++++++
-        if (ring_buff[0] != NULL) {
-			while((!ringbuf_is_empty(ring_buff[0])) && (btx_index < MAX_BURST_TX)) {
+		if (ring_buff[0] != NULL)
+		{
+			while ((!ringbuf_is_empty(ring_buff[0])) && (btx_index < MAX_BURST_TX))
+			{
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[0], &obj2);
-				struct burst_tx *btx2 = (struct burst_tx*)obj2;
-                btx_collector->addr[btx_index] = btx2->addr[0];
-                btx_collector->len[btx_index] = btx2->len[0];
-                free(btx2);
-                btx_index++;
-                btx_collector->n_pkts = btx_index;
+				struct burst_tx *btx2 = (struct burst_tx *)obj2;
+				btx_collector->addr[btx_index] = btx2->addr[0];
+				btx_collector->len[btx_index] = btx2->len[0];
+				free(btx2);
+				btx_index++;
+				btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx2, 1, 1);
 				// need_to_flush = 1;
-   	 		}
+			}
 			// flush_tx(port_tx);
 		}
 
-		if (ring_buff[1] != NULL) {
-			while((!ringbuf_is_empty(ring_buff[1])) && (btx_index < MAX_BURST_TX)) {
+		if (ring_buff[1] != NULL)
+		{
+			while ((!ringbuf_is_empty(ring_buff[1])) && (btx_index < MAX_BURST_TX))
+			{
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[1], &obj2);
-				struct burst_tx *btx2 = (struct burst_tx*)obj2;
-                btx_collector->addr[btx_index] = btx2->addr[0];
-                btx_collector->len[btx_index] = btx2->len[0];
-                free(btx2);
-                btx_index++;
-                btx_collector->n_pkts = btx_index;
+				struct burst_tx *btx2 = (struct burst_tx *)obj2;
+				btx_collector->addr[btx_index] = btx2->addr[0];
+				btx_collector->len[btx_index] = btx2->len[0];
+				free(btx2);
+				btx_index++;
+				btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx2, 1, 1);
 				// need_to_flush = 1;
-   	 		}
+			}
 			// flush_tx(port_tx);
 		}
 
-		if (ring_buff[2] != NULL) {
-			while((!ringbuf_is_empty(ring_buff[2])) && (btx_index < MAX_BURST_TX)) {
+		if (ring_buff[2] != NULL)
+		{
+			while ((!ringbuf_is_empty(ring_buff[2])) && (btx_index < MAX_BURST_TX))
+			{
 				void *obj2;
 				ringbuf_sc_dequeue(ring_buff[2], &obj2);
-				struct burst_tx *btx2 = (struct burst_tx*)obj2;
-                btx_collector->addr[btx_index] = btx2->addr[0];
-                btx_collector->len[btx_index] = btx2->len[0];
-                free(btx2);
-                btx_index++;
-                btx_collector->n_pkts = btx_index;
+				struct burst_tx *btx2 = (struct burst_tx *)obj2;
+				btx_collector->addr[btx_index] = btx2->addr[0];
+				btx_collector->len[btx_index] = btx2->len[0];
+				free(btx2);
+				btx_index++;
+				btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx2, 1, 1);
 				// need_to_flush = 1;
-   	 		}
+			}
 			// flush_tx(port_tx);
 		}
 		// if (need_to_flush) {
@@ -1447,28 +1502,29 @@ thread_func_veth_to_nic_tx(void *arg)
 		// 	flush_tx(port_tx);
 		// }
 		// flush_tx(port_tx);
-        // printf("btx_index %d \n", btx_index);
-        if (btx_index) {
-            // printf("btx_index %d \n", btx_index);
-            port_tx_burst(port_tx, btx_collector, 0, 0);
-            // flush_tx(port_tx);
-        }
-        // port_tx_burst(port_tx, btx_collector, 0, 0);
-        btx_collector->n_pkts = 0;
-        // struct timespec nic_tx_end = get_realtime();
-        // unsigned long nic_tx_end_ns = get_nsec(&nic_tx_end);
-        // unsigned long detla_nic_tx = nic_tx_end_ns - nic_tx_start_ns;
-        // total_nic_tx = total_nic_tx + detla_nic_tx;
+		// printf("btx_index %d \n", btx_index);
+		if (btx_index)
+		{
+			// printf("btx_index %d \n", btx_index);
+			port_tx_burst(port_tx, btx_collector, 0, 0);
+			// flush_tx(port_tx);
+		}
+		// port_tx_burst(port_tx, btx_collector, 0, 0);
+		btx_collector->n_pkts = 0;
+		// struct timespec nic_tx_end = get_realtime();
+		// unsigned long nic_tx_end_ns = get_nsec(&nic_tx_end);
+		// unsigned long detla_nic_tx = nic_tx_end_ns - nic_tx_start_ns;
+		// total_nic_tx = total_nic_tx + detla_nic_tx;
 	}
 	printf("return from thread_func_veth_to_nic_tx \n");
 	return NULL;
 }
 
-//from_VETH -> to_NIC
+// from_VETH -> to_NIC
 static void *
 thread_func_veth(void *arg)
 {
-    struct thread_data *t = arg;
+	struct thread_data *t = arg;
 	cpu_set_t cpu_cores;
 	u32 i;
 
@@ -1486,70 +1542,78 @@ thread_func_veth(void *arg)
 	// ring_buff_non_local[1] = t->non_loca_ring_bf_array[1];
 	// ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
 
-    while (!t->quit) {
+	while (!t->quit)
+	{
 		// printf("thread_func_veth \n");
-        struct port *port_rx = t->ports_rx[0];
+		struct port *port_rx = t->ports_rx[0];
 		struct port *port_tx = t->ports_tx[0];
 		struct burst_rx *brx = &t->burst_rx;
 		// struct burst_tx *btx = &t->burst_tx[0];
 
-        u32 n_pkts, j;
+		u32 n_pkts, j;
 
 		u32 slot = t1ms % 2;
 
-        // struct timespec veth_rx_start = get_realtime();
+		// struct timespec veth_rx_start = get_realtime();
 		// unsigned long veth_rx_start_ns = get_nsec(&veth_rx_start);
 
 		/* RX. */
 		n_pkts = port_rx_burst(port_rx, brx, i);
 
-        if (!n_pkts)
+		if (!n_pkts)
 			continue;
 
-        /* Process & TX. */
-		for (j = 0; j < n_pkts; j++) {
+		/* Process & TX. */
+		for (j = 0; j < n_pkts; j++)
+		{
 
 			// printf("bp->n_slabs_available %ld \n", port_rx->bc->bp->n_slabs_available);
 
 			u64 addr = xsk_umem__add_offset_to_addr(brx->addr[j]);
 			u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
-						     addr);
+										 addr);
 
 			struct return_process_rx *ret_val = calloc(1, sizeof(struct return_process_rx));
 			// int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 			process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j], ret_val);
-            struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
-            if (btx != NULL) {
-                btx->addr[0] = brx->addr[j];
-			    btx->len[0] = ret_val->new_len;
-                btx->n_pkts++;
+			struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
+			if (btx != NULL)
+			{
+				btx->addr[0] = brx->addr[j];
+				btx->len[0] = ret_val->new_len;
+				btx->n_pkts++;
 				ringbuf_t *dest_queue = ring_buff[ret_val->ring_buf_index];
-				if (dest_queue != NULL) {
-					if (!ringbuf_is_full(dest_queue)) {
+				if (dest_queue != NULL)
+				{
+					if (!ringbuf_is_full(dest_queue))
+					{
 						// printf("queue packet %lld \n", btx->addr[0]);
 						ringbuf_sp_enqueue(dest_queue, btx);
 						// printf("packet from veth is enqueued \n");
-					} else {
+					}
+					else
+					{
 						printf("QUEUE IS FULL \n");
 					}
-				} else {
+				}
+				else
+				{
 					printf("TODO: There is no queue to push the packet \n");
 				}
-                
-            }
+			}
 			free(ret_val);
 		}
 
-        // struct timespec veth_rx_end = get_realtime();
-        // unsigned long veth_rx_end_ns = get_nsec(&veth_rx_end);
-        // unsigned long detla_veth_rx = veth_rx_end_ns - veth_rx_start_ns;
-        // total_veth_rx = total_veth_rx + detla_veth_rx;
-    }
+		// struct timespec veth_rx_end = get_realtime();
+		// unsigned long veth_rx_end_ns = get_nsec(&veth_rx_end);
+		// unsigned long detla_veth_rx = veth_rx_end_ns - veth_rx_start_ns;
+		// total_veth_rx = total_veth_rx + detla_veth_rx;
+	}
 	printf("return from thread_func_veth \n");
-    return NULL;
+	return NULL;
 }
 
-//from_NIC -> to_VETH tx
+// from_NIC -> to_VETH tx
 static void *
 thread_func_nic_to_veth_tx(void *arg)
 {
@@ -1564,58 +1628,60 @@ thread_func_nic_to_veth_tx(void *arg)
 	ringbuf_t *veth_side_queue = t->veth_side_queue;
 
 	time_t starttime = time(NULL);
-    time_t seconds = 60; 
-    time_t endtime = starttime + seconds;
+	time_t seconds = 60;
+	time_t endtime = starttime + seconds;
 	int need_to_flush = 0;
 
-    struct burst_tx *btx_collector = &t->burst_tx[0];
+	struct burst_tx *btx_collector = &t->burst_tx[0];
 
-	while (starttime < endtime) { //A hack to get the thread to return
-	// while (!t->quit) {
+	while (starttime < endtime)
+	{ // A hack to get the thread to return
+		// while (!t->quit) {
 		starttime = time(NULL);
 		struct port *port_tx = t->ports_tx[0];
 
-        // struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
-        int btx_index = 0;
-        btx_collector->n_pkts = 0;
-
-       
+		// struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
+		int btx_index = 0;
+		btx_collector->n_pkts = 0;
 
 		//++++++++++++++++++++++DRAIN VETH SIDE QUEUE++++++++++++++++++++++++
-		if (veth_side_queue != NULL) {
-			while((!ringbuf_is_empty(veth_side_queue)) && (btx_index < MAX_BURST_TX)) {
+		if (veth_side_queue != NULL)
+		{
+			while ((!ringbuf_is_empty(veth_side_queue)) && (btx_index < MAX_BURST_TX))
+			{
 				// printf("veth side queue is not empty \n");
 				void *obj;
 				ringbuf_sc_dequeue(veth_side_queue, &obj);
-				struct burst_tx *btx = (struct burst_tx*)obj;
-                btx_collector->addr[btx_index] = btx->addr[0];
-                btx_collector->len[btx_index] = btx->len[0];
-                free(btx);
+				struct burst_tx *btx = (struct burst_tx *)obj;
+				btx_collector->addr[btx_index] = btx->addr[0];
+				btx_collector->len[btx_index] = btx->len[0];
+				free(btx);
 
-                btx_index++;
-                btx_collector->n_pkts = btx_index;
+				btx_index++;
+				btx_collector->n_pkts = btx_index;
 				// port_tx_burst(port_tx, btx, 1, 1);
 				// need_to_flush = 1;
-   	 		}
+			}
 		}
 
-        // struct timespec veth_tx_start = get_realtime();
+		// struct timespec veth_tx_start = get_realtime();
 		// unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
 
-        if (btx_index) {
-            // printf("btx_index %d \n", btx_index);
-            port_tx_burst(port_tx, btx_collector, 0, 0);
-            // flush_tx(port_tx);
-        }
+		if (btx_index)
+		{
+			// printf("btx_index %d \n", btx_index);
+			port_tx_burst(port_tx, btx_collector, 0, 0);
+			// flush_tx(port_tx);
+		}
 
-        // port_tx_burst(port_tx, btx_collector, 0, 0);
+		// port_tx_burst(port_tx, btx_collector, 0, 0);
 
-        // struct timespec veth_tx_end = get_realtime();
-        // unsigned long veth_tx_end_ns = get_nsec(&veth_tx_end);
-        // unsigned long detla_veth_tx = veth_tx_end_ns - veth_tx_start_ns;
-        // total_veth_tx = total_veth_tx + detla_veth_tx;
+		// struct timespec veth_tx_end = get_realtime();
+		// unsigned long veth_tx_end_ns = get_nsec(&veth_tx_end);
+		// unsigned long detla_veth_tx = veth_tx_end_ns - veth_tx_start_ns;
+		// total_veth_tx = total_veth_tx + detla_veth_tx;
 		// flush_tx(port_tx);
-       
+
 		// if (need_to_flush) {
 		// 	flush_tx(port_tx);
 		// 	need_to_flush = 0;
@@ -1626,11 +1692,11 @@ thread_func_nic_to_veth_tx(void *arg)
 	return NULL;
 }
 
-//from_NIC -> to_VETH or from_NIC -> to_NIC
+// from_NIC -> to_VETH or from_NIC -> to_NIC
 static void *
 thread_func_nic(void *arg)
 {
-    struct thread_data *t = arg;
+	struct thread_data *t = arg;
 	cpu_set_t cpu_cores;
 	u32 i;
 
@@ -1645,87 +1711,103 @@ thread_func_nic(void *arg)
 
 	ringbuf_t *veth_side_queue = t->veth_side_queue;
 
-    while (!t->quit) {
+	while (!t->quit)
+	{
 		// printf("thread_func_nic \n");
-        struct port *port_rx = t->ports_rx[0];
+		struct port *port_rx = t->ports_rx[0];
 		struct port *port_tx = t->ports_tx[0];
-        // struct port *port_tx_nic = t->ports_tx[1];
+		// struct port *port_tx_nic = t->ports_tx[1];
 		struct burst_rx *brx = &t->burst_rx;
 		// struct burst_tx *btx = &t->burst_tx[0];
 
-        u32 n_pkts, j;
+		u32 n_pkts, j;
 
-        // struct timespec nic_rx_start = get_realtime();
+		// struct timespec nic_rx_start = get_realtime();
 		// unsigned long nic_rx_start_ns = get_nsec(&nic_rx_start);
 
 		/* RX. */
 		n_pkts = port_rx_burst(port_rx, brx, i);
 
-        if (!n_pkts)
+		if (!n_pkts)
 			continue;
 
-        /* Process & TX. */
-		for (j = 0; j < n_pkts; j++) {
+		/* Process & TX. */
+		for (j = 0; j < n_pkts; j++)
+		{
 
 			// printf("bp->n_slabs_available %ld \n", port_rx->bc->bp->n_slabs_available);
 
 			u64 addr = xsk_umem__add_offset_to_addr(brx->addr[j]);
 			u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
-						     addr);
+										 addr);
 
 			struct return_process_rx *ret_val = calloc(1, sizeof(struct return_process_rx));
 			// int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 			process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j], ret_val);
 			struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
-			//Needs to send packet back out NIC
-			if (ret_val->new_len == 1) {
+			// Needs to send packet back out NIC
+			if (ret_val->new_len == 1)
+			{
 				btx->addr[0] = brx->addr[j];
 				btx->len[0] = brx->len[j];
 				btx->n_pkts++;
 				ringbuf_t *dest_queue = ring_buff_non_local[ret_val->ring_buf_index];
-				//queue packet in non-local queue
-				if (dest_queue != NULL) {
-					if (!ringbuf_is_full(dest_queue)) {
+				// queue packet in non-local queue
+				if (dest_queue != NULL)
+				{
+					if (!ringbuf_is_full(dest_queue))
+					{
 						// printf("queue packet %lld \n", btx->addr[0]);
 						ringbuf_sp_enqueue(dest_queue, btx);
-					} else {
+					}
+					else
+					{
 						printf("NON-LCOAL QUEUE IS FULL \n");
 					}
-				} else {
+				}
+				else
+				{
 					printf("TODO: There is no non-local queue to push the packet \n");
 				}
-			} else {
+			}
+			else
+			{
 				btx->addr[btx->n_pkts] = brx->addr[j];
 				btx->len[btx->n_pkts] = ret_val->new_len;
 				btx->n_pkts++;
-				
+
 				// if (btx->n_pkts == 1) {
-				if (veth_side_queue != NULL) {
-					if (!ringbuf_is_full(veth_side_queue)) {
+				if (veth_side_queue != NULL)
+				{
+					if (!ringbuf_is_full(veth_side_queue))
+					{
 						// printf("queue packet %lld \n", btx->addr[0]);
 						ringbuf_sp_enqueue(veth_side_queue, btx);
 						// printf("packet from veth is enqueued \n");
-					} else {
+					}
+					else
+					{
 						printf("QUEUE IS FULL \n");
 					}
-				} else {
+				}
+				else
+				{
 					printf("TODO: There is no veth_side_queue to push the packet \n");
 				}
-					// port_tx_burst(port_tx, btx, 1);
-					// btx->n_pkts = 0;
+				// port_tx_burst(port_tx, btx, 1);
+				// btx->n_pkts = 0;
 				// }
 			}
 			free(ret_val);
 		}
 
-        // struct timespec nic_rx_end = get_realtime();
-        // unsigned long nic_rx_end_ns = get_nsec(&nic_rx_end);
-        // unsigned long detla_nic_rx = nic_rx_end_ns - nic_rx_start_ns;
-        // total_nic_rx = total_nic_rx + detla_nic_rx;
-
-    }
+		// struct timespec nic_rx_end = get_realtime();
+		// unsigned long nic_rx_end_ns = get_nsec(&nic_rx_end);
+		// unsigned long detla_nic_rx = nic_rx_end_ns - nic_rx_start_ns;
+		// total_nic_rx = total_nic_rx + detla_nic_rx;
+	}
 	printf("return from thread_func_nic \n");
-    return NULL;
+	return NULL;
 }
 
 static void read_time()
@@ -1733,7 +1815,7 @@ static void read_time()
 	// struct timespec now = get_realtime();
 	now = get_nicclock();
 	unsigned long current_time_ns = get_nsec(&now);
-	t1ms = current_time_ns / 1000000; // number of 1's of milliseconds 
+	t1ms = current_time_ns / 1000000; // number of 1's of milliseconds
 	time_into_cycle_ns = current_time_ns % cycle_time_ns;
 	topo = (time_into_cycle_ns / slot_time_ns) + 1;
 	// printf("topo: %d \n", topo);
@@ -1741,23 +1823,26 @@ static void read_time()
 
 int main(int argc, char **argv)
 {
-	struct in_addr* ifa_inaddr;
+	struct in_addr *ifa_inaddr;
 	struct in_addr addr;
 	int s, n;
 
-	if(argc != 5) {
-        fprintf(stderr, "Usage: getifaddr <IP>\n");
-        return EXIT_FAILURE;
-    }
+	if (argc != 5)
+	{
+		fprintf(stderr, "Usage: getifaddr <IP>\n");
+		return EXIT_FAILURE;
+	}
 
-	if (inet_aton(argv[1], &addr) == 0) {
-        perror("inet_aton");
-        return EXIT_FAILURE;
-    }
-	if (getifaddrs(&ifaddr) == -1) {
-        perror("getifaddrs");
-        return EXIT_FAILURE;
-    }
+	if (inet_aton(argv[1], &addr) == 0)
+	{
+		perror("inet_aton");
+		return EXIT_FAILURE;
+	}
+	if (getifaddrs(&ifaddr) == -1)
+	{
+		perror("getifaddrs");
+		return EXIT_FAILURE;
+	}
 
 	char *route_filename = argv[2];
 	printf("%s\n", route_filename);
@@ -1766,71 +1851,76 @@ int main(int argc, char **argv)
 	printf("PTP Clock Name: %s\n", ptp_clock_name);
 
 	char *run_time = argv[4];
-  	int running_time = atoi(run_time);
-	printf("Running time : %d \n",running_time);
+	int running_time = atoi(run_time);
+	printf("Running time : %d \n", running_time);
 
 	// printf("Interface: %s\n", ifaddr->ifa_name);
 
 	/* Walk through linked list, maintaining head pointer so we
-        can free list later */
+		can free list later */
 
-    for (ifa = ifaddr, n = 0; ifa != NULL; ifa = ifa->ifa_next, n++) {
-        if (ifa->ifa_addr == NULL)
-            continue;
+	for (ifa = ifaddr, n = 0; ifa != NULL; ifa = ifa->ifa_next, n++)
+	{
+		if (ifa->ifa_addr == NULL)
+			continue;
 
-        /* We seek only for IPv4 addresses */
-        if(ifa->ifa_addr->sa_family != AF_INET)
-            continue;
+		/* We seek only for IPv4 addresses */
+		if (ifa->ifa_addr->sa_family != AF_INET)
+			continue;
 
-        ifa_inaddr = &(((struct sockaddr_in*) ifa->ifa_addr)->sin_addr);
-        if(memcmp(ifa_inaddr, &addr, sizeof(struct in_addr)) == 0) {
-            printf("Interface: %s\n", ifa->ifa_name);
-			nic_iface=ifa->ifa_name;
-        }
-    }
+		ifa_inaddr = &(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr);
+		if (memcmp(ifa_inaddr, &addr, sizeof(struct in_addr)) == 0)
+		{
+			printf("Interface: %s\n", ifa->ifa_name);
+			nic_iface = ifa->ifa_name;
+		}
+	}
 
-    // printf(" hello %ld", sizeof(u64 *));
-    int i;
+	// printf(" hello %ld", sizeof(u64 *));
+	int i;
 
-    /* Parse args. */
+	/* Parse args. */
 	memcpy(&bpool_params, &bpool_params_default,
-	       sizeof(struct bpool_params));
-    memcpy(&umem_cfg, &umem_cfg_default,
-	       sizeof(struct xsk_umem_config));
-    for (i = 0; i < MAX_PORTS; i++)
+		   sizeof(struct bpool_params));
+	memcpy(&umem_cfg, &umem_cfg_default,
+		   sizeof(struct xsk_umem_config));
+	for (i = 0; i < MAX_PORTS; i++)
 		memcpy(&port_params[i], &port_params_default,
-		       sizeof(struct port_params));
+			   sizeof(struct port_params));
 
 	load_xdp_program();
-	
-    n_ports = 2; //0 and 1 (veth and nic)
-    port_params[0].iface = "veth1";
+
+	n_ports = 2; // 0 and 1 (veth and nic)
+	port_params[0].iface = "veth1";
 	port_params[0].iface_queue = 0;
-    port_params[1].iface = nic_iface; //"enp65s0f0np0"
+	port_params[1].iface = nic_iface; //"enp65s0f0np0"
 	port_params[1].iface_queue = 0;
 
-    n_threads = 4; 
-    thread_data[0].cpu_core_id = 10; //cat /proc/cpuinfo | grep 'core id'
-	thread_data[1].cpu_core_id = 11; //cat /proc/cpuinfo | grep 'core id'
-	thread_data[2].cpu_core_id = 12; //cat /proc/cpuinfo | grep 'core id'
-	thread_data[3].cpu_core_id = 13; //cat /proc/cpuinfo | grep 'core id'
+	n_threads = 4;
+	thread_data[0].cpu_core_id = 10; // cat /proc/cpuinfo | grep 'core id'
+	thread_data[1].cpu_core_id = 11; // cat /proc/cpuinfo | grep 'core id'
+	thread_data[2].cpu_core_id = 12; // cat /proc/cpuinfo | grep 'core id'
+	thread_data[3].cpu_core_id = 13; // cat /proc/cpuinfo | grep 'core id'
 
-    /* Buffer pool initialization. */
+	/* Buffer pool initialization. */
 	bp = bpool_init(&bpool_params, &umem_cfg);
-	if (!bp) {
+	if (!bp)
+	{
 		printf("Buffer pool initialization failed.\n");
 		return -1;
 	}
 	printf("Buffer pool created successfully.\n");
 	printf("================================\n");
-    
-    /* Ports initialization. */
+
+	/* Ports initialization. */
 	for (i = 0; i < MAX_PORTS; i++)
 		port_params[i].bp = bp;
 
-    for (i = 0; i < n_ports; i++) {
+	for (i = 0; i < n_ports; i++)
+	{
 		ports[i] = port_init(&port_params[i]);
-		if (!ports[i]) {
+		if (!ports[i])
+		{
 			printf("Port %d initialization failed.\n", i);
 			return -1;
 		}
@@ -1851,33 +1941,35 @@ int main(int argc, char **argv)
 	FILE *file = fopen("/tmp/all_worker_info.csv", "r");
 	if (file)
 	{
-      	char buffer[1024], *ptr;
+		char buffer[1024], *ptr;
 		int dest_index = 1;
-		while(fgets(buffer, 1024, file))
-      	{
+		while (fgets(buffer, 1024, file))
+		{
 			// printf("~~~~~~NODE~~~~~~~~~\n");
 			ptr = strtok(buffer, ",");
 			int col_index = 1;
-			while(ptr != NULL)
+			while (ptr != NULL)
 			{
 				// printf("'%s'\n", ptr);
-				if (col_index == 9) {
+				if (col_index == 9)
+				{
 					uint32_t dest = inet_addr(ptr);
-					struct ip_set local_ip_index = {.index=dest_index};
+					struct ip_set local_ip_index = {.index = dest_index};
 					mg_map_add(&ip_table, dest, &local_ip_index);
 					struct ip_set *dest_ip_index = mg_map_get(&ip_table, dest);
 					// printf("dest_ip_index after %d \n", dest_ip_index->index);
 				}
-				if (col_index == 3) {
+				if (col_index == 3)
+				{
 					// printf("mac addr = %s\n", ptr);
 					uint8_t mac_addr[6];
 					sscanf(ptr, "%x:%x:%x:%x:%x:%x",
-					&mac_addr[0],
-					&mac_addr[1],
-					&mac_addr[2],
-					&mac_addr[3],
-					&mac_addr[4],
-					&mac_addr[5]) < 6;
+						   &mac_addr[0],
+						   &mac_addr[1],
+						   &mac_addr[2],
+						   &mac_addr[3],
+						   &mac_addr[4],
+						   &mac_addr[5]) < 6;
 					struct mac_addr *dest_mac = calloc(1, sizeof(struct mac_addr));
 					__builtin_memcpy(dest_mac->bytes, mac_addr, sizeof(mac_addr));
 					mg_map_add(&mac_table, dest_index, dest_mac);
@@ -1890,30 +1982,31 @@ int main(int argc, char **argv)
 		fclose(file);
 	}
 
-    //+++++++++++++++++++++ROUTE++++++++++++++++++++++
+	//+++++++++++++++++++++ROUTE++++++++++++++++++++++
 	// char result[100] = "configs/";
-	// strcat(result, route_filename); 
+	// strcat(result, route_filename);
 	// printf("%s \n", result);
 	route_table = newRouteMatrix(32, 32);
 	FILE *stream3 = fopen(route_filename, "r");
-	if (stream3) {
-		size_t i,j;
-      	char buffer[BUFSIZ], *ptr;
+	if (stream3)
+	{
+		size_t i, j;
+		char buffer[BUFSIZ], *ptr;
 		/*
-		* Read each line from the file.
-		*/
-		for ( i = 0; fgets(buffer, sizeof buffer, stream3); ++i )
+		 * Read each line from the file.
+		 */
+		for (i = 0; fgets(buffer, sizeof buffer, stream3); ++i)
 		{
-			int row = i+1;
+			int row = i + 1;
 			printf("~~~~~~~READ LINE %d ~~~~~~~~~~~~~~~~\n", row);
 			/*
-			* Parse the comma-separated values from each line into 'array'.
-			*/
-			for ( j = 0, ptr = buffer; j < 32; ++j, ++ptr )
+			 * Parse the comma-separated values from each line into 'array'.
+			 */
+			for (j = 0, ptr = buffer; j < 32; ++j, ++ptr)
 			{
 				int val = (int)strtol(ptr, &ptr, 10);
 				printf("%d,", val);
-				int col = j+1;
+				int col = j + 1;
 				// printf("row and col %d %d ,", row, col);
 				setRouteElement(route_table, row, col, val);
 			}
@@ -1922,12 +2015,12 @@ int main(int argc, char **argv)
 		fclose(stream3);
 	}
 
-	//local queues
+	// local queues
 	ring_array[0] = ringbuf_create(2048);
 	ring_array[1] = ringbuf_create(2048);
 	ring_array[2] = ringbuf_create(2048);
 
-	//non-local queues
+	// non-local queues
 	non_local_ring_array[0] = ringbuf_create(2048);
 	non_local_ring_array[1] = ringbuf_create(2048);
 	non_local_ring_array[2] = ringbuf_create(2048);
@@ -1935,77 +2028,93 @@ int main(int argc, char **argv)
 	veth_side_queue = ringbuf_create(2048);
 
 	/* Threads. */
-	for (i = 0; i < n_threads; i++) {
+	for (i = 0; i < n_threads; i++)
+	{
 		struct thread_data *t = &thread_data[i];
 
-		if (i == 0) { //veth->nic (veth rx: push to local queues)
-			t->ports_rx[0] = ports[0]; //veth
-			t->ports_tx[0] = ports[1]; //nic
-            t->ring_bf_array[0] = ring_array[0];
+		if (i == 0)
+		{							   // veth->nic (veth rx: push to local queues)
+			t->ports_rx[0] = ports[0]; // veth
+			t->ports_tx[0] = ports[1]; // nic
+			t->ring_bf_array[0] = ring_array[0];
 			t->ring_bf_array[1] = ring_array[1];
 			t->ring_bf_array[2] = ring_array[2];
-		} else if (i == 1) { //nic-veth (nic rx: push to non-local and veth_side_queue)
-			t->ports_rx[0] = ports[1]; //nic
-			t->ports_tx[0] = ports[0]; //veth
-			t->ports_tx[1] = ports[1]; //nic
+		}
+		else if (i == 1)
+		{							   // nic-veth (nic rx: push to non-local and veth_side_queue)
+			t->ports_rx[0] = ports[1]; // nic
+			t->ports_tx[0] = ports[0]; // veth
+			t->ports_tx[1] = ports[1]; // nic
 			t->non_loca_ring_bf_array[0] = non_local_ring_array[0];
 			t->non_loca_ring_bf_array[1] = non_local_ring_array[1];
 			t->non_loca_ring_bf_array[2] = non_local_ring_array[2];
 			t->veth_side_queue = veth_side_queue;
-		} else if (i == 2) { //veth->nic (nic tx: pull from local and non-local)
-			t->ports_tx[0] = ports[1]; //nic
+		}
+		else if (i == 2)
+		{							   // veth->nic (nic tx: pull from local and non-local)
+			t->ports_tx[0] = ports[1]; // nic
 			t->ring_bf_array[0] = ring_array[0];
 			t->ring_bf_array[1] = ring_array[1];
 			t->ring_bf_array[2] = ring_array[2];
 			t->non_loca_ring_bf_array[0] = non_local_ring_array[0];
 			t->non_loca_ring_bf_array[1] = non_local_ring_array[1];
 			t->non_loca_ring_bf_array[2] = non_local_ring_array[2];
-		} else if (i == 3) { //nic-veth (veth tx: pull from veth_side_queue)
-			t->ports_tx[0] = ports[0]; //veth
+		}
+		else if (i == 3)
+		{							   // nic-veth (veth tx: pull from veth_side_queue)
+			t->ports_tx[0] = ports[0]; // veth
 			t->veth_side_queue = veth_side_queue;
 		}
-		
+
 		t->n_ports_rx = 1;
 
 		// print_thread(i);
 	}
 
-	for (i = 0; i < n_threads; i++) {
+	for (i = 0; i < n_threads; i++)
+	{
 		int status;
 
-		if (i == 0) {
+		if (i == 0)
+		{
 			status = pthread_create(&threads[i],
-					NULL,
-					thread_func_veth,
-					&thread_data[i]);
-			printf("Create thread %d \n", i);
-		} else if (i == 1) {
-			status = pthread_create(&threads[i],
-					NULL,
-					thread_func_nic,
-					&thread_data[i]);
-			printf("Create thread %d \n", i);
-		} else if (i == 2) {
-			status = pthread_create(&threads[i],
-					NULL,
-					thread_func_veth_to_nic_tx,
-					&thread_data[i]);
-			printf("Create thread %d \n", i);
-		} else if (i == 3) {
-			status = pthread_create(&threads[i],
-					NULL,
-					thread_func_nic_to_veth_tx,
-					&thread_data[i]);
+									NULL,
+									thread_func_veth,
+									&thread_data[i]);
 			printf("Create thread %d \n", i);
 		}
-		if (status) {
+		else if (i == 1)
+		{
+			status = pthread_create(&threads[i],
+									NULL,
+									thread_func_nic,
+									&thread_data[i]);
+			printf("Create thread %d \n", i);
+		}
+		else if (i == 2)
+		{
+			status = pthread_create(&threads[i],
+									NULL,
+									thread_func_veth_to_nic_tx,
+									&thread_data[i]);
+			printf("Create thread %d \n", i);
+		}
+		else if (i == 3)
+		{
+			status = pthread_create(&threads[i],
+									NULL,
+									thread_func_nic_to_veth_tx,
+									&thread_data[i]);
+			printf("Create thread %d \n", i);
+		}
+		if (status)
+		{
 			printf("Thread %d creation failed.\n", i);
 			return -1;
 		}
 	}
 	printf("All threads created successfully.\n");
 
-	
 	/* Print statistics. */
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
@@ -2021,12 +2130,12 @@ int main(int argc, char **argv)
 
 	/* Threads completion. */
 	printf("Quit.\n");
-    printf("=========TIMING======================= \n");
-    printf("total_veth_rx %ld s \n", (total_veth_rx/1000000000));
-    printf("total_nic_tx %ld s \n", (total_nic_tx/1000000000));
-    printf("total_nic_rx %ld s \n", (total_nic_rx/1000000000));
-    printf("total_veth_tx %ld s \n", (total_veth_tx/1000000000));
-    printf("=========END_OF_TIMING================ \n");
+	printf("=========TIMING======================= \n");
+	printf("total_veth_rx %ld s \n", (total_veth_rx / 1000000000));
+	printf("total_nic_tx %ld s \n", (total_nic_tx / 1000000000));
+	printf("total_nic_rx %ld s \n", (total_nic_rx / 1000000000));
+	printf("total_veth_tx %ld s \n", (total_veth_tx / 1000000000));
+	printf("=========END_OF_TIMING================ \n");
 
 	/* output each array element's value */
 
@@ -2045,19 +2154,21 @@ int main(int argc, char **argv)
 	// 	fclose(fpt);
 	// #endif
 
-	#if DEBUG_PAUSE_Q == 1
-		int z;
-		FILE *fpt;
-		fpt = fopen("/tmp/opera_data.csv", "w+");
-		fprintf(fpt,"time_ns,time_part_sec,time_part_nsec\n");
-		for (z = 0; z < time_index; z++ ) {
-			unsigned long now_ns = get_nsec(&timestamp_arr[z]);
-			fprintf(fpt,"%ld,%ld,%ld\n",now_ns,timestamp_arr[z].tv_sec,timestamp_arr[z].tv_nsec);
-		}
-		fclose(fpt);
-	#endif
+#if DEBUG_PAUSE_Q == 1
+	int z;
+	FILE *fpt;
+	fpt = fopen("/tmp/opera_data.csv", "w+");
+	fprintf(fpt, "time_ns,time_part_sec,time_part_nsec\n");
+	for (z = 0; z < time_index; z++)
+	{
+		unsigned long now_ns = get_nsec(&timestamp_arr[z]);
+		fprintf(fpt, "%ld,%ld,%ld\n", now_ns, timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec);
+	}
+	fclose(fpt);
+#endif
 
-	for (i = 0; i < n_threads; i++) {
+	for (i = 0; i < n_threads; i++)
+	{
 		thread_data[i].quit = 1;
 		printf("Quit thread %d \n", i);
 	}
@@ -2072,15 +2183,15 @@ int main(int argc, char **argv)
 	for (i = 0; i < n_ports; i++)
 		port_free(ports[i]);
 
-    bpool_free(bp);
+	bpool_free(bp);
 
 	remove_xdp_program();
 
-    deleteRouteMatrix(route_table);
+	deleteRouteMatrix(route_table);
 	freeifaddrs(ifaddr);
 	mg_map_cleanup(&ip_table);
 	mg_map_cleanup(&mac_table);
-    ringbuf_free(ring_array[0]);
+	ringbuf_free(ring_array[0]);
 	ringbuf_free(ring_array[1]);
 	ringbuf_free(ring_array[2]);
 	ringbuf_free(non_local_ring_array[0]);
@@ -2088,5 +2199,5 @@ int main(int argc, char **argv)
 	ringbuf_free(non_local_ring_array[2]);
 	ringbuf_free(veth_side_queue);
 
-    return 0;
+	return 0;
 }
