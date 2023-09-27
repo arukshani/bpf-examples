@@ -17,3 +17,23 @@ iperf3 -s 192.168.1.2 -p 5000
 
 ```
 
+### Flame Graph
+```
+cd ~
+sudo apt-get install flex
+sudo apt-get install bison
+wget  https://mirrors.edge.kernel.org/pub/linux/kernel/v5.x/linux-5.15.99.tar.xz
+tar -xf linux-5.15.99.tar.xz
+cd linux-5.15.99/tools/perf
+make
+cd ~
+ln -s linux-5.15.99/tools/perf/perf perf
+testing -> sudo ./perf top -C 10
+git clone https://github.com/brendangregg/FlameGraph.git
+
+Generate flamegraph: ./perf_command_new.sh $core 
+Change $core to the CPU core number you like to observe
+Also, I see there are some cores CPU usage are not constant; maybe do: sudo perf top -C $core 
+To see what happens inside the core.
+```
+
