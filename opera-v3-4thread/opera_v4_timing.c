@@ -1080,6 +1080,16 @@ uint8_t topo;
 uint64_t slot_time_ns = 1000000;  // 1 ms
 uint64_t cycle_time_ns = 2000000; // 2 ms
 
+static inline void ether_addr_copy_assignment(u8 *dst, const u8 *src)
+{
+	u16 *a = (u16 *)dst;
+	const u16 *b = (const u16 *)src;
+
+	a[0] = b[0];
+	a[1] = b[1];
+	a[2] = b[2];
+}
+
 //++++++++++++++++++++++END TIME RELATED+++++++++++++++++++++++++++++
 
 // struct key_value
@@ -1110,7 +1120,8 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 
 		struct iphdr *inner_ip_hdr_tmp = (struct iphdr *)(data +
 														  sizeof(struct ethhdr));
-		__builtin_memcpy(&encap_outer_iphdr, inner_ip_hdr_tmp, sizeof(encap_outer_iphdr));
+		// __builtin_memcpy(&encap_outer_iphdr, inner_ip_hdr_tmp, sizeof(encap_outer_iphdr));
+		memcpy(&encap_outer_iphdr, inner_ip_hdr_tmp, sizeof(encap_outer_iphdr));
 		encap_outer_iphdr.protocol = IPPROTO_GRE;
 
 		int olen = 0;
@@ -1148,7 +1159,9 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 		}
 
 		outer_eth_hdr = (struct ethhdr *)data;
-		__builtin_memcpy(outer_eth_hdr->h_source, out_eth_src, sizeof(outer_eth_hdr->h_source));
+		// __builtin_memcpy(outer_eth_hdr->h_source, out_eth_src, sizeof(outer_eth_hdr->h_source));
+		// memcpy(outer_eth_hdr->h_source, out_eth_src, sizeof(outer_eth_hdr->h_source));
+		ether_addr_copy_assignment(outer_eth_hdr->h_source, &out_eth_src);
 		struct ip_set *dest_ip_index = mg_map_get(&ip_table, inner_ip_hdr_tmp->daddr);
 		// printf("dest_ip_index = %d\n", dest_ip_index->index);
 		int mac_index;
@@ -1175,13 +1188,15 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 		// 	printf(" %02x", (unsigned char) dest_mac_val->bytes[i]);
 		// puts("\n");
 
-		__builtin_memcpy(outer_eth_hdr->h_dest, dest_mac_val->bytes, sizeof(outer_eth_hdr->h_dest));
+		// __builtin_memcpy(outer_eth_hdr->h_dest, dest_mac_val->bytes, sizeof(outer_eth_hdr->h_dest));
+		ether_addr_copy_assignment(outer_eth_hdr->h_dest, dest_mac_val->bytes);
 
 		outer_eth_hdr->h_proto = htons(ETH_P_IP);
 
 		outer_iphdr = (struct iphdr *)(data +
 									   sizeof(struct ethhdr));
-		__builtin_memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
+		// __builtin_memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
+		memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
 
 		struct gre_hdr *gre_hdr;
 		gre_hdr = (struct gre_hdr *)(data +
@@ -1229,8 +1244,11 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 			int next_mac_index;
 			getRouteElement(route_table, next_dest_ip_index->index, topo, &next_mac_index);
 			struct mac_addr *next_dest_mac_val = mg_map_get(&mac_table, next_mac_index);
-			__builtin_memcpy(eth->h_dest, next_dest_mac_val->bytes, sizeof(eth->h_dest));
-			__builtin_memcpy(eth->h_source, out_eth_src, sizeof(eth->h_source));
+			// __builtin_memcpy(eth->h_dest, next_dest_mac_val->bytes, sizeof(eth->h_dest));
+			ether_addr_copy_assignment(eth->h_dest, next_dest_mac_val->bytes);
+			// __builtin_memcpy(eth->h_source, out_eth_src, sizeof(eth->h_source));
+			// memcpy(eth->h_source, out_eth_src, sizeof(eth->h_source));
+			ether_addr_copy_assignment(eth->h_source, &out_eth_src);
 			return_val->ring_buf_index = next_dest_ip_index->index - 1;
 
 			// Telemetry
