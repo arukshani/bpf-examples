@@ -1120,8 +1120,8 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 
 		struct iphdr *inner_ip_hdr_tmp = (struct iphdr *)(data +
 														  sizeof(struct ethhdr));
-		// __builtin_memcpy(&encap_outer_iphdr, inner_ip_hdr_tmp, sizeof(encap_outer_iphdr));
-		memcpy(&encap_outer_iphdr, inner_ip_hdr_tmp, sizeof(encap_outer_iphdr));
+		__builtin_memcpy(&encap_outer_iphdr, inner_ip_hdr_tmp, sizeof(encap_outer_iphdr));
+		// memcpy(&encap_outer_iphdr, inner_ip_hdr_tmp, sizeof(encap_outer_iphdr));
 		encap_outer_iphdr.protocol = IPPROTO_GRE;
 
 		int olen = 0;
@@ -1144,8 +1144,10 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 		int new_len = len + encap_size;
 
 		u64 new_new_addr = xsk_umem__add_offset_to_addr(new_addr);
-		memcpy(xsk_umem__get_data(params->bp->addr, new_new_addr), data, len);
 		u8 *new_data = xsk_umem__get_data(params->bp->addr, new_new_addr);
+		// memcpy(xsk_umem__get_data(params->bp->addr, new_new_addr), data, len);
+		memcpy(new_data, data, len);
+		// u8 *new_data = xsk_umem__get_data(params->bp->addr, new_new_addr);
 
 		struct ethhdr *eth = (struct ethhdr *)new_data;
 		struct iphdr *inner_ip_hdr = (struct iphdr *)(new_data +
@@ -1195,8 +1197,8 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 
 		outer_iphdr = (struct iphdr *)(data +
 									   sizeof(struct ethhdr));
-		// __builtin_memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
-		memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
+		__builtin_memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
+		// memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
 
 		struct gre_hdr *gre_hdr;
 		gre_hdr = (struct gre_hdr *)(data +
