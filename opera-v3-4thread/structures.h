@@ -48,7 +48,7 @@ struct bpool_params {
  * to share the same UMEM area, which is used as the buffer pool memory.
  */
 #ifndef MAX_BURST_RX
-#define MAX_BURST_RX 1
+#define MAX_BURST_RX 20
 #endif
 
 #ifndef MAX_BURST_TX

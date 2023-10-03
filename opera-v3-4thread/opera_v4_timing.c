@@ -1664,6 +1664,8 @@ thread_func_veth(void *arg)
 		if (!n_pkts)
 			continue;
 
+		// printf("n_pkts %d", n_pkts);
+
 		/* Process & TX. */
 		for (j = 0; j < n_pkts; j++)
 		{
@@ -1829,9 +1831,12 @@ thread_func_nic(void *arg)
 
 		/* RX. */
 		n_pkts = port_rx_burst(port_rx, brx, i);
+		
 
 		if (!n_pkts)
 			continue;
+
+		// printf("n_pkts %d", n_pkts);
 
 		/* Process & TX. */
 		for (j = 0; j < n_pkts; j++)
