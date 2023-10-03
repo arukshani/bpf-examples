@@ -865,6 +865,86 @@ port_tx_burst(struct port *p, struct burst_tx *b, int free_btx, int wait_all)
 }
 
 static inline void
+port_tx_burst_collector(struct port *p, struct burst_tx_collector *b, int free_btx, int wait_all)
+{
+	u32 n_pkts, pos, i;
+	int status;
+
+	/* UMEM CQ. */
+	n_pkts = p->params.bp->umem_cfg.comp_size;
+
+	n_pkts = xsk_ring_cons__peek(&p->umem_cq, n_pkts, &pos);
+
+	// printf("n_pkts in port_tx_burst %ld \n", n_pkts);
+	// printf("bp->n_slabs_available %ld \n", p->bc->bp->n_slabs_available);
+
+	for (i = 0; i < n_pkts; i++)
+	{
+		u64 addr = *xsk_ring_cons__comp_addr(&p->umem_cq, pos + i);
+
+		bcache_prod(p->bc, addr);
+	}
+
+	xsk_ring_cons__release(&p->umem_cq, n_pkts);
+
+	/* TXQ. */
+	n_pkts = b->n_pkts;
+
+	for (;;)
+	{
+		status = xsk_ring_prod__reserve(&p->txq, n_pkts, &pos);
+		if (status == n_pkts)
+		{
+			// printf("status == n_pkts \n");
+			break;
+		}
+
+		if (xsk_ring_prod__needs_wakeup(&p->txq))
+		{
+			if (wait_all)
+			{
+				sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_WAITALL,
+					   NULL, 0);
+			}
+			else
+			{
+				sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT,
+					   NULL, 0);
+			}
+		}
+	}
+
+	// printf("Fill tx desc for n_pkts %ld \n", n_pkts);
+	// printf("Port tx burst \n");
+
+	for (i = 0; i < n_pkts; i++)
+	{
+		xsk_ring_prod__tx_desc(&p->txq, pos + i)->addr = b->addr[i];
+		xsk_ring_prod__tx_desc(&p->txq, pos + i)->len = b->len[i];
+	}
+
+	if (free_btx)
+	{
+		free(b);
+	}
+
+	xsk_ring_prod__submit(&p->txq, n_pkts);
+	if (xsk_ring_prod__needs_wakeup(&p->txq))
+	{
+		if (wait_all)
+		{
+			sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_WAITALL, NULL, 0);
+		}
+		else
+		{
+			sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
+		}
+	}
+
+	p->n_pkts_tx += n_pkts;
+}
+
+static inline void
 flush_tx(struct port *p)
 {
 	if (xsk_ring_prod__needs_wakeup(&p->txq))
@@ -1394,7 +1474,7 @@ thread_func_veth_to_nic_tx(void *arg)
 	ring_buff_non_local[1] = t->non_loca_ring_bf_array[1];
 	ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
 
-	struct burst_tx *btx_collector = &t->burst_tx[0];
+	struct burst_tx_collector *btx_collector = &t->burst_tx_collector[0];
 
 	while (!t->quit)
 	{
@@ -1526,7 +1606,8 @@ thread_func_veth_to_nic_tx(void *arg)
 		if (btx_index)
 		{
 			// printf("btx_index %d \n", btx_index);
-			port_tx_burst(port_tx, btx_collector, 0, 0);
+			// port_tx_burst(port_tx, btx_collector, 0, 0);
+			port_tx_burst_collector(port_tx, btx_collector, 0, 0);
 			// flush_tx(port_tx);
 		}
 		// port_tx_burst(port_tx, btx_collector, 0, 0);
@@ -1652,7 +1733,7 @@ thread_func_nic_to_veth_tx(void *arg)
 	time_t endtime = starttime + seconds;
 	int need_to_flush = 0;
 
-	struct burst_tx *btx_collector = &t->burst_tx[0];
+	struct burst_tx_collector *btx_collector = &t->burst_tx_collector[0];
 
 	while (starttime < endtime)
 	{ // A hack to get the thread to return
@@ -1690,7 +1771,8 @@ thread_func_nic_to_veth_tx(void *arg)
 		if (btx_index)
 		{
 			// printf("btx_index %d \n", btx_index);
-			port_tx_burst(port_tx, btx_collector, 0, 0);
+			// port_tx_burst(port_tx, btx_collector, 0, 0);
+			port_tx_burst_collector(port_tx, btx_collector, 0, 0);
 			// flush_tx(port_tx);
 		}
 

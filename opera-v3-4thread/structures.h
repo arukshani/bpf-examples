@@ -61,6 +61,12 @@ struct burst_rx {
 };
 
 struct burst_tx {
+	u64 addr[1];
+	u32 len[1];
+	u32 n_pkts;
+};
+
+struct burst_tx_collector {
 	u64 addr[MAX_BURST_TX];
 	u32 len[MAX_BURST_TX];
 	u32 n_pkts;
@@ -177,7 +183,8 @@ struct thread_data {
 	struct port *ports_tx[MAX_PORTS_PER_THREAD];
 	u32 n_ports_rx;
 	struct burst_rx burst_rx;
-	struct burst_tx burst_tx[MAX_PORTS_PER_THREAD];
+	// struct burst_tx burst_tx[MAX_PORTS_PER_THREAD]; 
+	struct burst_tx_collector burst_tx_collector[MAX_PORTS_PER_THREAD];
 	u32 cpu_core_id;
 	int quit;
 	ringbuf_t *ring_bf_array[3]; 
