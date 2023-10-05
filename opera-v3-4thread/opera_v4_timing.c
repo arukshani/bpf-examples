@@ -1200,8 +1200,17 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 
 		struct iphdr *inner_ip_hdr_tmp = (struct iphdr *)(data +
 														  sizeof(struct ethhdr));
-		__builtin_memcpy(&encap_outer_iphdr, inner_ip_hdr_tmp, sizeof(encap_outer_iphdr));
-		// memcpy(&encap_outer_iphdr, inner_ip_hdr_tmp, sizeof(encap_outer_iphdr));
+		// __builtin_memcpy(&encap_outer_iphdr, inner_ip_hdr_tmp, sizeof(encap_outer_iphdr));
+		encap_outer_iphdr.version = inner_ip_hdr_tmp->version;
+		encap_outer_iphdr.ihl = inner_ip_hdr_tmp->ihl;
+		encap_outer_iphdr.frag_off = inner_ip_hdr_tmp->frag_off;
+		encap_outer_iphdr.check = inner_ip_hdr_tmp->check;
+		encap_outer_iphdr.id = inner_ip_hdr_tmp->id;
+		encap_outer_iphdr.tos = inner_ip_hdr_tmp->tos;
+		encap_outer_iphdr.daddr = inner_ip_hdr_tmp->daddr;
+		encap_outer_iphdr.saddr = inner_ip_hdr_tmp->saddr;
+		encap_outer_iphdr.ttl = inner_ip_hdr_tmp->ttl;
+		
 		encap_outer_iphdr.protocol = IPPROTO_GRE;
 
 		int olen = 0;
@@ -1277,8 +1286,18 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 
 		outer_iphdr = (struct iphdr *)(data +
 									   sizeof(struct ethhdr));
-		__builtin_memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
-		// memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
+		// __builtin_memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
+		outer_iphdr->version = encap_outer_iphdr.version;
+		outer_iphdr->ihl = encap_outer_iphdr.ihl;
+		outer_iphdr->frag_off = encap_outer_iphdr.frag_off;
+		outer_iphdr->check = encap_outer_iphdr.check;
+		outer_iphdr->id = encap_outer_iphdr.id;
+		outer_iphdr->tos = encap_outer_iphdr.tos;
+		outer_iphdr->daddr = encap_outer_iphdr.daddr;
+		outer_iphdr->saddr = encap_outer_iphdr.saddr;
+		outer_iphdr->ttl = encap_outer_iphdr.ttl;
+		outer_iphdr->protocol = encap_outer_iphdr.protocol;
+		outer_iphdr->tot_len = encap_outer_iphdr.tot_len;
 
 		struct gre_hdr *gre_hdr;
 		gre_hdr = (struct gre_hdr *)(data +
