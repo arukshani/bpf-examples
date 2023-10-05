@@ -1195,29 +1195,29 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 	{
 		// printf("From VETH \n");
 		struct iphdr *outer_iphdr;
-		struct iphdr encap_outer_iphdr;
+		// struct iphdr encap_outer_iphdr;
 		struct ethhdr *outer_eth_hdr;
 
 		struct iphdr *inner_ip_hdr_tmp = (struct iphdr *)(data +
 														  sizeof(struct ethhdr));
 		// __builtin_memcpy(&encap_outer_iphdr, inner_ip_hdr_tmp, sizeof(encap_outer_iphdr));
-		encap_outer_iphdr.version = inner_ip_hdr_tmp->version;
-		encap_outer_iphdr.ihl = inner_ip_hdr_tmp->ihl;
-		encap_outer_iphdr.frag_off = inner_ip_hdr_tmp->frag_off;
-		encap_outer_iphdr.check = inner_ip_hdr_tmp->check;
-		encap_outer_iphdr.id = inner_ip_hdr_tmp->id;
-		encap_outer_iphdr.tos = inner_ip_hdr_tmp->tos;
-		encap_outer_iphdr.daddr = inner_ip_hdr_tmp->daddr;
-		encap_outer_iphdr.saddr = inner_ip_hdr_tmp->saddr;
-		encap_outer_iphdr.ttl = inner_ip_hdr_tmp->ttl;
+		// encap_outer_iphdr.version = inner_ip_hdr_tmp->version;
+		// encap_outer_iphdr.ihl = inner_ip_hdr_tmp->ihl;
+		// encap_outer_iphdr.frag_off = inner_ip_hdr_tmp->frag_off;
+		// encap_outer_iphdr.check = inner_ip_hdr_tmp->check;
+		// encap_outer_iphdr.id = inner_ip_hdr_tmp->id;
+		// encap_outer_iphdr.tos = inner_ip_hdr_tmp->tos;
+		// encap_outer_iphdr.daddr = inner_ip_hdr_tmp->daddr;
+		// encap_outer_iphdr.saddr = inner_ip_hdr_tmp->saddr;
+		// encap_outer_iphdr.ttl = inner_ip_hdr_tmp->ttl;
 		
-		encap_outer_iphdr.protocol = IPPROTO_GRE;
+		// encap_outer_iphdr.protocol = IPPROTO_GRE;
 
 		int olen = 0;
 		olen += ETH_HLEN;
 		olen += sizeof(struct gre_hdr);
 
-		encap_outer_iphdr.tot_len = bpf_htons(olen + bpf_ntohs(inner_ip_hdr_tmp->tot_len));
+		// encap_outer_iphdr.tot_len = bpf_htons(olen + bpf_ntohs(inner_ip_hdr_tmp->tot_len));
 
 		int encap_size = 0; // outer_eth + outer_ip + gre
 		int encap_outer_eth_len = ETH_HLEN;
@@ -1287,17 +1287,17 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 		outer_iphdr = (struct iphdr *)(data +
 									   sizeof(struct ethhdr));
 		// __builtin_memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
-		outer_iphdr->version = encap_outer_iphdr.version;
-		outer_iphdr->ihl = encap_outer_iphdr.ihl;
-		outer_iphdr->frag_off = encap_outer_iphdr.frag_off;
-		outer_iphdr->check = encap_outer_iphdr.check;
-		outer_iphdr->id = encap_outer_iphdr.id;
-		outer_iphdr->tos = encap_outer_iphdr.tos;
-		outer_iphdr->daddr = encap_outer_iphdr.daddr;
-		outer_iphdr->saddr = encap_outer_iphdr.saddr;
-		outer_iphdr->ttl = encap_outer_iphdr.ttl;
-		outer_iphdr->protocol = encap_outer_iphdr.protocol;
-		outer_iphdr->tot_len = encap_outer_iphdr.tot_len;
+		outer_iphdr->version = inner_ip_hdr_tmp->version;
+		outer_iphdr->ihl = inner_ip_hdr_tmp->ihl;
+		outer_iphdr->frag_off = inner_ip_hdr_tmp->frag_off;
+		outer_iphdr->check = inner_ip_hdr_tmp->check;
+		outer_iphdr->id = inner_ip_hdr_tmp->id;
+		outer_iphdr->tos = inner_ip_hdr_tmp->tos;
+		outer_iphdr->daddr = inner_ip_hdr_tmp->daddr;
+		outer_iphdr->saddr = inner_ip_hdr_tmp->saddr;
+		outer_iphdr->ttl = inner_ip_hdr_tmp->ttl;
+		outer_iphdr->protocol = IPPROTO_GRE;
+		outer_iphdr->tot_len = bpf_htons(olen + bpf_ntohs(inner_ip_hdr_tmp->tot_len));
 
 		struct gre_hdr *gre_hdr;
 		gre_hdr = (struct gre_hdr *)(data +
