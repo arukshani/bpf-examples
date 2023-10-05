@@ -1234,7 +1234,6 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 
 		u64 new_new_addr = xsk_umem__add_offset_to_addr(new_addr);
 		u8 *new_data = xsk_umem__get_data(params->bp->addr, new_new_addr);
-		// memcpy(xsk_umem__get_data(params->bp->addr, new_new_addr), data, len);
 		memcpy(new_data, data, len);
 		// u8 *new_data = xsk_umem__get_data(params->bp->addr, new_new_addr);
 
@@ -1287,15 +1286,16 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 		outer_iphdr = (struct iphdr *)(data +
 									   sizeof(struct ethhdr));
 		// __builtin_memcpy(outer_iphdr, &encap_outer_iphdr, sizeof(*outer_iphdr));
-		outer_iphdr->version = inner_ip_hdr_tmp->version;
-		outer_iphdr->ihl = inner_ip_hdr_tmp->ihl;
-		outer_iphdr->frag_off = inner_ip_hdr_tmp->frag_off;
-		outer_iphdr->check = inner_ip_hdr_tmp->check;
-		outer_iphdr->id = inner_ip_hdr_tmp->id;
-		outer_iphdr->tos = inner_ip_hdr_tmp->tos;
-		outer_iphdr->daddr = inner_ip_hdr_tmp->daddr;
-		outer_iphdr->saddr = inner_ip_hdr_tmp->saddr;
-		outer_iphdr->ttl = inner_ip_hdr_tmp->ttl;
+		__builtin_memcpy(outer_iphdr, inner_ip_hdr_tmp, sizeof(*outer_iphdr));
+		// outer_iphdr->version = inner_ip_hdr_tmp->version;
+		// outer_iphdr->ihl = inner_ip_hdr_tmp->ihl;
+		// outer_iphdr->frag_off = inner_ip_hdr_tmp->frag_off;
+		// outer_iphdr->check = inner_ip_hdr_tmp->check;
+		// outer_iphdr->id = inner_ip_hdr_tmp->id;
+		// outer_iphdr->tos = inner_ip_hdr_tmp->tos;
+		// outer_iphdr->daddr = inner_ip_hdr_tmp->daddr;
+		// outer_iphdr->saddr = inner_ip_hdr_tmp->saddr;
+		// outer_iphdr->ttl = inner_ip_hdr_tmp->ttl;
 		outer_iphdr->protocol = IPPROTO_GRE;
 		outer_iphdr->tot_len = bpf_htons(olen + bpf_ntohs(inner_ip_hdr_tmp->tot_len));
 
