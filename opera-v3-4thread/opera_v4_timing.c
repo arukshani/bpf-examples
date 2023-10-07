@@ -1964,8 +1964,12 @@ thread_func_nic(void *arg)
 		}
 	}
 
+	struct return_process_rx *ret_val = calloc(1, sizeof(struct return_process_rx));
+
 	while (!t->quit)
 	{
+		ret_val->new_len = 0;
+		ret_val->ring_buf_index = 0;
 		// printf("thread_func_nic \n");
 		struct port *port_rx = t->ports_rx[0];
 		struct port *port_tx = t->ports_tx[0];
@@ -1997,7 +2001,6 @@ thread_func_nic(void *arg)
 			u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
 										 addr);
 
-			struct return_process_rx *ret_val = calloc(1, sizeof(struct return_process_rx));
 			// int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 			process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j], ret_val);
 			// struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
@@ -2062,7 +2065,6 @@ thread_func_nic(void *arg)
 						}
 					}
 				}
-			free(ret_val);
 		}
 		// struct timespec nic_rx_end = get_realtime();
 		// unsigned long nic_rx_end_ns = get_nsec(&nic_rx_end);
@@ -2078,6 +2080,7 @@ thread_func_nic(void *arg)
 			free(obj);
 		}
 	}
+	free(ret_val);
 	printf("return from thread_func_nic \n");
 	return NULL;
 }
