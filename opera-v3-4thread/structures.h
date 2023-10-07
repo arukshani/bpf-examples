@@ -190,6 +190,7 @@ struct thread_data {
 	ringbuf_t *ring_bf_array[3]; 
 	ringbuf_t *non_loca_ring_bf_array[3]; 
 	ringbuf_t *veth_side_queue;
+	ringbuf_t *burst_tx_queue;
 };
 
 static pthread_t threads[MAX_THREADS];
@@ -209,6 +210,7 @@ struct bcache {
 ringbuf_t *ring_array[3];
 ringbuf_t *non_local_ring_array[3];
 ringbuf_t *veth_side_queue;
+ringbuf_t *burst_tx_queue_veth;
 
 __u32 t1ms;
 
