@@ -1662,8 +1662,13 @@ thread_func_veth(void *arg)
 	// ring_buff_non_local[1] = t->non_loca_ring_bf_array[1];
 	// ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
 
+	struct return_process_rx *ret_val = calloc(1, sizeof(struct return_process_rx));
+
 	while (!t->quit)
 	{
+		ret_val->new_len = 0;
+		ret_val->ring_buf_index = 0;
+
 		// printf("thread_func_veth \n");
 		struct port *port_rx = t->ports_rx[0];
 		struct port *port_tx = t->ports_tx[0];
@@ -1695,7 +1700,7 @@ thread_func_veth(void *arg)
 			u8 *pkt = xsk_umem__get_data(port_rx->params.bp->addr,
 										 addr);
 
-			struct return_process_rx *ret_val = calloc(1, sizeof(struct return_process_rx));
+			
 			// int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 			process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j], ret_val);
 			struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
@@ -1723,7 +1728,6 @@ thread_func_veth(void *arg)
 					printf("TODO: There is no queue to push the packet \n");
 				}
 			}
-			free(ret_val);
 		}
 
 		// struct timespec veth_rx_end = get_realtime();
@@ -1731,6 +1735,7 @@ thread_func_veth(void *arg)
 		// unsigned long detla_veth_rx = veth_rx_end_ns - veth_rx_start_ns;
 		// total_veth_rx = total_veth_rx + detla_veth_rx;
 	}
+	free(ret_val);
 	printf("return from thread_func_veth \n");
 	return NULL;
 }
