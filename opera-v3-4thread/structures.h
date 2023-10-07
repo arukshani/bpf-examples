@@ -55,6 +55,10 @@ struct bpool_params {
 #define MAX_BURST_TX 20
 #endif
 
+#ifndef MAX_BURST_TX_OBJS
+#define MAX_BURST_TX_OBJS 64
+#endif
+
 struct burst_rx {
 	u64 addr[MAX_BURST_RX];
 	u32 len[MAX_BURST_RX];
@@ -211,6 +215,7 @@ ringbuf_t *ring_array[3];
 ringbuf_t *non_local_ring_array[3];
 ringbuf_t *veth_side_queue;
 ringbuf_t *burst_tx_queue_veth;
+ringbuf_t *burst_tx_queue_nic;
 
 __u32 t1ms;
 

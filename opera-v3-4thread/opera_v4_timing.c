@@ -1495,8 +1495,8 @@ thread_func_veth_to_nic_tx(void *arg)
 
 	struct burst_tx_collector *btx_collector = &t->burst_tx_collector[0];
 
-	ringbuf_t *burst_tx_queue_veth;
-	burst_tx_queue_veth = t->burst_tx_queue;
+	ringbuf_t *burst_tx_queue;
+	burst_tx_queue = t->burst_tx_queue;
 
 	while (!t->quit)
 	{
@@ -1520,11 +1520,11 @@ thread_func_veth_to_nic_tx(void *arg)
 				btx_collector->addr[btx_index] = btx->addr[0];
 				btx_collector->len[btx_index] = btx->len[0];
 
-				if (burst_tx_queue_veth != NULL)
+				if (burst_tx_queue != NULL)
 				{
 					btx->addr[0] = 0;
 					btx->len[0] = 0;
-					ringbuf_sp_enqueue(burst_tx_queue_veth, btx);
+					ringbuf_sp_enqueue(burst_tx_queue, btx);
 				} else {
 					printf("burst_tx_queue is NULL \n");
 				}
@@ -1548,11 +1548,11 @@ thread_func_veth_to_nic_tx(void *arg)
 				btx_collector->addr[btx_index] = btx->addr[0];
 				btx_collector->len[btx_index] = btx->len[0];
 
-				if (burst_tx_queue_veth != NULL)
+				if (burst_tx_queue != NULL)
 				{
 					btx->addr[0] = 0;
 					btx->len[0] = 0;
-					ringbuf_sp_enqueue(burst_tx_queue_veth, btx);
+					ringbuf_sp_enqueue(burst_tx_queue, btx);
 				} else {
 					printf("burst_tx_queue is NULL \n");
 				}
@@ -1577,11 +1577,11 @@ thread_func_veth_to_nic_tx(void *arg)
 				btx_collector->addr[btx_index] = btx->addr[0];
 				btx_collector->len[btx_index] = btx->len[0];
 
-				if (burst_tx_queue_veth != NULL)
+				if (burst_tx_queue != NULL)
 				{
 					btx->addr[0] = 0;
 					btx->len[0] = 0;
-					ringbuf_sp_enqueue(burst_tx_queue_veth, btx);
+					ringbuf_sp_enqueue(burst_tx_queue, btx);
 				} else {
 					printf("burst_tx_queue is NULL \n");
 				}
@@ -1606,11 +1606,11 @@ thread_func_veth_to_nic_tx(void *arg)
 				btx_collector->addr[btx_index] = btx2->addr[0];
 				btx_collector->len[btx_index] = btx2->len[0];
 
-				if (burst_tx_queue_veth != NULL)
+				if (burst_tx_queue != NULL)
 				{
 					btx2->addr[0] = 0;
 					btx2->len[0] = 0;
-					ringbuf_sp_enqueue(burst_tx_queue_veth, btx2);
+					ringbuf_sp_enqueue(burst_tx_queue, btx2);
 				} else {
 					printf("burst_tx_queue is NULL \n");
 				}
@@ -1633,11 +1633,11 @@ thread_func_veth_to_nic_tx(void *arg)
 				struct burst_tx *btx2 = (struct burst_tx *)obj2;
 				btx_collector->addr[btx_index] = btx2->addr[0];
 				btx_collector->len[btx_index] = btx2->len[0];
-				if (burst_tx_queue_veth != NULL)
+				if (burst_tx_queue != NULL)
 				{
 					btx2->addr[0] = 0;
 					btx2->len[0] = 0;
-					ringbuf_sp_enqueue(burst_tx_queue_veth, btx2);
+					ringbuf_sp_enqueue(burst_tx_queue, btx2);
 				} else {
 					printf("burst_tx_queue is NULL \n");
 				}
@@ -1660,11 +1660,11 @@ thread_func_veth_to_nic_tx(void *arg)
 				struct burst_tx *btx2 = (struct burst_tx *)obj2;
 				btx_collector->addr[btx_index] = btx2->addr[0];
 				btx_collector->len[btx_index] = btx2->len[0];
-				if (burst_tx_queue_veth != NULL)
+				if (burst_tx_queue != NULL)
 				{
 					btx2->addr[0] = 0;
 					btx2->len[0] = 0;
-					ringbuf_sp_enqueue(burst_tx_queue_veth, btx2);
+					ringbuf_sp_enqueue(burst_tx_queue, btx2);
 				} else {
 					printf("burst_tx_queue is NULL \n");
 				}
@@ -1717,18 +1717,18 @@ thread_func_veth(void *arg)
 	ring_buff[1] = t->ring_bf_array[1];
 	ring_buff[2] = t->ring_bf_array[2];
 
-	ringbuf_t *burst_tx_queue_veth;
-	burst_tx_queue_veth = t->burst_tx_queue;
+	ringbuf_t *burst_tx_queue;
+	burst_tx_queue = t->burst_tx_queue;
 
 	int x;
-	for (x = 0; x < 2048; x++)
+	for (x = 0; x < MAX_BURST_TX_OBJS; x++)
 	{
 		struct burst_tx *btx_obj = calloc(1, sizeof(struct burst_tx));
 		btx_obj->addr[0] = 0;
 		btx_obj->len[0] = 0;
-		if (burst_tx_queue_veth != NULL)
+		if (burst_tx_queue != NULL)
 		{
-			ringbuf_sp_enqueue(burst_tx_queue_veth, btx_obj);
+			ringbuf_sp_enqueue(burst_tx_queue, btx_obj);
 			// printf("burst_tx_queue is not NULL \n");
 		} else {
 			printf("burst_tx_queue is NULL \n");
@@ -1783,10 +1783,10 @@ thread_func_veth(void *arg)
 			process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j], ret_val);
 			// struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
 
-			if (!ringbuf_is_empty(burst_tx_queue_veth))
+			if (!ringbuf_is_empty(burst_tx_queue))
 			{
 				void *obj;
-				ringbuf_sc_dequeue(burst_tx_queue_veth, &obj);
+				ringbuf_sc_dequeue(burst_tx_queue, &obj);
 				struct burst_tx *btx = (struct burst_tx *)obj;
 				if (btx != NULL)
 				{
@@ -1822,6 +1822,15 @@ thread_func_veth(void *arg)
 		// unsigned long detla_veth_rx = veth_rx_end_ns - veth_rx_start_ns;
 		// total_veth_rx = total_veth_rx + detla_veth_rx;
 	}
+	for (x = 0; x < MAX_BURST_TX_OBJS; x++)
+	{
+		if (!ringbuf_is_empty(burst_tx_queue))
+		{
+			void *obj;
+			ringbuf_sc_dequeue(burst_tx_queue, &obj);
+			free(obj);
+		}
+	}
 	free(ret_val);
 	printf("return from thread_func_veth \n");
 	return NULL;
@@ -1848,6 +1857,9 @@ thread_func_nic_to_veth_tx(void *arg)
 
 	struct burst_tx_collector *btx_collector = &t->burst_tx_collector[0];
 
+	ringbuf_t *burst_tx_queue;
+	burst_tx_queue = t->burst_tx_queue;
+
 	while (starttime < endtime)
 	{ // A hack to get the thread to return
 		// while (!t->quit) {
@@ -1869,7 +1881,16 @@ thread_func_nic_to_veth_tx(void *arg)
 				struct burst_tx *btx = (struct burst_tx *)obj;
 				btx_collector->addr[btx_index] = btx->addr[0];
 				btx_collector->len[btx_index] = btx->len[0];
-				free(btx);
+
+				if (burst_tx_queue != NULL)
+				{
+					btx->addr[0] = 0;
+					btx->len[0] = 0;
+					ringbuf_sp_enqueue(burst_tx_queue, btx);
+				} else {
+					printf("burst_tx_queue is NULL \n");
+				}
+				// free(btx);
 
 				btx_index++;
 				btx_collector->n_pkts = btx_index;
@@ -1925,6 +1946,23 @@ thread_func_nic(void *arg)
 	ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
 
 	ringbuf_t *veth_side_queue = t->veth_side_queue;
+	ringbuf_t *burst_tx_queue;
+	burst_tx_queue = t->burst_tx_queue;
+
+	int x;
+	for (x = 0; x < MAX_BURST_TX_OBJS; x++)
+	{
+		struct burst_tx *btx_obj = calloc(1, sizeof(struct burst_tx));
+		btx_obj->addr[0] = 0;
+		btx_obj->len[0] = 0;
+		if (burst_tx_queue != NULL)
+		{
+			ringbuf_sp_enqueue(burst_tx_queue, btx_obj);
+			// printf("burst_tx_queue is not NULL \n");
+		} else {
+			printf("burst_tx_queue for nic rx is NULL \n");
+		}
+	}
 
 	while (!t->quit)
 	{
@@ -1962,67 +2000,83 @@ thread_func_nic(void *arg)
 			struct return_process_rx *ret_val = calloc(1, sizeof(struct return_process_rx));
 			// int new_len = process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j]);
 			process_rx_packet(pkt, &port_rx->params, brx->len[j], brx->addr[j], ret_val);
-			struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
+			// struct burst_tx *btx = calloc(1, sizeof(struct burst_tx));
 			// Needs to send packet back out NIC
-			if (ret_val->new_len == 1)
-			{
-				btx->addr[0] = brx->addr[j];
-				btx->len[0] = brx->len[j];
-				btx->n_pkts++;
-				ringbuf_t *dest_queue = ring_buff_non_local[ret_val->ring_buf_index];
-				// queue packet in non-local queue
-				if (dest_queue != NULL)
+			if (!ringbuf_is_empty(burst_tx_queue))
 				{
-					if (!ringbuf_is_full(dest_queue))
+					void *obj;
+					ringbuf_sc_dequeue(burst_tx_queue, &obj);
+					struct burst_tx *btx = (struct burst_tx *)obj;
+					if (btx != NULL)
 					{
-						// printf("queue packet %lld \n", btx->addr[0]);
-						ringbuf_sp_enqueue(dest_queue, btx);
-					}
-					else
-					{
-						printf("NON-LCOAL QUEUE IS FULL \n");
-					}
-				}
-				else
-				{
-					printf("TODO: There is no non-local queue to push the packet \n");
-				}
-			}
-			else
-			{
-				btx->addr[btx->n_pkts] = brx->addr[j];
-				btx->len[btx->n_pkts] = ret_val->new_len;
-				btx->n_pkts++;
+						if (ret_val->new_len == 1)
+						{
+							btx->addr[0] = brx->addr[j];
+							btx->len[0] = brx->len[j];
+							btx->n_pkts++;
+							ringbuf_t *dest_queue = ring_buff_non_local[ret_val->ring_buf_index];
+							// queue packet in non-local queue
+							if (dest_queue != NULL)
+							{
+								if (!ringbuf_is_full(dest_queue))
+								{
+									// printf("queue packet %lld \n", btx->addr[0]);
+									ringbuf_sp_enqueue(dest_queue, btx);
+								}
+								else
+								{
+									printf("NON-LCOAL QUEUE IS FULL \n");
+								}
+							}
+							else
+							{
+								printf("TODO: There is no non-local queue to push the packet \n");
+							}
+						} else
+						{
+							btx->addr[btx->n_pkts] = brx->addr[j];
+							btx->len[btx->n_pkts] = ret_val->new_len;
+							btx->n_pkts++;
 
-				// if (btx->n_pkts == 1) {
-				if (veth_side_queue != NULL)
-				{
-					if (!ringbuf_is_full(veth_side_queue))
-					{
-						// printf("queue packet %lld \n", btx->addr[0]);
-						ringbuf_sp_enqueue(veth_side_queue, btx);
-						// printf("packet from veth is enqueued \n");
-					}
-					else
-					{
-						printf("QUEUE IS FULL \n");
+							// if (btx->n_pkts == 1) {
+							if (veth_side_queue != NULL)
+							{
+								if (!ringbuf_is_full(veth_side_queue))
+								{
+									// printf("queue packet %lld \n", btx->addr[0]);
+									ringbuf_sp_enqueue(veth_side_queue, btx);
+									// printf("packet from veth is enqueued \n");
+								}
+								else
+								{
+									printf("QUEUE IS FULL \n");
+								}
+							}
+							else
+							{
+								printf("TODO: There is no veth_side_queue to push the packet \n");
+							}
+							// port_tx_burst(port_tx, btx, 1);
+							// btx->n_pkts = 0;
+							// }
+						}
 					}
 				}
-				else
-				{
-					printf("TODO: There is no veth_side_queue to push the packet \n");
-				}
-				// port_tx_burst(port_tx, btx, 1);
-				// btx->n_pkts = 0;
-				// }
-			}
 			free(ret_val);
 		}
-
 		// struct timespec nic_rx_end = get_realtime();
 		// unsigned long nic_rx_end_ns = get_nsec(&nic_rx_end);
 		// unsigned long detla_nic_rx = nic_rx_end_ns - nic_rx_start_ns;
 		// total_nic_rx = total_nic_rx + detla_nic_rx;
+	}
+	for (x = 0; x < MAX_BURST_TX_OBJS; x++)
+	{
+		if (!ringbuf_is_empty(burst_tx_queue))
+		{
+			void *obj;
+			ringbuf_sc_dequeue(burst_tx_queue, &obj);
+			free(obj);
+		}
 	}
 	printf("return from thread_func_nic \n");
 	return NULL;
@@ -2244,10 +2298,10 @@ int main(int argc, char **argv)
 	non_local_ring_array[2] = ringbuf_create(2048);
 
 	veth_side_queue = ringbuf_create(2048);
-	burst_tx_queue_veth = ringbuf_create(2048);
+	burst_tx_queue_veth = ringbuf_create(MAX_BURST_TX_OBJS);
+	burst_tx_queue_nic = ringbuf_create(MAX_BURST_TX_OBJS);
 
-
-	printf("Hello");
+	// printf("Hello");
 
 	/* Threads. */
 	for (i = 0; i < n_threads; i++)
@@ -2272,6 +2326,7 @@ int main(int argc, char **argv)
 			t->non_loca_ring_bf_array[1] = non_local_ring_array[1];
 			t->non_loca_ring_bf_array[2] = non_local_ring_array[2];
 			t->veth_side_queue = veth_side_queue;
+			t->burst_tx_queue = burst_tx_queue_nic;
 		}
 		else if (i == 2)
 		{							   // veth->nic (nic tx: pull from local and non-local)
@@ -2288,6 +2343,7 @@ int main(int argc, char **argv)
 		{							   // nic-veth (veth tx: pull from veth_side_queue)
 			t->ports_tx[0] = ports[0]; // veth
 			t->veth_side_queue = veth_side_queue;
+			t->burst_tx_queue = burst_tx_queue_nic;
 		}
 
 		t->n_ports_rx = 1;
@@ -2423,6 +2479,7 @@ int main(int argc, char **argv)
 	ringbuf_free(non_local_ring_array[2]);
 	ringbuf_free(veth_side_queue);
 	ringbuf_free(burst_tx_queue_veth);
+	ringbuf_free(burst_tx_queue_nic);
 
 	return 0;
 }
