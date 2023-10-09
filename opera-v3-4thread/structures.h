@@ -228,3 +228,9 @@ unsigned long total_veth_rx = 0;
 unsigned long total_veth_tx = 0;
 unsigned long total_nic_rx = 0;
 unsigned long total_nic_tx = 0;
+
+unsigned long veth_rx_no_packet_counter = 0;
+unsigned long veth_rx_has_packet_counter = 0;
+
+unsigned long nic_tx_no_packet_counter = 0;
+unsigned long nic_tx_has_packet_counter = 0;
