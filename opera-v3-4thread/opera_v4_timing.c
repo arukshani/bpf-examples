@@ -2075,6 +2075,8 @@ thread_func_nic(void *arg)
 							// }
 						}
 					}
+				} else {
+					printf("burst_tx_queue is empty for nic rx \n");
 				}
 		}
 		// struct timespec nic_rx_end = get_realtime();
