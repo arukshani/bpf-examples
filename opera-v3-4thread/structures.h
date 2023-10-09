@@ -56,7 +56,7 @@ struct bpool_params {
 #endif
 
 #ifndef MAX_BURST_TX_OBJS
-#define MAX_BURST_TX_OBJS 64
+#define MAX_BURST_TX_OBJS 1024
 #endif
 
 struct burst_rx {
