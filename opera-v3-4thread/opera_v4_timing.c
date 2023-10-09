@@ -1687,11 +1687,12 @@ thread_func_veth_to_nic_tx(void *arg)
 			// printf("btx_index %d \n", btx_index);
 			// port_tx_burst(port_tx, btx_collector, 0, 0);
 			port_tx_burst_collector(port_tx, btx_collector, 0, 0);
-			nic_tx_has_packet_counter++;
+			// nic_tx_has_packet_counter++;
 			// flush_tx(port_tx);
-		} else {
-			nic_tx_no_packet_counter++;
-		}
+		} 
+		// else {
+		// 	nic_tx_no_packet_counter++;
+		// }
 		// port_tx_burst(port_tx, btx_collector, 0, 0);
 		btx_collector->n_pkts = 0;
 		// struct timespec nic_tx_end = get_realtime();
@@ -1768,11 +1769,11 @@ thread_func_veth(void *arg)
 
 		if (!n_pkts) 
 		{
-			veth_rx_no_packet_counter++;
+			// veth_rx_no_packet_counter++;
 			continue;
 		}
 			
-		veth_rx_has_packet_counter++;
+		// veth_rx_has_packet_counter++;
 
 		// printf("n_pkts %d", n_pkts);
 
