@@ -1147,7 +1147,7 @@ static struct timespec get_nicclock(void)
 // Telemetry
 uint32_t node_ip[20000];
 // char description[20000][100]; //strcpy(description[0], aString);
-int slot[20000]; // 0-from_veth, 1-intermediate_node, 2-to_veth
+int slot[20000000]; // 0-from_veth, 1-intermediate_node, 2-to_veth
 struct timespec timestamp_arr[20000000];
 uint8_t topo_arr[20000];
 int next_node[20000];
@@ -1193,6 +1193,13 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 
 	if (is_veth == 0)
 	{
+		// Telemetry
+		 #if DEBUG == 1
+		 	timestamp_arr[time_index] = now;
+		 	slot[time_index]=0;
+		 	time_index++;
+		 #endif
+
 		// printf("From VETH \n");
 		struct iphdr *outer_iphdr;
 		// struct iphdr encap_outer_iphdr;
@@ -1261,16 +1268,6 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 		// printf("dest_ip_index = %d, mac_index=%d \n", dest_ip_index->index, mac_index);
 		return_val->ring_buf_index = dest_ip_index->index - 1;
 
-		// Telemetry
-		//  #if DEBUG == 1
-		//  	timestamp_arr[time_index] = now;
-		//  	node_ip[time_index] = src_ip;
-		//  	slot[time_index]=0;
-		//  	topo_arr[time_index] = topo;
-		//  	next_node[time_index] = mac_index;
-		//  	time_index++;
-		//  #endif
-
 		// For debug
 		// printf("mac_index = %d\n", mac_index);
 		// int i;
@@ -1314,10 +1311,10 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 	}
 	else if (is_nic == 0)
 	{
-#if DEBUG_PAUSE_Q == 1
-		timestamp_arr[time_index] = now;
-		time_index++;
-#endif
+// #if DEBUG_PAUSE_Q == 1
+// 		timestamp_arr[time_index] = now;
+// 		time_index++;
+// #endif
 		// printf("From NIC \n");
 		struct ethhdr *eth = (struct ethhdr *)data;
 		struct iphdr *outer_ip_hdr = (struct iphdr *)(data +
@@ -1339,6 +1336,13 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 		struct iphdr *inner_ip_hdr = (struct iphdr *)(inner_eth + 1);
 		if (src_ip != (inner_ip_hdr->daddr))
 		{
+			// Telemetry
+			 #if DEBUG == 1
+			 	timestamp_arr[time_index] = now;
+			 	slot[time_index]=1;
+			 	time_index++;
+			 #endif
+
 			// printf("Not destined for local node \n");
 			// send it back out NIC
 			struct ip_set *next_dest_ip_index = mg_map_get(&ip_table, inner_ip_hdr->daddr);
@@ -1352,16 +1356,6 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 			ether_addr_copy_assignment(eth->h_source, &out_eth_src);
 			return_val->ring_buf_index = next_dest_ip_index->index - 1;
 
-			// Telemetry
-			//  #if DEBUG == 1
-			//  	timestamp_arr[time_index] = now;
-			//  	node_ip[time_index] = src_ip;
-			//  	slot[time_index]=1;
-			//  	topo_arr[time_index] = topo;
-			//  	next_node[time_index] = next_mac_index;
-			//  	time_index++;
-			//  #endif
-
 			// Debug
 			//  printf("next_mac_index = %d\n", next_mac_index);
 			//  int i;
@@ -1374,6 +1368,13 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 		}
 		else
 		{
+			// Telemetry
+			 #if DEBUG == 1
+			 	timestamp_arr[time_index] = now;
+			 	slot[time_index]=2;
+			 	time_index++;
+			 #endif
+
 			// printf("Destined for local node \n");
 			// send it to local veth
 			void *cutoff_pos = greh + 1;
@@ -1385,16 +1386,6 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 
 			u8 *new_data = xsk_umem__get_data(params->bp->addr, inner_eth_start_addr);
 			memcpy(xsk_umem__get_data(params->bp->addr, addr), new_data, new_len);
-
-			// Telemetry
-			//  #if DEBUG == 1
-			//  	timestamp_arr[time_index] = now;
-			//  	node_ip[time_index] = src_ip;
-			//  	slot[time_index]=2;
-			//  	topo_arr[time_index] = topo;
-			//  	next_node[time_index] = 0;
-			//  	time_index++;
-			//  #endif
 
 			return_val->new_len = new_len;
 			// return return_val;
@@ -2442,31 +2433,31 @@ int main(int argc, char **argv)
 
 	// printf("time_index: %ld \n", time_index);
 
-	// #if DEBUG == 1
-	// 	printf("debug");
-	// 	int z;
-	// 	FILE *fpt;
-	// 	fpt = fopen("/tmp/opera_data.csv", "w+");
-	// 	fprintf(fpt,"node_ip,slot,topo_arr,next_node,time_ns,time_part_sec,time_part_nsec\n");
-	// 	for (z = 0; z < time_index; z++ ) {
-	// 		unsigned long now_ns = get_nsec(&timestamp_arr[z]);
-	// 		fprintf(fpt,"%d,%d,%d,%d,%ld,%ld,%ld\n",node_ip[z],slot[z],topo_arr[z],next_node[z],now_ns,timestamp_arr[z].tv_sec,timestamp_arr[z].tv_nsec);
-	// 	}
-	// 	fclose(fpt);
-	// #endif
+	#if DEBUG == 1
+		printf("debug");
+		int z;
+		FILE *fpt;
+		fpt = fopen("/tmp/opera_data.csv", "w+");
+		fprintf(fpt,"slot,time_ns,time_part_sec,time_part_nsec\n");
+		for (z = 0; z < time_index; z++ ) {
+			unsigned long now_ns = get_nsec(&timestamp_arr[z]);
+			fprintf(fpt,"%d,%ld,%ld,%ld\n",slot[z],now_ns,timestamp_arr[z].tv_sec,timestamp_arr[z].tv_nsec);
+		}
+		fclose(fpt);
+	#endif
 
-#if DEBUG_PAUSE_Q == 1
-	int z;
-	FILE *fpt;
-	fpt = fopen("/tmp/opera_data.csv", "w+");
-	fprintf(fpt, "time_ns,time_part_sec,time_part_nsec\n");
-	for (z = 0; z < time_index; z++)
-	{
-		unsigned long now_ns = get_nsec(&timestamp_arr[z]);
-		fprintf(fpt, "%ld,%ld,%ld\n", now_ns, timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec);
-	}
-	fclose(fpt);
-#endif
+// #if DEBUG_PAUSE_Q == 1
+// 	int z;
+// 	FILE *fpt;
+// 	fpt = fopen("/tmp/opera_data.csv", "w+");
+// 	fprintf(fpt, "time_ns,time_part_sec,time_part_nsec\n");
+// 	for (z = 0; z < time_index; z++)
+// 	{
+// 		unsigned long now_ns = get_nsec(&timestamp_arr[z]);
+// 		fprintf(fpt, "%ld,%ld,%ld\n", now_ns, timestamp_arr[z].tv_sec, timestamp_arr[z].tv_nsec);
+// 	}
+// 	fclose(fpt);
+// #endif
 
 	for (i = 0; i < n_threads; i++)
 	{
