@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-I.
 
-objects = udp_s udp_c
+objects = udp_s_timing udp_c_timing
 all: $(objects)
 
 $(objects): %: %.c
