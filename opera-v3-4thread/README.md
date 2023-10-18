@@ -40,3 +40,10 @@ Also, I see there are some cores CPU usage are not constant; maybe do: sudo perf
 To see what happens inside the core.
 ```
 
+```
+init_on_alloc=0 amd_iommu=off
+sudo update-grub
+cat /sys/class/net/veth0/queues/rx-0/rps_cpus
+echo 00000010| tee /sys/class/net/veth0/queues/rx-0/rps_cpus
+```
+

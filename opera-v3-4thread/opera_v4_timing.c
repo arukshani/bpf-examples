@@ -1860,7 +1860,7 @@ thread_func_nic_to_veth_tx(void *arg)
 	ringbuf_t *veth_side_queue = t->veth_side_queue;
 
 	time_t starttime = time(NULL);
-	time_t seconds = 60;
+	time_t seconds = 120;
 	time_t endtime = starttime + seconds;
 	int need_to_flush = 0;
 
