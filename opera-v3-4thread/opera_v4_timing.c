@@ -2185,10 +2185,10 @@ int main(int argc, char **argv)
 	port_params[1].iface_queue = 0;
 
 	n_threads = 4;
-	thread_data[0].cpu_core_id = 10; // cat /proc/cpuinfo | grep 'core id'
-	thread_data[1].cpu_core_id = 11; // cat /proc/cpuinfo | grep 'core id'
-	thread_data[2].cpu_core_id = 12; // cat /proc/cpuinfo | grep 'core id'
-	thread_data[3].cpu_core_id = 13; // cat /proc/cpuinfo | grep 'core id'
+	thread_data[0].cpu_core_id = 8; // cat /proc/cpuinfo | grep 'core id'
+	thread_data[1].cpu_core_id = 9; // cat /proc/cpuinfo | grep 'core id'
+	thread_data[2].cpu_core_id = 10; // cat /proc/cpuinfo | grep 'core id'
+	thread_data[3].cpu_core_id = 11; // cat /proc/cpuinfo | grep 'core id'
 
 	/* Buffer pool initialization. */
 	bp = bpool_init(&bpool_params, &umem_cfg);
