@@ -53,6 +53,8 @@ echo 00000002 | tee /sys/class/net/veth0/queues/rx-0/rps_cpus
 echo 00000002 | sudo tee /sys/class/net/veth1/queues/rx-0/rps_cpus
 
 echo 00010000 | tee /sys/class/net/veth0/queues/tx-0/xps_cpus
+
+echo 00000010 | sudo tee /sys/class/net/enp65s0f0np0/queues/rx-0/rps_cpus
 ```
 
 ```
