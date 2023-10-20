@@ -72,3 +72,12 @@ echo 00000010 | sudo tee /sys/class/net/enp65s0f0np0/queues/rx-0/rps_cpus
 0000000e - 1-3 cores
 ```
 
+```
+wget https://content.mellanox.com/ofed/MLNX_OFED-5.8-3.0.7.0/MLNX_OFED_LINUX-5.8-3.0.7.0-ubuntu22.04-x86_64.tgz
+
+cat /proc/interrupts | grep enp65s0f0np0
+cat /proc/irq/154/smp_affinity
+echo 00000008 | sudo tee /proc/irq/154/smp_affinity
+
+sudo service irqbalance stop
+```
