@@ -36,6 +36,8 @@ cd ~
 ln -s linux-5.15.99/tools/perf/perf perf
 testing -> sudo ./perf top -C 10
 git clone https://github.com/brendangregg/FlameGraph.git
+cp /opt/bpf-examples/opera-v3-4thread-intel/perf_command_new.sh .
+chmod +x perf_command_new.sh
 
 Generate flamegraph: ./perf_command_new.sh $core 
 Change $core to the CPU core number you like to observe
