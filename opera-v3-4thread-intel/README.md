@@ -83,3 +83,26 @@ echo 00000008 | sudo tee /proc/irq/154/smp_affinity
 
 sudo service irqbalance stop
 ```
+
+```
+For intel
+GRUB_CMDLINE_LINUX_DEFAULT="init_on_alloc=0 intel_iommu=off"
+
+NUMA:
+  NUMA node(s):          2
+  NUMA node0 CPU(s):     0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86,88,90,92,94,96,98,100,102,104,106,108,110,112,114,11
+                         6,118,120,122,124,126,128,130,132,134,136,138,140,142
+  NUMA node1 CPU(s):     1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99,101,103,105,107,109,111,113,115,11
+                         7,119,121,123,125,127,129,131,133,135,137,139,141,143
+
+cat /sys/class/net/enp202s0f0np0/device/numa_node
+
+
+sudo taskset --cpu-list 19 ./opera_v4_timing 192.168.1.1 configs/node-1-link.csv /dev/ptp0 120
+sudo taskset --cpu-list 19 ./opera_v4_timing 192.168.1.2 configs/node-2-link.csv /dev/ptp0 120
+sudo taskset --cpu-list 3 iperf3 -c 192.168.1.1 -p 5000 -t 120
+sudo taskset --cpu-list 3 iperf3 -s 192.168.1.2 -p 5000
+
+AF_XDP - Core 21, 23, 25, 27
+
+```

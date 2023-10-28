@@ -262,21 +262,21 @@ static void apply_setsockopt(struct xsk_socket *xsk)
 	// if (!opt_busy_poll)
 	// 	return;
 
-	// sock_opt = 1;
-	// if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_PREFER_BUSY_POLL,
-	// 			   (void *)&sock_opt, sizeof(sock_opt)) < 0)
-	// 	printf("Error!!!");
-
-	// sock_opt = 20;
 	sock_opt = 1;
+	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_PREFER_BUSY_POLL,
+				   (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		printf("Error!!!");
+
+	sock_opt = 20;
+	// sock_opt = 1;
 	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_BUSY_POLL,
 				   (void *)&sock_opt, sizeof(sock_opt)) < 0)
 		printf("Error!!!");
 
-	// sock_opt = 1;
-	// if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_BUSY_POLL_BUDGET,
-	// 			   (void *)&sock_opt, sizeof(sock_opt)) < 0)
-	// 	printf("Error!!!");
+	sock_opt = 1;
+	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_BUSY_POLL_BUDGET,
+				   (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		printf("Error!!!");
 }
 
 static struct port *
@@ -2186,10 +2186,10 @@ int main(int argc, char **argv)
 	port_params[1].iface_queue = 0;
 
 	n_threads = 4;
-	thread_data[0].cpu_core_id = 8; // cat /proc/cpuinfo | grep 'core id'
-	thread_data[1].cpu_core_id = 9; // cat /proc/cpuinfo | grep 'core id'
-	thread_data[2].cpu_core_id = 10; // cat /proc/cpuinfo | grep 'core id'
-	thread_data[3].cpu_core_id = 11; // cat /proc/cpuinfo | grep 'core id'
+	thread_data[0].cpu_core_id = 21; // cat /proc/cpuinfo | grep 'core id'
+	thread_data[1].cpu_core_id = 23; // cat /proc/cpuinfo | grep 'core id'
+	thread_data[2].cpu_core_id = 25; // cat /proc/cpuinfo | grep 'core id'
+	thread_data[3].cpu_core_id = 27; // cat /proc/cpuinfo | grep 'core id'
 
 	/* Buffer pool initialization. */
 	bp = bpool_init(&bpool_params, &umem_cfg);
