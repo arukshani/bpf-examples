@@ -100,9 +100,12 @@ cat /sys/class/net/enp202s0f0np0/device/numa_node
 
 sudo taskset --cpu-list 19 ./opera_v4_timing 192.168.1.1 configs/node-1-link.csv /dev/ptp0 120
 sudo taskset --cpu-list 19 ./opera_v4_timing 192.168.1.2 configs/node-2-link.csv /dev/ptp0 120
-sudo taskset --cpu-list 3 iperf3 -c 192.168.1.1 -p 5000 -t 120
-sudo taskset --cpu-list 3 iperf3 -s 192.168.1.2 -p 5000
+taskset --cpu-list 3 iperf3 -c 192.168.1.2 -p 5000 -t 120
+taskset --cpu-list 3 iperf3 -s 192.168.1.2 -p 5000
 
 AF_XDP - Core 21, 23, 25, 27
+
+echo 0000,00000000,00000000,00000000,00000000 | tee /sys/class/net/veth0/queues/rx-0/rps_cpus 
+echo 0000,00000000,00000000,00000000,00000000 | sudo tee /sys/class/net/veth1/queues/rx-0/rps_cpus
 
 ```
