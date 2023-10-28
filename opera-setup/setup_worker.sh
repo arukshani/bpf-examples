@@ -13,6 +13,7 @@ sudo apt-get -y install linuxptp
 sudo apt-get -y install libmnl-dev
 sudo apt-get -y install m4
 sudo apt-get -y install iperf3
+sudo apt-get -y install htop
 
 #Get interface 
 NODE_INTERFACE=$(ifconfig | grep -B1 "inet $1" | awk '$1!="inet" && $1!="--" {print $1}')
