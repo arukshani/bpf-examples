@@ -110,4 +110,6 @@ AF_XDP - Core 21, 23, 25, 27
 echo 0000,00000000,00000000,00000000,00000000 | tee /sys/class/net/veth0/queues/rx-0/rps_cpus 
 echo 0000,00000000,00000000,00000000,00000000 | sudo tee /sys/class/net/veth1/queues/rx-0/rps_cpus
 
+lstopo --output-format png -v > cpu.png
+
 ```
