@@ -555,7 +555,7 @@ static void remove_xdp_program(void)
 	}
 }
 
-static struct xdp_program *xdp_prog[2];
+static struct xdp_program *xdp_prog[3];
 // static enum xdp_attach_mode opt_attach_mode = XDP_MODE_NATIVE;
 
 static int lookup_bpf_map(int prog_fd)
@@ -659,11 +659,21 @@ static void load_xdp_program(void)
 {
 	int veth_ifindex = if_nametoindex("veth1");
 	int nic_ifindex = if_nametoindex(nic_iface);
+	int veth3_ifindex = if_nametoindex("veth3");
 
-	// Outer veth
+	// Outer veth1
 	struct config veth_cfg = {
 		.ifindex = veth_ifindex,
 		.ifname = "veth1",
+		.xsk_if_queue = 0,
+		.xsk_poll_mode = true,
+		.filename = "veth_kern.o",
+		.progsec = "xdp_sock_0"};
+
+	// Outer veth3
+	struct config veth3_cfg = {
+		.ifindex = veth3_ifindex,
+		.ifname = "veth3",
 		.xsk_if_queue = 0,
 		.xsk_poll_mode = true,
 		.filename = "veth_kern.o",
@@ -678,10 +688,10 @@ static void load_xdp_program(void)
 		.filename = "nic_kern.o",
 		.progsec = "xdp_sock_1"};
 
-	struct config cfgs[2] = {veth_cfg, nic_cfg};
+	struct config cfgs[3] = {veth_cfg, nic_cfg, veth3_cfg};
 
 	int i;
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < 3; i++)
 	{
 
 		char errmsg[STRERR_BUFSIZE];
@@ -1190,9 +1200,10 @@ static inline void ether_addr_copy_assignment(u8 *dst, const u8 *src)
 static void process_rx_packet(void *data, struct port_params *params, uint32_t len, u64 addr, struct return_process_rx *return_val)
 {
 	int is_veth = strcmp(params->iface, "veth1");
+	int is_veth3 = strcmp(params->iface, "veth3");
 	int is_nic = strcmp(params->iface, nic_iface);
 
-	if (is_veth == 0)
+	if (is_veth == 0 || is_veth3 == 0)
 	{
 		// printf("From VETH \n");
 		struct iphdr *outer_iphdr;
@@ -1338,7 +1349,7 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 		// }
 
 		struct iphdr *inner_ip_hdr = (struct iphdr *)(inner_eth + 1);
-		if (src_ip != (inner_ip_hdr->daddr))
+		if (src_ip != (inner_ip_hdr->daddr) || veth3_ip_addr != (inner_ip_hdr->daddr))
 		{
 			// printf("Not destined for local node \n");
 			// send it back out NIC
@@ -1746,6 +1757,7 @@ thread_func_veth(void *arg)
 	// ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
 
 	struct return_process_rx *ret_val = calloc(1, sizeof(struct return_process_rx));
+	int track_veth_rx_port = 1;
 
 	while (!t->quit)
 	{
@@ -1753,7 +1765,7 @@ thread_func_veth(void *arg)
 		ret_val->ring_buf_index = 0;
 
 		// printf("thread_func_veth \n");
-		struct port *port_rx = t->ports_rx[0];
+		struct port *port_rx = t->ports_rx[track_veth_rx_port];
 		struct port *port_tx = t->ports_tx[0];
 		struct burst_rx *brx = &t->burst_rx;
 		// struct burst_tx *btx = &t->burst_tx[0];
@@ -1771,6 +1783,7 @@ thread_func_veth(void *arg)
 		if (!n_pkts) 
 		{
 			// veth_rx_no_packet_counter++;
+			track_veth_rx_port = 1 - track_veth_rx_port;
 			continue;
 		}
 			
@@ -1826,7 +1839,7 @@ thread_func_veth(void *arg)
 				printf("burst_tx_queue for veth rx IS empty \n");
 			}
 		}
-
+		track_veth_rx_port = 1 - track_veth_rx_port;
 		// struct timespec veth_rx_end = get_realtime();
 		// unsigned long veth_rx_end_ns = get_nsec(&veth_rx_end);
 		// unsigned long detla_veth_rx = veth_rx_end_ns - veth_rx_start_ns;
@@ -1859,6 +1872,7 @@ thread_func_nic_to_veth_tx(void *arg)
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
 
 	ringbuf_t *veth_side_queue = t->veth_side_queue;
+	ringbuf_t *veth3_side_queue = t->veth3_side_queue;
 
 	time_t starttime = time(NULL);
 	time_t seconds = 120;
@@ -1956,6 +1970,7 @@ thread_func_nic(void *arg)
 	ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
 
 	ringbuf_t *veth_side_queue = t->veth_side_queue;
+	ringbuf_t *veth3_side_queue = t->veth3_side_queue;
 	ringbuf_t *burst_tx_queue;
 	burst_tx_queue = t->burst_tx_queue;
 
@@ -2179,11 +2194,13 @@ int main(int argc, char **argv)
 
 	load_xdp_program();
 
-	n_ports = 2; // 0 and 1 (veth and nic)
+	n_ports = 3; // 0 and 1 and 2 (veth1 and nic and veth3)
 	port_params[0].iface = "veth1";
 	port_params[0].iface_queue = 0;
 	port_params[1].iface = nic_iface; //"enp65s0f0np0"
 	port_params[1].iface_queue = 0;
+	port_params[2].iface = "veth3"; 
+	port_params[2].iface_queue = 0;
 
 	n_threads = 4;
 	thread_data[0].cpu_core_id = 21; // cat /proc/cpuinfo | grep 'core id'
@@ -2315,6 +2332,7 @@ int main(int argc, char **argv)
 	non_local_ring_array[2] = ringbuf_create(2048);
 
 	veth_side_queue = ringbuf_create(2048);
+	veth3_side_queue = ringbuf_create(2048);
 	burst_tx_queue_veth = ringbuf_create(MAX_BURST_TX_OBJS);
 	burst_tx_queue_nic = ringbuf_create(MAX_BURST_TX_OBJS);
 
@@ -2327,8 +2345,9 @@ int main(int argc, char **argv)
 
 		if (i == 0)
 		{							   // veth->nic (veth rx: push to local queues)
-			t->ports_rx[0] = ports[0]; // veth
+			t->ports_rx[0] = ports[0]; // veth1
 			t->ports_tx[0] = ports[1]; // nic
+			t->ports_rx[1] = ports[2]; // veth3
 			t->ring_bf_array[0] = ring_array[0];
 			t->ring_bf_array[1] = ring_array[1];
 			t->ring_bf_array[2] = ring_array[2];
@@ -2337,12 +2356,14 @@ int main(int argc, char **argv)
 		else if (i == 1)
 		{							   // nic-veth (nic rx: push to non-local and veth_side_queue)
 			t->ports_rx[0] = ports[1]; // nic
-			t->ports_tx[0] = ports[0]; // veth
+			t->ports_tx[0] = ports[0]; // veth1
 			t->ports_tx[1] = ports[1]; // nic
+			t->ports_tx[2] = ports[2]; // veth3
 			t->non_loca_ring_bf_array[0] = non_local_ring_array[0];
 			t->non_loca_ring_bf_array[1] = non_local_ring_array[1];
 			t->non_loca_ring_bf_array[2] = non_local_ring_array[2];
 			t->veth_side_queue = veth_side_queue;
+			t->veth3_side_queue = veth3_side_queue;
 			t->burst_tx_queue = burst_tx_queue_nic;
 		}
 		else if (i == 2)
@@ -2358,8 +2379,10 @@ int main(int argc, char **argv)
 		}
 		else if (i == 3)
 		{							   // nic-veth (veth tx: pull from veth_side_queue)
-			t->ports_tx[0] = ports[0]; // veth
+			t->ports_tx[0] = ports[0]; // veth1
+			t->ports_tx[1] = ports[2]; // veth3
 			t->veth_side_queue = veth_side_queue;
+			t->veth3_side_queue = veth3_side_queue;
 			t->burst_tx_queue = burst_tx_queue_nic;
 		}
 
@@ -2500,6 +2523,7 @@ int main(int argc, char **argv)
 	ringbuf_free(non_local_ring_array[1]);
 	ringbuf_free(non_local_ring_array[2]);
 	ringbuf_free(veth_side_queue);
+	ringbuf_free(veth3_side_queue);
 	ringbuf_free(burst_tx_queue_veth);
 	ringbuf_free(burst_tx_queue_nic);
 
