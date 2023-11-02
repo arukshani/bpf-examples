@@ -224,6 +224,7 @@ __u32 t1ms;
 struct return_process_rx { 
 	int new_len;
 	int ring_buf_index;
+	int which_veth;
 };
 
 unsigned long total_veth_rx = 0;

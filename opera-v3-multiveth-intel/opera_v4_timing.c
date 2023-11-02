@@ -1316,7 +1316,12 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 									 sizeof(struct ethhdr) + sizeof(struct iphdr));
 
 		gre_hdr->proto = bpf_htons(ETH_P_TEB);
-		gre_hdr->flags = 1;
+		if (is_veth == 0) {
+			gre_hdr->flags = 0;
+		} else if (is_veth3 == 0) {
+			gre_hdr->flags = 1;
+		}
+		
 
 		// return_val->dest_queue = dest_queue;
 		return_val->new_len = new_len;
@@ -1349,7 +1354,8 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 		// }
 
 		struct iphdr *inner_ip_hdr = (struct iphdr *)(inner_eth + 1);
-		if (src_ip != (inner_ip_hdr->daddr) || veth3_ip_addr != (inner_ip_hdr->daddr))
+		// if (src_ip != (inner_ip_hdr->daddr) || veth3_ip_addr != (inner_ip_hdr->daddr))
+		if (src_ip != (inner_ip_hdr->daddr))
 		{
 			// printf("Not destined for local node \n");
 			// send it back out NIC
@@ -1387,6 +1393,15 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 		else
 		{
 			// printf("Destined for local node \n");
+
+			if (greh->flags == 0) {
+				//destined to veth1
+				return_val->which_veth = 0;
+			} else if (greh->flags == 1) {
+				//destined to veth3
+				return_val->which_veth = 1;
+			}
+
 			// send it to local veth
 			void *cutoff_pos = greh + 1;
 			int cutoff_len = (int)(cutoff_pos - data);
@@ -1884,24 +1899,56 @@ thread_func_nic_to_veth_tx(void *arg)
 	ringbuf_t *burst_tx_queue;
 	burst_tx_queue = t->burst_tx_queue;
 
+	int track_veth_tx_port = 1;
+
 	while (starttime < endtime)
 	{ // A hack to get the thread to return
 		// while (!t->quit) {
 		starttime = time(NULL);
-		struct port *port_tx = t->ports_tx[0];
+		track_veth_tx_port = 1 - track_veth_tx_port;
+		struct port *port_tx = t->ports_tx[track_veth_tx_port];
 
 		// struct burst_tx *btx_collector = calloc(1, sizeof(struct burst_tx));
 		int btx_index = 0;
 		btx_collector->n_pkts = 0;
 
-		//++++++++++++++++++++++DRAIN VETH SIDE QUEUE++++++++++++++++++++++++
-		if (veth_side_queue != NULL)
+		//++++++++++++++++++++++DRAIN VETH1 SIDE QUEUE++++++++++++++++++++++++
+		if (veth_side_queue != NULL && track_veth_tx_port == 0)
 		{
 			while ((!ringbuf_is_empty(veth_side_queue)) && (btx_index < MAX_BURST_TX))
 			{
 				// printf("veth side queue is not empty \n");
 				void *obj;
 				ringbuf_sc_dequeue(veth_side_queue, &obj);
+				struct burst_tx *btx = (struct burst_tx *)obj;
+				btx_collector->addr[btx_index] = btx->addr[0];
+				btx_collector->len[btx_index] = btx->len[0];
+
+				if (burst_tx_queue != NULL)
+				{
+					btx->addr[0] = 0;
+					btx->len[0] = 0;
+					ringbuf_sp_enqueue(burst_tx_queue, btx);
+				} else {
+					printf("burst_tx_queue is NULL \n");
+				}
+				// free(btx);
+
+				btx_index++;
+				btx_collector->n_pkts = btx_index;
+				// port_tx_burst(port_tx, btx, 1, 1);
+				// need_to_flush = 1;
+			}
+		}
+
+		//++++++++++++++++++++++DRAIN VETH3 SIDE QUEUE++++++++++++++++++++++++
+		if (veth3_side_queue != NULL && track_veth_tx_port == 1)
+		{
+			while ((!ringbuf_is_empty(veth3_side_queue)) && (btx_index < MAX_BURST_TX))
+			{
+				// printf("veth side queue is not empty \n");
+				void *obj;
+				ringbuf_sc_dequeue(veth3_side_queue, &obj);
 				struct burst_tx *btx = (struct burst_tx *)obj;
 				btx_collector->addr[btx_index] = btx->addr[0];
 				btx_collector->len[btx_index] = btx->len[0];
@@ -2069,26 +2116,46 @@ thread_func_nic(void *arg)
 							btx->n_pkts++;
 
 							// if (btx->n_pkts == 1) {
-							if (veth_side_queue != NULL)
-							{
-								if (!ringbuf_is_full(veth_side_queue))
+							if (ret_val->which_veth == 0) {
+								if (veth_side_queue != NULL)
 								{
-									// printf("queue packet %lld \n", btx->addr[0]);
-									ringbuf_sp_enqueue(veth_side_queue, btx);
-									// printf("packet from veth is enqueued \n");
+									if (!ringbuf_is_full(veth_side_queue))
+									{
+										// printf("queue packet %lld \n", btx->addr[0]);
+										ringbuf_sp_enqueue(veth_side_queue, btx);
+										// printf("packet from veth is enqueued \n");
+									}
+									else
+									{
+										printf("QUEUE IS FULL \n");
+									}
 								}
 								else
 								{
-									printf("QUEUE IS FULL \n");
+									printf("TODO: There is no veth_side_queue to push the packet \n");
+								}
+								// port_tx_burst(port_tx, btx, 1);
+								// btx->n_pkts = 0;
+								// }
+							} else if (ret_val->which_veth == 1) {
+								if (veth3_side_queue != NULL)
+								{
+									if (!ringbuf_is_full(veth3_side_queue))
+									{
+										// printf("queue packet %lld \n", btx->addr[0]);
+										ringbuf_sp_enqueue(veth3_side_queue, btx);
+										// printf("packet from veth is enqueued \n");
+									}
+									else
+									{
+										printf("QUEUE IS FULL \n");
+									}
+								}
+								else
+								{
+									printf("TODO: There is no veth3_side_queue to push the packet \n");
 								}
 							}
-							else
-							{
-								printf("TODO: There is no veth_side_queue to push the packet \n");
-							}
-							// port_tx_burst(port_tx, btx, 1);
-							// btx->n_pkts = 0;
-							// }
 						}
 					}
 				} else {

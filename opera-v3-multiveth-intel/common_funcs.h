@@ -61,44 +61,44 @@ int getMACAddress(char *ifname, unsigned char chMAC[6]) {
   return 1;
 }
 
-void extractIpAddress(unsigned char* sourceString, short* ipAddress)
-{
-    unsigned short len = 0;
-    unsigned char oct[4] = { 0 }, cnt = 0, cnt1 = 0, i, buf[5];
+// void extractIpAddress(unsigned char* sourceString, short* ipAddress)
+// {
+//     unsigned short len = 0;
+//     unsigned char oct[4] = { 0 }, cnt = 0, cnt1 = 0, i, buf[5];
 
-    len = strlen(sourceString);
-    for (i = 0; i < len; i++) {
-        if (sourceString[i] != '.') {
-            buf[cnt++] = sourceString[i];
-        }
-        if (sourceString[i] == '.' || i == len - 1) {
-            buf[cnt] = '\0';
-            cnt = 0;
-            oct[cnt1++] = atoi(buf);
-        }
-    }
-    ipAddress[0] = oct[0];
-    ipAddress[1] = oct[1];
-    ipAddress[2] = oct[2];
-    ipAddress[3] = oct[3];
-}
+//     len = strlen(sourceString);
+//     for (i = 0; i < len; i++) {
+//         if (sourceString[i] != '.') {
+//             buf[cnt++] = sourceString[i];
+//         }
+//         if (sourceString[i] == '.' || i == len - 1) {
+//             buf[cnt] = '\0';
+//             cnt = 0;
+//             oct[cnt1++] = atoi(buf);
+//         }
+//     }
+//     ipAddress[0] = oct[0];
+//     ipAddress[1] = oct[1];
+//     ipAddress[2] = oct[2];
+//     ipAddress[3] = oct[3];
+// }
 
-void concatenate_string(char* s, char* s1)
-{
-    int i;
+// void concatenate_string(char* s, char* s1)
+// {
+//     int i;
  
-    int j = strlen(s);
+//     int j = strlen(s);
  
-    for (i = 0; s1[i] != '\0'; i++) {
-        s[i + j] = s1[i];
-    }
+//     for (i = 0; s1[i] != '\0'; i++) {
+//         s[i + j] = s1[i];
+//     }
  
-    s[i + j] = '\0';
+//     s[i + j] = '\0';
  
-    return;
-}
+//     return;
+// }
 
-uint32_t veth3_ip_addr;
+// uint32_t veth3_ip_addr;
 /* Returns the interface IP Address
    Params: int iNetType - 0: ethernet, 1: Wifi
            char *chIP - IP Address string
@@ -143,22 +143,18 @@ uint32_t getIpAddress(char *ifname) {
   // uint32_t ip_addr = (((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr).s_addr;
   printf("Source IP Address: %d\n", ip_addr);
 
-  short veth3_ipAddress[4];
-  extractIpAddress("192.168.2.1", &veth3_ipAddress[0]);
-  char buf[100];
-  int n = sprintf(buf, "%d", veth3_ipAddress[3]);
-  char veth3_subnet_str[100] = "192.168.2.";
-  concatenate_string(veth3_subnet_str, buf);
-//   printf("Concatenated String is: '%s'\n", veth3_subnet_str);
-//   snprintf(buf, sizeof(buf), "%s%s%s%s", str1, str2, str3, str4);
-//   printf("%s %d\n", buf, n);
-//   printf("\nVeth 3 Ip Address: %03d. %03d. %d. %d\n", veth3_ipAddress[0], veth3_ipAddress[1], veth3_ipAddress[2], veth3_ipAddress[3]);
-  
-  struct sockaddr_in veth3_sa;
-  inet_pton(AF_INET, veth3_subnet_str, &(veth3_sa.sin_addr));
-  veth3_ip_addr = inet_addr(inet_ntoa((veth3_sa.sin_addr)));
-  printf("Source VETH3 IP Address: %s\n", inet_ntoa(veth3_sa.sin_addr));
-  printf("Source VETH3 IP Address: %d\n", veth3_ip_addr);
+//   short veth3_ipAddress[4];
+//   extractIpAddress("192.168.2.1", &veth3_ipAddress[0]);
+//   char buf[100];
+//   int n = sprintf(buf, "%d", veth3_ipAddress[3]);
+//   char veth3_subnet_str[100] = "192.168.2.";
+//   concatenate_string(veth3_subnet_str, buf);
+
+//   struct sockaddr_in veth3_sa;
+//   inet_pton(AF_INET, veth3_subnet_str, &(veth3_sa.sin_addr));
+//   veth3_ip_addr = inet_addr(inet_ntoa((veth3_sa.sin_addr)));
+//   printf("Source VETH3 IP Address: %s\n", inet_ntoa(veth3_sa.sin_addr));
+//   printf("Source VETH3 IP Address: %d\n", veth3_ip_addr);
   close(fd);
 
   return ip_addr;
