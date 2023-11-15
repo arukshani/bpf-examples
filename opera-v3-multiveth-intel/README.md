@@ -114,4 +114,6 @@ lstopo --output-format png -v > cpu.png
 
 sudo ip netns exec red arp -i veth2 -s 192.168.1.2 2e:13:aa:17:8d:23
 sudo ip netns exec red arp -i veth2 -s 192.168.1.1 1e:8f:5f:b2:a9:84
+
+sudo systemctl restart autofs.service (yeti01; get home directory)
 ```
