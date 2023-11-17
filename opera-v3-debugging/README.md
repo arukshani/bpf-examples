@@ -151,3 +151,8 @@ iperf -s 10.1.0.2 -u
 sudo ip netns exec blue iperf -c 10.1.0.2 -u -t 100 -b 50000M -i 1
 
 ```
+
+```
+./iperf_udp_blast.sh -n 0 (0 means one namespace, 1 means 2 namespaces)
+sudo ./p2_drop 10.1.0.1 configs/node-1-link.csv /dev/ptp0 100 1
+```

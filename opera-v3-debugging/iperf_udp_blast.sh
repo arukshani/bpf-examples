@@ -1,6 +1,6 @@
 #!/bin/bash
 
-num_namespaces=1
+num_namespaces=0
 server="10.1.0.2"
 bandwidth="50000M"
 nic_local_numa_node=$(cat /sys/class/net/ens4/device/numa_node)

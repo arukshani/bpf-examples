@@ -556,7 +556,7 @@ static void remove_xdp_program(void)
 	}
 }
 
-static struct xdp_program *xdp_prog[14];
+static struct xdp_program *xdp_prog[16];
 // static enum xdp_attach_mode opt_attach_mode = XDP_MODE_NATIVE;
 
 static int lookup_bpf_map(int prog_fd)
@@ -2278,22 +2278,31 @@ int main(int argc, char **argv)
 	load_xdp_program();
 	port_params[0].iface = nic_iface; //"enp65s0f0np0"
 	port_params[0].iface_queue = 0;
-	port_params[1].iface = "veth1"; 
-	port_params[1].iface_queue = 0;
-	port_params[2].iface = "veth3"; 
-	port_params[2].iface_queue = 0;
-	port_params[3].iface = "vethout23"; 
-	port_params[3].iface_queue = 0;
-	port_params[4].iface = "vethout24"; 
-	port_params[4].iface_queue = 0;
-	port_params[5].iface = "vethout26"; 
-	port_params[5].iface_queue = 0;
-	port_params[6].iface = "vethout27"; 
-	port_params[6].iface_queue = 0;
-	port_params[7].iface = "vethout28"; 
-	port_params[7].iface_queue = 0;
-	port_params[8].iface = "vethout29"; 
-	port_params[8].iface_queue = 0;
+	// port_params[1].iface = "veth1"; 
+	// port_params[1].iface_queue = 0;
+	// port_params[2].iface = "veth3"; 
+	// port_params[2].iface_queue = 0;
+	// port_params[3].iface = "vethout23"; 
+	// port_params[3].iface_queue = 0;
+	// port_params[4].iface = "vethout24"; 
+	// port_params[4].iface_queue = 0;
+	// port_params[5].iface = "vethout26"; 
+	// port_params[5].iface_queue = 0;
+	// port_params[6].iface = "vethout27"; 
+	// port_params[6].iface_queue = 0;
+	// port_params[7].iface = "vethout28"; 
+	// port_params[7].iface_queue = 0;
+	// port_params[8].iface = "vethout29"; 
+	// port_params[8].iface_queue = 0;
+
+	int x,z;
+    int veth_port_count = n_ports - 1;
+    for (x = 1; x < n_ports; x++)
+	{
+		z = x-1;
+		port_params[x].iface = out_veth_arr[z]; 
+	    port_params[x].iface_queue = 0;
+	}
 
 	// int d = 11;
 	// for (i = 1; i < n_ports; i++)
