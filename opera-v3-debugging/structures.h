@@ -241,3 +241,5 @@ unsigned long veth_tx_no_packet_counter = 0;
 unsigned long veth_tx_has_packet_counter = 0;
 unsigned long nic_tx_no_packet_counter = 0;
 unsigned long nic_tx_has_packet_counter = 0;
+
+char out_veth_arr[13][10] = {"veth1", "veth3", "vethout23", "vethout24", "vethout26", "vethout27", "vethout28", "vethout29", "vethout30", "vethout31", "vethout32", "vethout33", "vethout34"};

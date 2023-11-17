@@ -42,15 +42,22 @@ clang --version
 ns11
 vethin12
 vethout22
+
+
 ns12
 vethin13
 vethout23
 ns13
 vethin14
 vethout24
+
+
 ns14
 vethin15
 vethout25
+
+
+
 ns15
 vethin16
 vethout26
@@ -106,4 +113,10 @@ if (track_veth_rx_port == 8) {
 struct config cfgs[9]
 
 static struct xdp_program *xdp_prog[9];
+```
+
+```
+sudo ./p2_drop 10.1.0.1 configs/node-1-link.csv /dev/ptp0 100 1
+sudo ./p2_drop 10.1.0.1 configs/node-1-link.csv /dev/ptp0 100 2
+sudo ./p2_drop 10.1.0.1 configs/node-1-link.csv /dev/ptp0 100 3
 ```

@@ -148,4 +148,6 @@ iperf -c 10.1.0.2 -u -t 10 -b 50000M -i 1
 iperf -c 10.1.0.2 -u -t 200 -b 50000M -i 1
 iperf -s 10.1.0.2 -u
 
+sudo ip netns exec blue iperf -c 10.1.0.2 -u -t 100 -b 50000M -i 1
+
 ```
