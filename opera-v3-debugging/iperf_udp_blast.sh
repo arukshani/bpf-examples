@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# no server is running on the other side
 num_namespaces=0
 server="10.1.0.2"
 bandwidth="50000M"
