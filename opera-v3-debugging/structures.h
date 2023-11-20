@@ -203,8 +203,8 @@ struct thread_data {
 	int quit;
 	ringbuf_t *ring_bf_array[3]; 
 	ringbuf_t *non_loca_ring_bf_array[3]; 
-	ringbuf_t *veth_side_queue;
-	ringbuf_t *veth3_side_queue;
+	ringbuf_t *veth_side_queue[13];
+	// ringbuf_t *veth3_side_queue;
 	ringbuf_t *burst_tx_queue;
 };
 
@@ -224,10 +224,11 @@ struct bcache {
 
 ringbuf_t *ring_array[3];
 ringbuf_t *non_local_ring_array[3];
-ringbuf_t *veth_side_queue;
-ringbuf_t *veth3_side_queue;
+// ringbuf_t *veth_side_queue;
+// ringbuf_t *veth3_side_queue;
 ringbuf_t *burst_tx_queue_veth;
 ringbuf_t *burst_tx_queue_nic;
+ringbuf_t *veth_side_queue[13];
 
 __u32 t1ms;
 
