@@ -26,9 +26,13 @@ struct HashNode** ip_set;
 mg_Map mac_table; //mac table
 mg_Map ip_table; //ip table
 mg_Map dest_queue_table; //destination queue table
+mg_Map ns_table;
 struct ip_set {
 	int index;
 };
+// struct ns_set {
+// 	int index;
+// };
 char *ptp_clock_name;
 
 struct bpool_params {
@@ -67,6 +71,7 @@ struct burst_rx {
 struct burst_tx {
 	u64 addr[1];
 	u32 len[1];
+	// u32 ns_index;
 	u32 n_pkts;
 };
 
@@ -81,6 +86,7 @@ struct port_params {
 	struct bpool *bp;
 	const char *iface;
 	u32 iface_queue;
+	u32 ns_index;
 };
 
 struct port {
@@ -155,11 +161,12 @@ static const struct port_params port_params_default = {
 	.bp = NULL,
 	.iface = NULL,
 	.iface_queue = 0,
+	// .ns_index = 0,
 };
 
 
 #ifndef MAX_PORTS
-#define MAX_PORTS 16
+#define MAX_PORTS 32
 #endif
 
 #ifndef MAX_THREADS
@@ -173,6 +180,8 @@ static struct bpool *bp;
 static struct port_params port_params[MAX_PORTS];
 static struct port *ports[MAX_PORTS];
 static int n_ports;
+static int n_nic_ports;
+static int n_veth_ports;
 
 /*
  * Thread
