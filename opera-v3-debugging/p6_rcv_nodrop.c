@@ -535,48 +535,15 @@ print_thread(u32 thread_id)
 	printf("\n");
 }
 
-static void remove_xdp_program_nic(void)
+static void remove_xdp_program(void)
 {
 	struct xdp_multiprog *mp;
 	int i, err;
 
-	mp = xdp_multiprog__get_from_ifindex(if_nametoindex(nic_iface));
-	printf("remove_xdp_program_nic: %s \n", nic_iface);
-	if (IS_ERR_OR_NULL(mp))
-	{
-		printf("No XDP program loaded on %s\n", nic_iface);
-		// continue;
-	}
-
-	err = xdp_multiprog__detach(mp);
-	if (err)
-		printf("Unable to detach XDP program: %s\n", strerror(-err));
-
-	// for (i = 0; i < 1; i++)
-	// {
-	// 	mp = xdp_multiprog__get_from_ifindex(if_nametoindex(port_params[i].iface));
-	// 	printf("remove_xdp_program_nic: %s \n", port_params[i].iface);
-	// 	if (IS_ERR_OR_NULL(mp))
-	// 	{
-	// 		printf("No XDP program loaded on %s\n", port_params[i].iface);
-	// 		continue;
-	// 	}
-
-	// 	err = xdp_multiprog__detach(mp);
-	// 	if (err)
-	// 		printf("Unable to detach XDP program: %s\n", strerror(-err));
-	// }
-}
-
-static void remove_xdp_program_veth(void)
-{
-	struct xdp_multiprog *mp;
-	int i, err;
-
-	for (i = n_nic_ports; i < n_ports; i++)
+	for (i = 0; i < n_ports; i++)
 	{
 		mp = xdp_multiprog__get_from_ifindex(if_nametoindex(port_params[i].iface));
-		printf("remove_xdp_program_veth: %s \n", port_params[i].iface);
+		printf("n_ports %s \n", port_params[i].iface);
 		if (IS_ERR_OR_NULL(mp))
 		{
 			printf("No XDP program loaded on %s\n", port_params[i].iface);
@@ -589,7 +556,7 @@ static void remove_xdp_program_veth(void)
 	}
 }
 
-static struct xdp_program *xdp_prog[26];
+static struct xdp_program *xdp_prog[16];
 // static enum xdp_attach_mode opt_attach_mode = XDP_MODE_NATIVE;
 
 static int lookup_bpf_map(int prog_fd)
@@ -649,39 +616,6 @@ static int lookup_bpf_map(int prog_fd)
 	return xsks_map_fd;
 }
 
-
-static void enter_xsks_into_map_for_nic()
-{
-	int xsks_map;
-
-	int first_nic_index = 0;
-
-	xsks_map = lookup_bpf_map(xdp_program__fd(xdp_prog[first_nic_index]));
-	if (xsks_map < 0)
-	{
-		fprintf(stderr, "ERROR: no xsks map found: %s\n",
-				strerror(xsks_map));
-		exit(EXIT_FAILURE);
-	}
-
-
-	printf("Update bpf map for xdp_prog[%d] %s, \n", first_nic_index, port_params[first_nic_index].iface);
-
-	int y;
-    for (y = 0; y < n_nic_ports; y++)
-	{
-		int fd = xsk_socket__fd(ports[y]->xsk);
-		int key, ret;
-		key = y;
-		ret = bpf_map_update_elem(xsks_map, &key, &fd, 0);
-		if (ret)
-		{
-			fprintf(stderr, "ERROR: bpf_map_update_elem %d %d\n", y, ret);
-			exit(EXIT_FAILURE);
-		}
-	}
-}
-
 static void enter_xsks_into_map(u32 index)
 {
 	int i, xsks_map;
@@ -725,75 +659,41 @@ struct config
 
 static void load_xdp_program(void)
 {
-    // struct config cfgs[14] = {nic_cfg, veth_cfg, veth3_cfg, veth23_cfg, veth24_cfg, veth25_cfg, veth27_cfg, veth28_cfg, veth29_cfg};
-    struct config cfgs[26];
-
 	int nic_ifindex = if_nametoindex(nic_iface);
 
-    int y;
-    for (y = 0; y < n_nic_ports; y++)
-	{
-        // Physical NIC
-        struct config nic_cfg = {
-            .ifindex = nic_ifindex,
-            .ifname = nic_iface,
-            .xsk_if_queue = y,
-            .xsk_poll_mode = true,
-            .filename = "nic_kern.o",
-            .progsec = "xdp_sock_1"};
+	// Physical NIC
+	struct config nic_cfg = {
+		.ifindex = nic_ifindex,
+		.ifname = nic_iface,
+		.xsk_if_queue = 0,
+		.xsk_poll_mode = true,
+		.filename = "nic_kern.o",
+		.progsec = "xdp_sock_1"};
 
-        cfgs[y] = nic_cfg;
-    }
-	
-    
-    int x, z;
-    z = 0;
-    int start_index_for_veth_ports = n_nic_ports;
-    for (x = start_index_for_veth_ports; x < n_ports; x++)
-	{
 
-        int veth_ifindex = if_nametoindex(out_veth_arr[z]);
+	// struct config cfgs[14] = {nic_cfg, veth_cfg, veth3_cfg, veth23_cfg, veth24_cfg, veth25_cfg, veth27_cfg, veth28_cfg, veth29_cfg};
+    struct config cfgs[14];
+    cfgs[0] = nic_cfg;
+    int x;
+    int num_veth_ports = n_ports - 1;
+    for (x = 0; x < num_veth_ports; x++)
+	{
+        int veth_ifindex = if_nametoindex(out_veth_arr[x]);
         struct config veth_cfg = {
 		.ifindex = veth_ifindex,
-		.ifname = out_veth_arr[z],
+		.ifname = out_veth_arr[x],
 		.xsk_if_queue = 0,
 		.xsk_poll_mode = true,
 		.filename = "veth_kern.o",
 		.progsec = "xdp_sock_0"};
 
-        z = z + 1;
-        cfgs[x] = veth_cfg;
+        int y = x + 1;
+        cfgs[y] = veth_cfg;
 
     }
 
-	//Following is just for NIC========================
-	char errmsg[STRERR_BUFSIZE];
-	int err;
-
-	printf("xdp_prog[%d] is %s \n", 0, cfgs[0].filename);
-
-	xdp_prog[0] = xdp_program__open_file(cfgs[0].filename, cfgs[0].progsec, NULL);
-	err = libxdp_get_error(xdp_prog[0]);
-	if (err)
-	{
-		libxdp_strerror(err, errmsg, sizeof(errmsg));
-		fprintf(stderr, "ERROR: program loading failed: %s\n", errmsg);
-		exit(EXIT_FAILURE);
-	}
-
-	err = xdp_program__attach(xdp_prog[0], cfgs[0].ifindex, XDP_FLAGS_DRV_MODE, 0);
-	if (err)
-	{
-		libxdp_strerror(err, errmsg, sizeof(errmsg));
-		fprintf(stderr, "ERROR: attaching program failed: %s\n", errmsg);
-		exit(EXIT_FAILURE);
-	}
-	//==========================================
-
-
-	int start_index_for_veth_cfgs = n_nic_ports; //bcoz we only need one program to load on NIC even though it has multiple queues
     int i;
-	for (i = start_index_for_veth_cfgs; i < n_ports; i++)
+	for (i = 0; i < n_ports; i++)
 	{
 
 		char errmsg[STRERR_BUFSIZE];
@@ -1313,8 +1213,6 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 	// int is_veth3 = strcmp(params->iface, "veth3");
 	int is_nic = strcmp(params->iface, nic_iface);
 
-	// printf("params->iface : %s \n", params->iface);
-
 	// if (is_veth == 0 || is_veth3 == 0)
     if (prefix( "veth", params->iface))
 	{
@@ -1429,44 +1327,33 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 									 sizeof(struct ethhdr) + sizeof(struct iphdr));
 
 		gre_hdr->proto = bpf_htons(ETH_P_TEB);
-
-		// printf("params->ns_index : %d \n", params->ns_index);
-		// struct ns_set *ns_index = mg_map_get(&ns_table, params->ns_index);
-		// if (ns_index != NULL) 
-		// {
-		// 	printf("ns_index->index : %d \n", ns_index->index);
-		// }
-		
-		gre_hdr->flags = params->ns_index;
-		// printf("GRE flag set : %d \n", ns_index->index);
-
-		// if (strcmp(params->iface, "veth1") == 0) {
-		// 	gre_hdr->flags = 0;
-		// } else if (strcmp(params->iface, "veth3") == 0) {
-		// 	gre_hdr->flags = 1;
-		// } else if (strcmp(params->iface, "vethout23") == 0) {
-		// 	gre_hdr->flags = 2;
-		// } else if (strcmp(params->iface, "vethout24") == 0) {
-		// 	gre_hdr->flags = 3;
-		// } else if (strcmp(params->iface, "vethout26") == 0) {
-		// 	gre_hdr->flags = 4;
-		// } else if (strcmp(params->iface, "vethout27") == 0) {
-		// 	gre_hdr->flags = 5;
-		// } else if (strcmp(params->iface, "vethout28") == 0) {
-		// 	gre_hdr->flags = 6;
-		// } else if (strcmp(params->iface, "vethout29") == 0) {
-		// 	gre_hdr->flags = 7;
-		// } else if (strcmp(params->iface, "vethout30") == 0) {
-		// 	gre_hdr->flags = 8;
-		// } else if (strcmp(params->iface, "vethout31") == 0) {
-		// 	gre_hdr->flags = 9;
-		// } else if (strcmp(params->iface, "vethout32") == 0) {
-		// 	gre_hdr->flags = 10;
-		// } else if (strcmp(params->iface, "vethout33") == 0) {
-		// 	gre_hdr->flags = 11;
-		// } else if (strcmp(params->iface, "vethout34") == 0) {
-		// 	gre_hdr->flags = 12;
-		// }
+		if (strcmp(params->iface, "veth1") == 0) {
+			gre_hdr->flags = 0;
+		} else if (strcmp(params->iface, "veth3") == 0) {
+			gre_hdr->flags = 1;
+		} else if (strcmp(params->iface, "vethout23") == 0) {
+			gre_hdr->flags = 2;
+		} else if (strcmp(params->iface, "vethout24") == 0) {
+			gre_hdr->flags = 3;
+		} else if (strcmp(params->iface, "vethout26") == 0) {
+			gre_hdr->flags = 4;
+		} else if (strcmp(params->iface, "vethout27") == 0) {
+			gre_hdr->flags = 5;
+		} else if (strcmp(params->iface, "vethout28") == 0) {
+			gre_hdr->flags = 6;
+		} else if (strcmp(params->iface, "vethout29") == 0) {
+			gre_hdr->flags = 7;
+		} else if (strcmp(params->iface, "vethout30") == 0) {
+			gre_hdr->flags = 8;
+		} else if (strcmp(params->iface, "vethout31") == 0) {
+			gre_hdr->flags = 9;
+		} else if (strcmp(params->iface, "vethout32") == 0) {
+			gre_hdr->flags = 10;
+		} else if (strcmp(params->iface, "vethout33") == 0) {
+			gre_hdr->flags = 11;
+		} else if (strcmp(params->iface, "vethout34") == 0) {
+			gre_hdr->flags = 12;
+		}
 
 		// return_val->dest_queue = dest_queue;
 		return_val->new_len = new_len;
@@ -1540,17 +1427,11 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 			// printf("Destined for local node \n");
 
 			// if (greh->flags == 0) {
-			// 	//destined to veth1
 			// 	return_val->which_veth = 0;
 			// } else if (greh->flags == 1) {
-			// 	//destined to veth3
 			// 	return_val->which_veth = 1;
 			// }
 
-			// if (greh->flags != 0 | greh->flags != 1) {
-			// 	printf("goint to veth tx: greh->flags: %d \n", greh->flags);
-			// }
-			
 			return_val->which_veth = greh->flags;
 
 			// send it to local veth
@@ -1676,12 +1557,9 @@ thread_func_veth_to_nic_tx(void *arg)
 	ringbuf_t *burst_tx_queue;
 	burst_tx_queue = t->burst_tx_queue;
 
-    int track_nic_tx_port = 0;
-    int num_nic_ports = n_nic_ports - 1;
-
 	while (!t->quit)
 	{
-		struct port *port_tx = t->ports_tx[track_nic_tx_port];
+		struct port *port_tx = t->ports_tx[0];
 		int btx_index = 0;
 
 		//++++++++++++++++++++++DRAIN NON-LOCAL QUEUES++++++++++++++++++++++++
@@ -1858,12 +1736,6 @@ thread_func_veth_to_nic_tx(void *arg)
 			port_tx_burst_collector(port_tx, btx_collector, 0, 0);
 			
 		} 
-
-        if (track_nic_tx_port == num_nic_ports) {
-            track_nic_tx_port = 0;
-        } else {
-            track_nic_tx_port = track_nic_tx_port + 1;
-        }
 		
 		btx_collector->n_pkts = 0;
 	}
@@ -1912,8 +1784,8 @@ thread_func_veth(void *arg)
 	// ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
 
 	struct return_process_rx *ret_val = calloc(1, sizeof(struct return_process_rx));
-	int track_veth_rx_port = 0;
-    int num_veths = n_veth_ports - 1;
+	int track_veth_rx_port = 1;
+    int num_veths = n_ports - 1;
 
 	while (!t->quit)
 	{
@@ -1941,7 +1813,7 @@ thread_func_veth(void *arg)
             {
                 // veth_rx_no_packet_counter++;
                 if (track_veth_rx_port == num_veths) {
-                    track_veth_rx_port = 0;
+                    track_veth_rx_port = 1;
                 } else {
                     track_veth_rx_port = track_veth_rx_port + 1;
                 }
@@ -2004,7 +1876,7 @@ thread_func_veth(void *arg)
                 }
             }
             if (track_veth_rx_port == num_veths) {
-                    track_veth_rx_port = 0;
+                    track_veth_rx_port = 1;
                 } else {
                     track_veth_rx_port = track_veth_rx_port + 1;
                 }
@@ -2046,13 +1918,6 @@ thread_func_nic_to_veth_tx(void *arg)
 	// ringbuf_t *veth_side_queue = t->veth_side_queue;
 	// ringbuf_t *veth3_side_queue = t->veth3_side_queue;
 
-	ringbuf_t *veth_side_queue[13];
-	int w;
-	for (w = 0; w < n_veth_ports; w++)
-	{
-		veth_side_queue[w] = t->veth_side_queue[w];
-	}
-
 	time_t starttime = time(NULL);
 	time_t seconds = 120;
 	time_t endtime = starttime + seconds;
@@ -2063,8 +1928,18 @@ thread_func_nic_to_veth_tx(void *arg)
 	ringbuf_t *burst_tx_queue;
 	burst_tx_queue = t->burst_tx_queue;
 
-	int track_veth_tx_port = 0;
-    int num_veths = n_veth_ports - 1;
+    ringbuf_t *veth_side_queue[13];
+	int w;
+    printf("veth_port_count:(thread_func_nic_to_veth_tx) %d \n", veth_port_count);
+	for (w = 0; w < veth_port_count; w++)
+	{
+        printf("hello w %d\n", w);
+		veth_side_queue[w] = t->veth_side_queue_array[w];
+	}
+
+	// int track_veth_tx_port = 1;
+    int track_veth_tx_port = 1;
+    int num_veths = n_ports - 1;
 
 	while (starttime < endtime)
 	{ // A hack to get the thread to return
@@ -2077,13 +1952,17 @@ thread_func_nic_to_veth_tx(void *arg)
 		int btx_index = 0;
 		btx_collector->n_pkts = 0;
 
-		if (veth_side_queue[track_veth_tx_port] != NULL)
+		int veth_side_q_index = track_veth_tx_port - 1;
+
+		//++++++++++++++++++++++DRAIN VETH1 SIDE QUEUE++++++++++++++++++++++++
+		if (veth_side_queue[veth_side_q_index] != NULL)
 		{
-			while ((!ringbuf_is_empty(veth_side_queue[track_veth_tx_port])) && (btx_index < MAX_BURST_TX))
+            // printf("drain veth 0 tx\n");
+			while ((!ringbuf_is_empty(veth_side_queue[veth_side_q_index])) && (btx_index < MAX_BURST_TX))
 			{
-				// printf("veth side queue is not empty \n");
+				// printf("DRAIN VETH 0 SIDE QUEUE \n");
 				void *obj;
-				ringbuf_sc_dequeue(veth_side_queue[track_veth_tx_port], &obj);
+				ringbuf_sc_dequeue(veth_side_queue[veth_side_q_index], &obj);
 				struct burst_tx *btx = (struct burst_tx *)obj;
 				btx_collector->addr[btx_index] = btx->addr[0];
 				btx_collector->len[btx_index] = btx->len[0];
@@ -2103,16 +1982,21 @@ thread_func_nic_to_veth_tx(void *arg)
 				// port_tx_burst(port_tx, btx, 1, 1);
 				// need_to_flush = 1;
 			}
-		}
+		} 
+        // else 
+        // {
+        //     printf("veth side queue 0 is NULL \n");
+        // }
 
-		//++++++++++++++++++++++DRAIN VETH1 SIDE QUEUE++++++++++++++++++++++++
-		// if (veth_side_queue != NULL && track_veth_tx_port == 0)
+		//++++++++++++++++++++++DRAIN VETH3 SIDE QUEUE++++++++++++++++++++++++
+		// if (veth_side_queue[1] != NULL)
 		// {
-		// 	while ((!ringbuf_is_empty(veth_side_queue)) && (btx_index < MAX_BURST_TX))
+        //     // printf("DRAIN VETH 1 SIDE QUEUE \n");
+		// 	while ((!ringbuf_is_empty(veth_side_queue[1])) && (btx_index < MAX_BURST_TX))
 		// 	{
 		// 		// printf("veth side queue is not empty \n");
 		// 		void *obj;
-		// 		ringbuf_sc_dequeue(veth_side_queue, &obj);
+		// 		ringbuf_sc_dequeue(veth_side_queue[1], &obj);
 		// 		struct burst_tx *btx = (struct burst_tx *)obj;
 		// 		btx_collector->addr[btx_index] = btx->addr[0];
 		// 		btx_collector->len[btx_index] = btx->len[0];
@@ -2133,35 +2017,10 @@ thread_func_nic_to_veth_tx(void *arg)
 		// 		// need_to_flush = 1;
 		// 	}
 		// }
-
-		// //++++++++++++++++++++++DRAIN VETH3 SIDE QUEUE++++++++++++++++++++++++
-		// if (veth3_side_queue != NULL && track_veth_tx_port == 1)
-		// {
-		// 	while ((!ringbuf_is_empty(veth3_side_queue)) && (btx_index < MAX_BURST_TX))
-		// 	{
-		// 		// printf("veth side queue is not empty \n");
-		// 		void *obj;
-		// 		ringbuf_sc_dequeue(veth3_side_queue, &obj);
-		// 		struct burst_tx *btx = (struct burst_tx *)obj;
-		// 		btx_collector->addr[btx_index] = btx->addr[0];
-		// 		btx_collector->len[btx_index] = btx->len[0];
-
-		// 		if (burst_tx_queue != NULL)
-		// 		{
-		// 			btx->addr[0] = 0;
-		// 			btx->len[0] = 0;
-		// 			ringbuf_sp_enqueue(burst_tx_queue, btx);
-		// 		} else {
-		// 			printf("burst_tx_queue is NULL \n");
-		// 		}
-		// 		// free(btx);
-
-		// 		btx_index++;
-		// 		btx_collector->n_pkts = btx_index;
-		// 		// port_tx_burst(port_tx, btx, 1, 1);
-		// 		// need_to_flush = 1;
-		// 	}
-		// }
+        // else 
+        // {
+        //     printf("veth side queue 1 is empty \n");
+        // }
 
 		// struct timespec veth_tx_start = get_realtime();
 		// unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
@@ -2174,9 +2033,8 @@ thread_func_nic_to_veth_tx(void *arg)
 			port_tx_burst_collector(port_tx, btx_collector, 0, 0);
 			// flush_tx(port_tx);
 		}
-
         if (track_veth_tx_port == num_veths) {
-                    track_veth_tx_port = 0;
+                    track_veth_tx_port = 1;
                 } else {
                     track_veth_tx_port = track_veth_tx_port + 1;
                 }
@@ -2216,17 +2074,18 @@ thread_func_nic(void *arg)
 	ring_buff_non_local[1] = t->non_loca_ring_bf_array[1];
 	ring_buff_non_local[2] = t->non_loca_ring_bf_array[2];
 
-	ringbuf_t *veth_side_queue[13];
-	int w;
-	for (w = 0; w < n_veth_ports; w++)
-	{
-		veth_side_queue[w] = t->veth_side_queue[w];
-	}
-
 	// ringbuf_t *veth_side_queue = t->veth_side_queue;
 	// ringbuf_t *veth3_side_queue = t->veth3_side_queue;
 	ringbuf_t *burst_tx_queue;
 	burst_tx_queue = t->burst_tx_queue;
+
+    ringbuf_t *veth_side_queue[13];
+	int w;
+    printf("veth_port_count: %d \n", veth_port_count);
+	for (w = 0; w < veth_port_count; w++)
+	{
+		veth_side_queue[w] = t->veth_side_queue_array[w];
+	}
 
 	int x;
 	for (x = 0; x < MAX_BURST_TX_OBJS; x++)
@@ -2243,9 +2102,6 @@ thread_func_nic(void *arg)
 		}
 	}
 
-	int track_nic_rx_port = 0;
-    int num_nic_qs = n_nic_ports - 1;
-
 	struct return_process_rx *ret_val = calloc(1, sizeof(struct return_process_rx));
 
 	while (!t->quit)
@@ -2253,7 +2109,7 @@ thread_func_nic(void *arg)
 		ret_val->new_len = 0;
 		ret_val->ring_buf_index = 0;
 		// printf("thread_func_nic \n");
-		struct port *port_rx = t->ports_rx[track_nic_rx_port];
+		struct port *port_rx = t->ports_rx[0];
 		// struct port *port_tx = t->ports_tx[0];
 		// struct port *port_tx_nic = t->ports_tx[1];
 		struct burst_rx *brx = &t->burst_rx;
@@ -2268,16 +2124,8 @@ thread_func_nic(void *arg)
 		n_pkts = port_rx_burst(port_rx, brx, i);
 		
 
-		if (!n_pkts) 
-		{
-			if (track_nic_rx_port == num_nic_qs) {
-                    track_nic_rx_port = 0;
-                } else {
-                    track_nic_rx_port = track_nic_rx_port + 1;
-                }
+		if (!n_pkts)
 			continue;
-		}
-			
 
 		// printf("n_pkts %d", n_pkts);
 
@@ -2333,57 +2181,45 @@ thread_func_nic(void *arg)
 							btx->len[0] = ret_val->new_len;
 							btx->n_pkts++;
 
-							if (veth_side_queue[ret_val->which_veth] != NULL)
-							{
-								if (!ringbuf_is_full(veth_side_queue[ret_val->which_veth]))
-								{
-									ringbuf_sp_enqueue(veth_side_queue[ret_val->which_veth], btx);
-								} else 
-								{
-									printf("VETH SIDE QUEUE %d QUEUE IS FULL \n", ret_val->which_veth);
-								}
-							} else
-							{
-								printf("TODO: There is no veth_side_queue to push the packet \n");
-							}
-
 							// if (ret_val->which_veth == 0) {
-							// 	if (veth_side_queue != NULL)
-							// 	{
-							// 		if (!ringbuf_is_full(veth_side_queue))
-							// 		{
-							// 			// printf("queue packet %lld \n", btx->addr[0]);
-							// 			ringbuf_sp_enqueue(veth_side_queue, btx);
-							// 			// printf("packet from veth is enqueued \n");
-							// 		}
-							// 		else
-							// 		{
-							// 			printf("QUEUE IS FULL \n");
-							// 		}
-							// 	}
-							// 	else
-							// 	{
-							// 		printf("TODO: There is no veth_side_queue to push the packet \n");
-							// 	}
+								if (veth_side_queue[ret_val->which_veth] != NULL)
+								{
+                                    // printf("ENQUEUE VETH Q 0 \n");
+									if (!ringbuf_is_full(veth_side_queue[ret_val->which_veth]))
+									{
+										// printf("queue packet %lld \n", btx->addr[0]);
+										ringbuf_sp_enqueue(veth_side_queue[ret_val->which_veth], btx);
+										// printf("packet from veth 0 is enqueued \n");
+									}
+									else
+									{
+										printf("QUEUE IS FULL \n");
+									}
+								}
+								else
+								{
+									printf("TODO: There is no veth_side_queue %d to push the packet \n", 0);
+								}
 								
 							// } else if (ret_val->which_veth == 1) {
-							// 	if (veth3_side_queue != NULL)
-							// 	{
-							// 		if (!ringbuf_is_full(veth3_side_queue))
-							// 		{
-							// 			// printf("queue packet %lld \n", btx->addr[0]);
-							// 			ringbuf_sp_enqueue(veth3_side_queue, btx);
-							// 			// printf("packet from veth is enqueued \n");
-							// 		}
-							// 		else
-							// 		{
-							// 			printf("QUEUE IS FULL \n");
-							// 		}
-							// 	}
-							// 	else
-							// 	{
-							// 		printf("TODO: There is no veth3_side_queue to push the packet \n");
-							// 	}
+								// if (veth_side_queue[ret_val->which_veth] != NULL)
+								// {
+                                //     // printf("ENQUEUE VETH Q 1 \n");
+								// 	if (!ringbuf_is_full(veth_side_queue[ret_val->which_veth]))
+								// 	{
+								// 		// printf("queue packet %lld \n", btx->addr[0]);
+								// 		ringbuf_sp_enqueue(veth_side_queue[ret_val->which_veth], btx);
+								// 		// printf("packet from veth is enqueued \n");
+								// 	}
+								// 	else
+								// 	{
+								// 		printf("QUEUE IS FULL \n");
+								// 	}
+								// }
+								// else
+								// {
+								// 	printf("TODO: There is no veth3_side_queue to push the packet \n");
+								// }
 							// }
 						}
 					}
@@ -2391,12 +2227,6 @@ thread_func_nic(void *arg)
 					printf("burst_tx_queue is empty for nic rx \n");
 				}
 		}
-
-		if (track_nic_rx_port == num_nic_qs) {
-                    track_nic_rx_port = 0;
-                } else {
-                    track_nic_rx_port = track_nic_rx_port + 1;
-                }
 		
 	}
 	for (x = 0; x < MAX_BURST_TX_OBJS; x++)
@@ -2495,45 +2325,35 @@ int main(int argc, char **argv)
 		memcpy(&port_params[i], &port_params_default,
 			   sizeof(struct port_params));
 
-    n_nic_ports = num_of_nses;
-    n_veth_ports = num_of_nses;
-	n_ports = n_nic_ports + n_veth_ports; // Total number of ports
+	n_ports = num_of_nses + 1; // +1 for NIC
 	load_xdp_program();
+	port_params[0].iface = nic_iface; //"enp65s0f0np0"
+	port_params[0].iface_queue = 0;
+	// port_params[1].iface = "veth1"; 
+	// port_params[1].iface_queue = 0;
+	// port_params[2].iface = "veth3"; 
+	// port_params[2].iface_queue = 0;
+	// port_params[3].iface = "vethout23"; 
+	// port_params[3].iface_queue = 0;
+	// port_params[4].iface = "vethout24"; 
+	// port_params[4].iface_queue = 0;
+	// port_params[5].iface = "vethout26"; 
+	// port_params[5].iface_queue = 0;
+	// port_params[6].iface = "vethout27"; 
+	// port_params[6].iface_queue = 0;
+	// port_params[7].iface = "vethout28"; 
+	// port_params[7].iface_queue = 0;
+	// port_params[8].iface = "vethout29"; 
+	// port_params[8].iface_queue = 0;
 
-    int y;
-    for (y = 0; y < n_nic_ports; y++)
+	int x,z;
+    veth_port_count = n_ports - 1;
+    for (x = 1; x < n_ports; x++)
 	{
-        port_params[y].iface = nic_iface; //"enp65s0f0np0", "ens4" etc...
-	    port_params[y].iface_queue = y;
-		port_params[y].ns_index = 0;
-    }
-
-
-    // mg_map_init(&ns_table, sizeof(int), 16);
-	// printf("Hello-1\n");
-    int x, z;
-    z = 0;
-    int start_index_for_veth_ports = n_nic_ports;
-    for (x = start_index_for_veth_ports; x < n_ports; x++)
-	{
-        port_params[x].iface = out_veth_arr[z]; 
+		z = x-1;
+		port_params[x].iface = out_veth_arr[z]; 
 	    port_params[x].iface_queue = 0;
-		port_params[x].ns_index = z;
-		// struct ns_set ns_index = {.index = z};
-		// mg_map_add(&ns_table, z, &ns_index);
-        // mg_map_add(&ns_table, z, z);
-		printf("Hello-2\n");
-        z = z + 1;
-    }
-
-	// int x,z;
-    // int veth_port_count = n_ports - 1;
-    // for (x = 1; x < n_ports; x++)
-	// {
-	// 	z = x-1;
-	// 	port_params[x].iface = out_veth_arr[z]; 
-	//     port_params[x].iface_queue = 0;
-	// }
+	}
 
 	// int d = 11;
 	// for (i = 1; i < n_ports; i++)
@@ -2549,7 +2369,7 @@ int main(int argc, char **argv)
 	// 	port_params[i].iface_queue = 0;
 	// }
 	
-	
+	// n_threads = 3;
 	n_threads = 4;
 	thread_data[0].cpu_core_id = 9; // cat /proc/cpuinfo | grep 'core id'
 	thread_data[1].cpu_core_id = 11; // cat /proc/cpuinfo | grep 'core id'
@@ -2579,27 +2399,9 @@ int main(int argc, char **argv)
 			return -1;
 		}
 		print_port(i);
-		// if (i == 0) 
-		// {
-		// 	enter_xsks_into_map_for_nic();
-
-		// } 
-		// else if (i > (n_nic_ports - 1)) 
-		// {
-		// 	enter_xsks_into_map(i);
-		// }
-		// enter_xsks_into_map(i);
+		enter_xsks_into_map(i);
 		// printf("af port_init %d, \n", ports[i]->bc->n_buffers_cons);
 	}
-
-	enter_xsks_into_map_for_nic();
-
-	//Enter xsk into map for veth
-	for (x = n_nic_ports; x < n_ports; x++)
-	{
-		enter_xsks_into_map(x);
-	}
-
 	printf("All ports created successfully.\n");
 	clkid = get_nic_clock_id();
 
@@ -2698,15 +2500,15 @@ int main(int argc, char **argv)
 	non_local_ring_array[1] = ringbuf_create(2048);
 	non_local_ring_array[2] = ringbuf_create(2048);
 
-	int w;
-    for (w = 0; w < n_veth_ports; w++)
-	{
-		veth_side_queue[w] = ringbuf_create(131072);
-	}
 	// veth_side_queue = ringbuf_create(2048);
 	// veth3_side_queue = ringbuf_create(2048);
 
-
+    int w;
+    // veth_port_count = n_ports - 1;
+    for (w = 0; w < veth_port_count; w++)
+	{
+		veth_side_queue[w] = ringbuf_create(131072);
+	}
 
 	burst_tx_queue_veth = ringbuf_create(MAX_BURST_TX_OBJS);
 	burst_tx_queue_nic = ringbuf_create(MAX_BURST_TX_OBJS);
@@ -2719,15 +2521,12 @@ int main(int argc, char **argv)
 		struct thread_data *t = &thread_data[i];
 
 		if (i == 0)
-		{	// veth->nic (veth rx: push to local queues)
+		{							   // veth->nic (veth rx: push to local queues)
 			// t->ports_tx[0] = ports[0]; // nic
             int g;
-            int k = 0;
-            int start_index_for_veth_ports = n_nic_ports;
-            for (g = start_index_for_veth_ports; g < n_ports; g++)
+            for (g = 1; g < n_ports; g++)
 	        {
-                t->ports_rx[k] = ports[g]; //veth
-                k = k + 1;
+                t->ports_rx[g] = ports[g]; //veth
             }
 			
 			t->ring_bf_array[0] = ring_array[0];
@@ -2738,15 +2537,7 @@ int main(int argc, char **argv)
 		else if (i == 1)
 		{				
             // veth->nic (nic tx: pull from local and non-local)
-
-            int g;
-            for (g = 0; g < n_nic_ports; g++)
-	        {
-                t->ports_tx[g] = ports[g]; //NIC
-            }
-
-			// t->ports_tx[0] = ports[0]; // nic
-
+			t->ports_tx[0] = ports[0]; // nic
 			t->ring_bf_array[0] = ring_array[0];
 			t->ring_bf_array[1] = ring_array[1];
 			t->ring_bf_array[2] = ring_array[2];
@@ -2759,47 +2550,36 @@ int main(int argc, char **argv)
 		else if (i == 2)
 		{	
             // nic-veth (nic rx: push to non-local and veth_side_queue)
-			// t->ports_rx[0] = ports[0]; // nic
+			t->ports_rx[0] = ports[0]; // nic
 			
-            int g;
-            for (g = 0; g < n_nic_ports; g++)
-	        {
-                t->ports_rx[g] = ports[g]; //NIC
-            }
-
-			for (g = 0; g < n_veth_ports; g++)
-	        {
-                t->veth_side_queue[g] = veth_side_queue[g];
-            }
-
 			t->non_loca_ring_bf_array[0] = non_local_ring_array[0];
 			t->non_loca_ring_bf_array[1] = non_local_ring_array[1];
 			t->non_loca_ring_bf_array[2] = non_local_ring_array[2];
-			// t->veth_side_queue = veth_side_queue;
-			// t->veth3_side_queue = veth3_side_queue;
+			
 			t->burst_tx_queue = burst_tx_queue_nic;
-		}
-		else if (i == 3)
-		{							   // nic-veth (veth tx: pull from veth_side_queue)
-			// t->ports_tx[0] = ports[0]; // veth1
-			// t->ports_tx[1] = ports[2]; // veth3
 
             int g;
-            int k = 0;
-            int start_index_for_veth_ports = n_nic_ports;
-            for (g = start_index_for_veth_ports; g < n_ports; g++)
+            for (g = 0; g < veth_port_count; g++)
 	        {
-                t->ports_tx[k] = ports[g]; //veth
-                k = k + 1;
+                printf("pop veth_side_queue_array for thread 3 \n");
+                t->veth_side_queue_array[g] = veth_side_queue[g];
+            }
+		}
+		else if (i == 3)
+		{	// nic-veth (veth tx: pull from veth_side_queue)
+			
+            int g;
+            for (g = 1; g < n_ports; g++)
+	        {
+                t->ports_tx[g] = ports[g]; //veth
             }
 
-			for (g = 0; g < n_veth_ports; g++)
+            int x;
+            for (x = 0; x < veth_port_count; x++)
 	        {
-                t->veth_side_queue[g] = veth_side_queue[g];
+                printf("pop veth_side_queue_array for thread 4 \n");
+                t->veth_side_queue_array[x] = veth_side_queue[x];
             }
-
-			// t->veth_side_queue = veth_side_queue;
-			// t->veth3_side_queue = veth3_side_queue;
 			t->burst_tx_queue = burst_tx_queue_nic;
 		}
 
@@ -2927,14 +2707,12 @@ int main(int argc, char **argv)
 
 	bpool_free(bp);
 
-	remove_xdp_program_nic();
-	remove_xdp_program_veth();
+    remove_xdp_program();
 
 	deleteRouteMatrix(route_table);
 	freeifaddrs(ifaddr);
 	mg_map_cleanup(&ip_table);
 	mg_map_cleanup(&mac_table);
-    // mg_map_cleanup(&ns_table);
 	ringbuf_free(ring_array[0]);
 	ringbuf_free(ring_array[1]);
 	ringbuf_free(ring_array[2]);
@@ -2943,14 +2721,13 @@ int main(int argc, char **argv)
 	ringbuf_free(non_local_ring_array[2]);
 	// ringbuf_free(veth_side_queue);
 	// ringbuf_free(veth3_side_queue);
+	ringbuf_free(burst_tx_queue_veth);
+	ringbuf_free(burst_tx_queue_nic);
 
-	for (w = 0; w < n_veth_ports; w++)
+    for (w = 0; w < veth_port_count; w++)
 	{
 		ringbuf_free(veth_side_queue[w]);
 	}
-
-	ringbuf_free(burst_tx_queue_veth);
-	ringbuf_free(burst_tx_queue_nic);
 
 	return 0;
 }

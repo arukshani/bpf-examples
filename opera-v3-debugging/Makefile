@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 
-USER_TARGETS   := opera_multi_nicq
+USER_TARGETS   := p6_rcv_nodrop
 BPF_TARGETS    := veth_kern
 BPF_TARGETS    += nic_kern
 

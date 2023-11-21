@@ -62,11 +62,18 @@ iperf -c 10.1.0.2 -u -t 60 -b 50000M -i 1
 ./iperf_udpblast_client_root.sh -n 1
 ./iperf_udpblast_server_root.sh -n 1
 
-sudo ./iperf_udp_ns_server.sh -n 0
-sudo ./iperf_udp_ns_client.sh -n 0
+./iperf_tcp_client_root.sh -n 1
+./iperf_tcp_server_root.sh -n 1
+
+sudo ./iperf_udp_ns_server.sh -n 1
+sudo ./iperf_udp_ns_client.sh -n 1
 
 sudo ./opera_multi_nicq 10.1.0.1 configs/node-1-link.csv /dev/ptp0 100 1
 sudo ./opera_multi_nicq 10.1.0.2 configs/node-2-link.csv /dev/ptp0 100 1
 
 sudo ethtool -L ens4 combined 1
+
+
+sudo ./p6_rcv_nodrop 10.1.0.1 configs/node-1-link.csv /dev/ptp0 80 1
+sudo ./p6_rcv_nodrop 10.1.0.2 configs/node-2-link.csv /dev/ptp0 80 1
 ```

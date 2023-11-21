@@ -22,7 +22,8 @@ myArray=("blue" "red" "ns12" "ns13" "ns15" "ns16" "ns17" "ns18" "ns19" "ns20" "n
 output=$(
 for i in $(seq 0 $num_namespaces); do
     # echo ${myArray[$i]}
-    sudo numactl -N $nic_local_numa_node ip netns exec ${myArray[$i]} iperf -c $server -u -t 60 -b $bandwidth &
+    port=$(echo "5100+$i" | bc);
+    sudo numactl -N $nic_local_numa_node ip netns exec ${myArray[$i]} iperf -c $server -p $port -u -t 60 -b $bandwidth &
 done
 )
 
