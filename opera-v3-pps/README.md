@@ -76,4 +76,6 @@ sudo ethtool -L ens4 combined 1
 
 sudo ./p6_rcv_nodrop 10.1.0.1 configs/node-1-link.csv /dev/ptp0 80 1
 sudo ./p6_rcv_nodrop 10.1.0.2 configs/node-2-link.csv /dev/ptp0 80 1
+
+sudo ./nic_2q 10.1.0.1 configs/node-1-link.csv /dev/ptp0 80 1 2 (number of namespaces, number of nic queues)
 ```

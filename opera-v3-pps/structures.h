@@ -181,7 +181,7 @@ static struct port_params port_params[MAX_PORTS];
 static struct port *ports[MAX_PORTS];
 static int n_ports;
 static int n_nic_ports;
-static int n_veth_ports;
+// static int n_veth_ports;
 static int veth_port_count;
 
 /*
