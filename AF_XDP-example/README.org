@@ -1,3 +1,5 @@
+sudo apt-get install libcap-dev
+
 #+Title: AF_XDP socket sample application
 
 This is a sample application for AF_XDP sockets. It was originally in

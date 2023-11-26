@@ -167,7 +167,7 @@ static const struct port_params port_params_default = {
 
 
 #ifndef MAX_PORTS
-#define MAX_PORTS 5
+#define MAX_PORTS 16
 #endif
 
 #ifndef MAX_THREADS
@@ -208,6 +208,7 @@ struct thread_data {
 	ringbuf_t *veth_side_queue_array[13];
 	// ringbuf_t *veth3_side_queue;
 	ringbuf_t *burst_tx_queue;
+	ringbuf_t *burst_tx_queue_array[13];
 };
 
 static pthread_t threads[MAX_THREADS];
@@ -227,7 +228,7 @@ struct bcache {
 ringbuf_t *ring_array[3];
 ringbuf_t *non_local_ring_array[3];
 ringbuf_t *burst_tx_queue_veth;
-ringbuf_t *burst_tx_queue_nic;
+ringbuf_t *burst_tx_queue_nic[13];
 ringbuf_t *veth_side_queue[13];
 
 __u32 t1ms;

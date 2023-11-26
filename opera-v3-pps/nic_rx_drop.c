@@ -133,7 +133,7 @@ bcache_cons_check(struct bcache *bc, u32 n_buffers)
 
 	if (n_buffers_cons)
 	{
-		// printf("bc->n_buffers_cons %lld not empty \n", n_buffers_cons);
+		// printf("bc->n_buffers_cons %lld , n_buffers %lld \n", n_buffers_cons, n_buffers);
 		return (n_buffers_cons < n_buffers) ? n_buffers_cons : n_buffers;
 	}
 
@@ -146,6 +146,7 @@ bcache_cons_check(struct bcache *bc, u32 n_buffers)
 	// printf("n_buffers_cons %lld \n", n_buffers_cons);
 	if (!n_slabs_available)
 	{
+		// printf("n_slabs_available %d slabs_available \n", n_slabs_available);
 		pthread_mutex_unlock(&bp->lock);
 		return 0;
 	}
@@ -258,6 +259,7 @@ bcache_prod(struct bcache *bc, u64 buffer)
 static void apply_setsockopt(struct xsk_socket *xsk)
 {
 	int sock_opt;
+	return;
 
 	// if (!opt_busy_poll)
 	// 	return;
@@ -267,8 +269,8 @@ static void apply_setsockopt(struct xsk_socket *xsk)
 	// 			   (void *)&sock_opt, sizeof(sock_opt)) < 0)
 	// 	printf("Error!!!");
 
-	// sock_opt = 20;
-	sock_opt = 1;
+	sock_opt = 20;
+	// sock_opt = 1;
 	if (setsockopt(xsk_socket__fd(xsk), SOL_SOCKET, SO_BUSY_POLL,
 				   (void *)&sock_opt, sizeof(sock_opt)) < 0)
 		printf("Error!!!");
@@ -893,8 +895,11 @@ port_rx_burst(struct port *p, struct burst_rx *b, int index)
 
 	n_pkts = bcache_cons_check(p->bc, n_pkts);
 
-	if (!n_pkts)
+	if (!n_pkts) {
+		printf("There are no consumer slabs....\n");
 		return 0;
+	}
+		
 
 	// printf("bp->n_slabs_available %ld \n", p->bc->bp->n_slabs_available);
 
@@ -902,15 +907,17 @@ port_rx_burst(struct port *p, struct burst_rx *b, int index)
 	n_pkts = xsk_ring_cons__peek(&p->rxq, n_pkts, &pos);
 	if (!n_pkts)
 	{
-		if (xsk_ring_prod__needs_wakeup(&p->umem_fq))
-		{
-			struct pollfd pollfd = {
-				.fd = xsk_socket__fd(p->xsk),
-				.events = POLLIN,
-			};
+		// if (xsk_ring_prod__needs_wakeup(&p->umem_fq))
+		// {
+		// 	struct pollfd pollfd = {
+		// 		.fd = xsk_socket__fd(p->xsk),
+		// 		.events = POLLIN,
+		// 	};
 
-			poll(&pollfd, 1, 0);
-		}
+		// 	poll(&pollfd, 1, 1000);
+		// }
+		// printf("There are no packets in rx ring....\n");
+		recvfrom(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, NULL);
 		return 0;
 	}
 
@@ -934,12 +941,13 @@ port_rx_burst(struct port *p, struct burst_rx *b, int index)
 
 		if (xsk_ring_prod__needs_wakeup(&p->umem_fq))
 		{
-			struct pollfd pollfd = {
-				.fd = xsk_socket__fd(p->xsk),
-				.events = POLLIN,
-			};
+			// struct pollfd pollfd = {
+			// 	.fd = xsk_socket__fd(p->xsk),
+			// 	.events = POLLIN,
+			// };
 
-			poll(&pollfd, 1, 0);
+			// poll(&pollfd, 1, 1000);
+			recvfrom(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, NULL);
 		}
 	}
 
@@ -1035,28 +1043,34 @@ port_tx_burst(struct port *p, struct burst_tx *b, int free_btx, int wait_all)
 static inline void
 port_tx_burst_collector(struct port *p, struct burst_tx_collector *b, int free_btx, int wait_all)
 {
-	u32 n_pkts, pos, i;
+	u32 n_pkts, pos, i, n_pkts_comp;
 	int status;
 
-	/* UMEM CQ. */
-	n_pkts = p->params.bp->umem_cfg.comp_size;
+	// /* UMEM CQ. */
+	// n_pkts = p->params.bp->umem_cfg.comp_size;
 
-	n_pkts = xsk_ring_cons__peek(&p->umem_cq, n_pkts, &pos);
+	// n_pkts = xsk_ring_cons__peek(&p->umem_cq, n_pkts, &pos);
 
-	// printf("n_pkts in port_tx_burst %ld \n", n_pkts);
-	// printf("bp->n_slabs_available %ld \n", p->bc->bp->n_slabs_available);
 
-	for (i = 0; i < n_pkts; i++)
-	{
-		u64 addr = *xsk_ring_cons__comp_addr(&p->umem_cq, pos + i);
+	// for (i = 0; i < n_pkts; i++)
+	// {
+	// 	u64 addr = *xsk_ring_cons__comp_addr(&p->umem_cq, pos + i);
 
-		bcache_prod(p->bc, addr);
-	}
+	// 	bcache_prod(p->bc, addr);
+	// }
 
-	xsk_ring_cons__release(&p->umem_cq, n_pkts);
+	// xsk_ring_cons__release(&p->umem_cq, n_pkts);
 
-	/* TXQ. */
+	// /* TXQ. */
 	n_pkts = b->n_pkts;
+
+	// Free packets without processing
+	// for (i = 0; i < n_pkts; i++)
+	// {
+	// 	bcache_prod(p->bc, b->addr[i]);
+
+	// }
+	p->n_cleanup_tx += n_pkts;
 
 	for (;;)
 	{
@@ -1068,22 +1082,11 @@ port_tx_burst_collector(struct port *p, struct burst_tx_collector *b, int free_b
 		}
 
 		if (xsk_ring_prod__needs_wakeup(&p->txq))
-		{
-			if (wait_all)
-			{
-				sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_WAITALL,
-					   NULL, 0);
-			}
-			else
-			{
-				sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT,
-					   NULL, 0);
-			}
-		}
-	}
+			sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT,
+			       NULL, 0);
 
-	// printf("Fill tx desc for n_pkts %ld \n", n_pkts);
-	// printf("Port tx burst \n");
+		
+	}
 
 	for (i = 0; i < n_pkts; i++)
 	{
@@ -1091,27 +1094,11 @@ port_tx_burst_collector(struct port *p, struct burst_tx_collector *b, int free_b
 		xsk_ring_prod__tx_desc(&p->txq, pos + i)->len = b->len[i];
 	}
 
-	if (free_btx)
-	{
-        // printf("free btx \n");
-		free(b);
-	}
-
 	xsk_ring_prod__submit(&p->txq, n_pkts);
 	if (xsk_ring_prod__needs_wakeup(&p->txq))
-	{
-		if (wait_all)
-		{
-            // printf("wait all \n");
-			sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_WAITALL, NULL, 0);
-		}
-		else
-		{
-            // printf("dont wait to send \n");
-			sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
-		}
-	}
-
+			sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT,
+			       NULL, 0);
+	
 	p->n_pkts_tx += n_pkts;
 }
 
@@ -1518,10 +1505,10 @@ static void process_rx_packet(void *data, struct port_params *params, uint32_t l
 	}
 	else if (is_nic == 0)
 	{
-#if DEBUG_PAUSE_Q == 1
-		timestamp_arr[time_index] = now;
-		time_index++;
-#endif
+// #if DEBUG_PAUSE_Q == 1
+// 		timestamp_arr[time_index] = now;
+// 		time_index++;
+// #endif
 		// printf("From NIC \n");
 		struct ethhdr *eth = (struct ethhdr *)data;
 		struct iphdr *outer_ip_hdr = (struct iphdr *)(data +
@@ -2063,6 +2050,57 @@ thread_func_veth(void *arg)
 	return NULL;
 }
 
+static void *
+thread_clean_up_veth_tx(void *arg)
+{
+	struct thread_data *t = arg;
+	cpu_set_t cpu_cores;
+	u32 i;
+
+	CPU_ZERO(&cpu_cores);
+	CPU_SET(t->cpu_core_id, &cpu_cores);
+	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_cores);
+
+	time_t starttime = time(NULL);
+	time_t seconds = 120;
+
+	int track_veth_tx_port = 0;
+    int num_veths = veth_port_count - 1;
+
+	while (time(NULL) - starttime < 120)
+	{ 
+		struct port *p = t->ports_tx[track_veth_tx_port];
+
+		u32 n_pkts, pos, i, n_pkts_comp;
+		int status;
+
+		/* UMEM CQ. */
+		n_pkts = p->params.bp->umem_cfg.comp_size;
+
+		n_pkts = xsk_ring_cons__peek(&p->umem_cq, n_pkts, &pos);
+
+
+		for (i = 0; i < n_pkts; i++)
+		{
+			u64 addr = *xsk_ring_cons__comp_addr(&p->umem_cq, pos + i);
+
+			bcache_prod(p->bc, addr);
+		}
+
+		xsk_ring_cons__release(&p->umem_cq, n_pkts);
+
+		p->n_cleanup_tx += n_pkts;
+		// printf("p->n_cleanup_tx: %d \n", p->n_cleanup_tx);
+
+		 if (track_veth_tx_port == num_veths) {
+				track_veth_tx_port = 0;
+			} else {
+				track_veth_tx_port = track_veth_tx_port + 1;
+			}
+	}
+
+}
+
 // from_NIC -> to_VETH tx
 static void *
 thread_func_nic_to_veth_tx(void *arg)
@@ -2103,10 +2141,12 @@ thread_func_nic_to_veth_tx(void *arg)
 	int track_veth_tx_port = 0;
     int num_veths = veth_port_count - 1;
 
-	while (starttime < endtime)
-	{ // A hack to get the thread to return
-		// while (!t->quit) {
-		starttime = time(NULL);
+	// while (starttime < endtime)
+	while (time(NULL) - starttime < 120)
+	{ 
+		// A hack to get the thread to return
+	// while (!t->quit) {
+		// starttime = time(NULL);
 		// track_veth_tx_port = 1 - track_veth_tx_port;
 		struct port *port_tx = t->ports_tx[track_veth_tx_port];
 
@@ -2145,54 +2185,12 @@ thread_func_nic_to_veth_tx(void *arg)
 				// need_to_flush = 1;
 			}
 		} 
-        // else 
-        // {
-        //     printf("veth side queue 0 is NULL \n");
-        // }
-
-		//++++++++++++++++++++++DRAIN VETH3 SIDE QUEUE++++++++++++++++++++++++
-		// if (veth_side_queue[1] != NULL)
-		// {
-        //     // printf("DRAIN VETH 1 SIDE QUEUE \n");
-		// 	while ((!ringbuf_is_empty(veth_side_queue[1])) && (btx_index < MAX_BURST_TX))
-		// 	{
-		// 		// printf("veth side queue is not empty \n");
-		// 		void *obj;
-		// 		ringbuf_sc_dequeue(veth_side_queue[1], &obj);
-		// 		struct burst_tx *btx = (struct burst_tx *)obj;
-		// 		btx_collector->addr[btx_index] = btx->addr[0];
-		// 		btx_collector->len[btx_index] = btx->len[0];
-
-		// 		if (burst_tx_queue != NULL)
-		// 		{
-		// 			btx->addr[0] = 0;
-		// 			btx->len[0] = 0;
-		// 			ringbuf_sp_enqueue(burst_tx_queue, btx);
-		// 		} else {
-		// 			printf("burst_tx_queue is NULL \n");
-		// 		}
-		// 		// free(btx);
-
-		// 		btx_index++;
-		// 		btx_collector->n_pkts = btx_index;
-		// 		// port_tx_burst(port_tx, btx, 1, 1);
-		// 		// need_to_flush = 1;
-		// 	}
-		// }
-        // else 
-        // {
-        //     printf("veth side queue 1 is empty \n");
-        // }
-
-		// struct timespec veth_tx_start = get_realtime();
-		// unsigned long veth_tx_start_ns = get_nsec(&veth_tx_start);
+        
 
 		if (btx_index)
 		{
-			// printf("btx_index %d \n", btx_index);
-			// port_tx_burst(port_tx, btx_collector, 0, 0);
-            // printf("port_tx_burst_collector from thread_func_nic_to_veth_tx \n");
 			port_tx_burst_collector(port_tx, btx_collector, 0, 0);
+			// printf("return from port_tx_burst_collector veth tx \n");
 			// flush_tx(port_tx);
 		}
          if (track_veth_tx_port == num_veths) {
@@ -2201,19 +2199,6 @@ thread_func_nic_to_veth_tx(void *arg)
                     track_veth_tx_port = track_veth_tx_port + 1;
                 }
 
-		// port_tx_burst(port_tx, btx_collector, 0, 0);
-
-		// struct timespec veth_tx_end = get_realtime();
-		// unsigned long veth_tx_end_ns = get_nsec(&veth_tx_end);
-		// unsigned long detla_veth_tx = veth_tx_end_ns - veth_tx_start_ns;
-		// total_veth_tx = total_veth_tx + detla_veth_tx;
-		// flush_tx(port_tx);
-
-		// if (need_to_flush) {
-		// 	flush_tx(port_tx);
-		// 	need_to_flush = 0;
-		// }
-		// printf("thread is still running \n");
 	}
 	printf("return from thread_func_nic_to_veth_tx \n");
 	return NULL;
@@ -2298,11 +2283,13 @@ thread_func_nic(void *arg)
                 } else {
                     track_nic_rx_port = track_nic_rx_port + 1;
                 }
+				nic_rx_no_packet_counter++;
 				continue;
 		}
 			
 
 		// printf("n_pkts %d", n_pkts);
+		nic_rx_has_packet_counter = nic_rx_has_packet_counter + n_pkts;
 
 		/* Process & TX. */
 		for (j = 0; j < n_pkts; j++)
@@ -2470,10 +2457,11 @@ static void
 print_port_stats(int port_id, u64 ns_diff)
 {
 	struct port *p = ports[port_id];
-	double rx_pps, tx_pps;
+	double rx_pps, tx_pps, cleanup_pps;
 
 	rx_pps = (p->n_pkts_rx - n_pkts_rx[port_id]) * 1000000000. / ns_diff;
 	tx_pps = (p->n_pkts_tx - n_pkts_tx[port_id]) * 1000000000. / ns_diff;
+	cleanup_pps = (p->n_cleanup_tx - n_cleanup_tx[port_id]) * 1000000000. / ns_diff;
 
 	printf("| %4d | %12llu | %13.0f | %12llu | %13.0f |\n",
 	       port_id,
@@ -2481,9 +2469,11 @@ print_port_stats(int port_id, u64 ns_diff)
 	       rx_pps,
 	       p->n_pkts_tx,
 	       tx_pps);
+	printf("Clean up PPS: %13.6f \n", cleanup_pps);
 
 	n_pkts_rx[port_id] = p->n_pkts_rx;
 	n_pkts_tx[port_id] = p->n_pkts_tx;
+	n_cleanup_tx[port_id] = p->n_cleanup_tx;
 }
 
 static void
@@ -2631,10 +2621,12 @@ int main(int argc, char **argv)
 	
 	// n_threads = 3;
 	n_threads = 4;
+	// n_threads = 5;
 	thread_data[0].cpu_core_id = 9; // cat /proc/cpuinfo | grep 'core id'
 	thread_data[1].cpu_core_id = 11; // cat /proc/cpuinfo | grep 'core id'
 	thread_data[2].cpu_core_id = 13; // cat /proc/cpuinfo | grep 'core id'
 	thread_data[3].cpu_core_id = 15; // cat /proc/cpuinfo | grep 'core id'
+	thread_data[4].cpu_core_id = 17;
 
 	/* Buffer pool initialization. */
 	bp = bpool_init(&bpool_params, &umem_cfg);
@@ -2868,11 +2860,36 @@ int main(int argc, char **argv)
                 t->veth_side_queue_array[x] = veth_side_queue[x];
             }
 			t->burst_tx_queue = burst_tx_queue_nic;
+		} 
+		else if (i == 4) //cleanup thread
+		{
+			int g;
+            int k = 0;
+            int start_index_for_veth_ports = n_nic_ports;
+            for (g = start_index_for_veth_ports; g < n_ports; g++)
+	        {
+                t->ports_tx[k] = ports[g]; //veth
+                k = k + 1;
+            }
 		}
 
 		t->n_ports_rx = 1;
 
 		// print_thread(i);
+	}
+
+	struct sched_param schparam;
+	static int opt_schprio = SCHED_PRI__DEFAULT;
+
+	memset(&schparam, 0, sizeof(schparam));
+	schparam.sched_priority = opt_schprio;
+	static int opt_schpolicy = SCHED_OTHER;
+	
+	int ret = sched_setscheduler(0, opt_schpolicy, &schparam);
+	if (ret) {
+		fprintf(stderr, "Error(%d) in setting priority(%d): %s\n",
+			errno, opt_schprio, strerror(errno));
+		// goto out;
 	}
 
 	for (i = 0; i < n_threads; i++)
@@ -2908,6 +2925,14 @@ int main(int argc, char **argv)
 			status = pthread_create(&threads[i],
 									NULL,
 									thread_func_nic_to_veth_tx,
+									&thread_data[i]);
+			printf("Create thread %d \n", i);
+		}
+		else if (i == 4)
+		{
+			status = pthread_create(&threads[i],
+									NULL,
+									thread_clean_up_veth_tx,
 									&thread_data[i]);
 			printf("Create thread %d \n", i);
 		}
@@ -2948,17 +2973,19 @@ int main(int argc, char **argv)
 
 	/* Threads completion. */
 	printf("Quit.\n");
-	printf("=========TIMING======================= \n");
-	printf("total_veth_rx %ld s \n", (total_veth_rx / 1000000000));
-	printf("total_nic_tx %ld s \n", (total_nic_tx / 1000000000));
-	printf("total_nic_rx %ld s \n", (total_nic_rx / 1000000000));
-	printf("total_veth_tx %ld s \n", (total_veth_tx / 1000000000));
-	printf("=========END_OF_TIMING================ \n");
+	// printf("=========TIMING======================= \n");
+	// printf("total_veth_rx %ld s \n", (total_veth_rx / 1000000000));
+	// printf("total_nic_tx %ld s \n", (total_nic_tx / 1000000000));
+	// printf("total_nic_rx %ld s \n", (total_nic_rx / 1000000000));
+	// printf("total_veth_tx %ld s \n", (total_veth_tx / 1000000000));
+	// printf("=========END_OF_TIMING================ \n");
 
-	printf("veth_rx_no_packet_counter %ld \n", veth_rx_no_packet_counter);
-	printf("veth_rx_has_packet_counter %ld \n", veth_rx_has_packet_counter);
-	printf("nic_tx_no_packet_counter %ld \n", nic_tx_no_packet_counter);
-	printf("nic_tx_has_packet_counter %ld \n", nic_tx_has_packet_counter);
+	// printf("veth_rx_no_packet_counter %ld \n", veth_rx_no_packet_counter);
+	// printf("veth_rx_has_packet_counter %ld \n", veth_rx_has_packet_counter);
+	// printf("nic_tx_no_packet_counter %ld \n", nic_tx_no_packet_counter);
+	// printf("nic_tx_has_packet_counter %ld \n", nic_tx_has_packet_counter);
+	printf("nic_rx_no_packet_counter %ld \n", nic_rx_no_packet_counter);
+	printf("nic_rx_has_packet_counter %ld \n", nic_rx_has_packet_counter);
 
 	/* output each array element's value */
 

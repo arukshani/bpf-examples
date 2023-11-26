@@ -8,7 +8,7 @@ cd bpf-examples/opera-setup-yeti/
 ```
 sudo ip addr add 10.1.0.1/24 dev ens4
 sudo ip addr add 10.1.0.2/24 dev ens4
-ip link set dev ens4 up
+sudo ip link set dev ens4 up
 ```
 
 ### Worker things

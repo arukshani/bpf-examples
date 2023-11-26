@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 
-USER_TARGETS   := nic_rx_drop
+USER_TARGETS   := veth_tx_multi_thread
 BPF_TARGETS    := veth_kern
-BPF_TARGETS    += nic_kern_plain
+BPF_TARGETS    += nic_kern
 
 LDLIBS += -lpthread
 

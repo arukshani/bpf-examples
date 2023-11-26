@@ -1473,13 +1473,18 @@ static void rx_drop_all(void)
 		if (opt_poll) {
 			for (i = 0; i < num_socks; i++)
 				xsks[i]->app_stats.opt_polls++;
+			// printf(" POLL \n");
 			ret = poll(fds, num_socks, opt_timeout);
 			if (ret <= 0)
 				continue;
 		}
 
 		for (i = 0; i < num_socks; i++)
+		{
+			// printf("NO POLL \n");
 			rx_drop(xsks[i]);
+		}
+			
 
 		if (benchmark_done)
 			break;
@@ -1836,8 +1841,11 @@ static void apply_setsockopt(struct xsk_socket_info *xsk)
 {
 	int sock_opt;
 
-	if (!opt_busy_poll)
+	if (!opt_busy_poll) {
+		printf("Not busy poll");
 		return;
+	}
+		
 
 	sock_opt = 1;
 	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_PREFER_BUSY_POLL,
