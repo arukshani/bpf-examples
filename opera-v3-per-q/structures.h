@@ -203,11 +203,8 @@ struct thread_data {
 	struct burst_tx_collector burst_tx_collector[MAX_PORTS_PER_THREAD];
 	u32 cpu_core_id;
 	int quit;
-	ringbuf_t *ring_bf_array[3]; 
-	ringbuf_t *non_loca_ring_bf_array[3]; 
+	ringbuf_t *ring_bf_array[13][3]; 
 	ringbuf_t *veth_side_queue_array[13];
-	// ringbuf_t *veth3_side_queue;
-	ringbuf_t *burst_tx_queue;
 	ringbuf_t *burst_tx_queue_array[13];
 };
 
@@ -225,9 +222,9 @@ struct bcache {
 	u64 n_buffers_prod;
 };
 
-ringbuf_t *ring_array[3];
-ringbuf_t *non_local_ring_array[3];
-ringbuf_t *burst_tx_queue_veth;
+ringbuf_t *ring_array[13][3];
+// ringbuf_t *non_local_ring_array[3];
+ringbuf_t *burst_tx_queue_veth[13];
 ringbuf_t *burst_tx_queue_nic[13];
 ringbuf_t *veth_side_queue[13];
 
