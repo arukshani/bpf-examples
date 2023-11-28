@@ -91,12 +91,20 @@ cd /home/dathapathu/emulator/github_code/bpf-examples/opera-v3-debugging
 
 sudo ethtool -L ens4 combined 1
 
-sudo ./scenario_3 10.1.0.1 configs/node-1-link.csv /dev/ptp0 120 1 1
-sudo ./scenario_3 10.1.0.2 configs/node-2-link.csv /dev/ptp0 120 1 1
+sudo ./scenario_3 10.1.0.1 configs/node-1-link.csv /dev/ptp0 120 2 2
+sudo ./scenario_3 10.1.0.2 configs/node-2-link.csv /dev/ptp0 120 2 2 
 ```
 
 
 ### IN case you want to remove xdp program from NIC driver
 ```
 sudo ip link set ens4 xdpgeneric off
+```
+
+```
+sudo ethtool -U ens4 flow-type tcp4 dst-port 5100 action 0
+sudo ethtool -U ens4 flow-type tcp4 dst-port 5101 action 1
+sudo ethtool -U ens4 flow-type tcp4 dst-port 5102 action 2
+sudo ethtool -U ens4 flow-type tcp4 dst-port 5103 action 3
+sudo ethtool -U ens4 flow-type tcp4 dst-port 5104 action 4
 ```

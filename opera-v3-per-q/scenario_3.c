@@ -1991,19 +1991,19 @@ thread_func_nic(void *arg)
 		veth_side_queue[w] = t->veth_side_queue_array[w];
 		burst_tx_queue[w] = t->burst_tx_queue_array[w];
 
-		int x;
-		for (x = 0; x < MAX_BURST_TX_OBJS; x++)
-		{
-			struct burst_tx *btx_obj = calloc(1, sizeof(struct burst_tx));
-			btx_obj->addr[0] = 0;
-			btx_obj->len[0] = 0;
-			if (burst_tx_queue[w] != NULL)
-			{
-				ringbuf_sp_enqueue(burst_tx_queue[w], btx_obj);
-			} else {
-				printf("burst_tx_queue for nic rx is NULL \n");
-			}
-		}
+		// int x;
+		// for (x = 0; x < MAX_BURST_TX_OBJS; x++)
+		// {
+		// 	struct burst_tx *btx_obj = calloc(1, sizeof(struct burst_tx));
+		// 	btx_obj->addr[0] = 0;
+		// 	btx_obj->len[0] = 0;
+		// 	if (burst_tx_queue[w] != NULL)
+		// 	{
+		// 		ringbuf_sp_enqueue(burst_tx_queue[w], btx_obj);
+		// 	} else {
+		// 		printf("burst_tx_queue for nic rx is NULL \n");
+		// 	}
+		// }
 	}
 
 
@@ -2555,6 +2555,23 @@ int main(int argc, char **argv)
 
 	
     /* NIC RX Threads. */
+	int g;
+	for (g = 0; g < veth_port_count; g++)
+	{
+		int x;
+		for (x = 0; x < MAX_BURST_TX_OBJS; x++)
+		{
+			struct burst_tx *btx_obj = calloc(1, sizeof(struct burst_tx));
+			btx_obj->addr[0] = 0;
+			btx_obj->len[0] = 0;
+			if (burst_tx_queue_nic[g] != NULL)
+			{
+				ringbuf_sp_enqueue(burst_tx_queue_nic[g], btx_obj);
+			} else {
+				printf("burst_tx_queue for nic rx is NULL \n");
+			}
+		}
+	}
 	veth_index = 0;
 	remaining_veth_count = veth_count_per_nic_q;
 	assigned_veth_count = 0;
@@ -2590,7 +2607,7 @@ int main(int argc, char **argv)
 		//This is because any nic port can receive packets. Only requirement is that packets from same 
 		// namespaces shouldn't be handled by more than one thread. Since we only run one application
 		//inside a namespace this should be ok.
-		int g;
+		// int g;
         for (g = 0; g < veth_port_count; g++)
         {
             printf("pop veth_side_queue_array for thread 3 \n");
@@ -2836,6 +2853,20 @@ int main(int argc, char **argv)
 	// ringbuf_free(non_local_ring_array[0]);
 	// ringbuf_free(non_local_ring_array[1]);
 	// ringbuf_free(non_local_ring_array[2]);
+
+	for (w = 0; w < veth_port_count; w++)
+	{
+		int x;
+		for (x = 0; x < MAX_BURST_TX_OBJS; x++)
+		{
+			if (!ringbuf_is_empty(burst_tx_queue_nic[w]))
+			{
+				void *obj;
+				ringbuf_sc_dequeue(burst_tx_queue_nic[w], &obj);
+				free(obj);
+			}
+		}
+	}
 	
     for (w = 0; w < veth_port_count; w++)
 	{
