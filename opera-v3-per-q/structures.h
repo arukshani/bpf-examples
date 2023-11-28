@@ -67,6 +67,11 @@ struct bpool_params {
 #define NUM_OF_PER_DEST_QUEUES 3
 #endif
 
+//Total number of NIC rx and tx threads
+// #ifndef NIC_THREAD_COUNT
+// #define NIC_THREAD_COUNT 4
+// #endif
+
 struct burst_rx {
 	u64 addr[MAX_BURST_RX];
 	u32 len[MAX_BURST_RX];
@@ -188,6 +193,7 @@ static int n_ports;
 static int n_nic_ports;
 // static int n_veth_ports;
 static int veth_port_count;
+static int veth_count_per_nic_q;
 
 /*
  * Thread
@@ -210,6 +216,7 @@ struct thread_data {
 	ringbuf_t *ring_bf_array[13][3]; 
 	ringbuf_t *veth_side_queue_array[13];
 	ringbuf_t *burst_tx_queue_array[13];
+	int assinged_veth_count;
 };
 
 static pthread_t threads[MAX_THREADS];

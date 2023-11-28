@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 
-USER_TARGETS   := scenario_2
+USER_TARGETS   := scenario_3
 BPF_TARGETS    := veth_kern
 BPF_TARGETS    += nic_kern
 

@@ -68,6 +68,9 @@ iperf -c 10.1.0.2 -u -t 60 -b 50000M -i 1
 sudo ./iperf_udp_ns_server.sh -n 0
 sudo ./iperf_udp_ns_client.sh -n 0
 
+sudo ./iperf_tcp_ns_server.sh -n 0
+sudo ./iperf_tcp_ns_client.sh -n 0
+
 sudo ./opera_multi_nicq 10.1.0.1 configs/node-1-link.csv /dev/ptp0 100 1
 sudo ./opera_multi_nicq 10.1.0.2 configs/node-2-link.csv /dev/ptp0 100 1
 
@@ -87,6 +90,9 @@ cd /home/dathapathu/emulator/github_code/bpf-examples/opera-v3-per-q
 cd /home/dathapathu/emulator/github_code/bpf-examples/opera-v3-debugging
 
 sudo ethtool -L ens4 combined 1
+
+sudo ./scenario_3 10.1.0.1 configs/node-1-link.csv /dev/ptp0 120 1 1
+sudo ./scenario_3 10.1.0.2 configs/node-2-link.csv /dev/ptp0 120 1 1
 ```
 
 
