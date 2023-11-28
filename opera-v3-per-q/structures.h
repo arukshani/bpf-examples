@@ -60,7 +60,11 @@ struct bpool_params {
 #endif
 
 #ifndef MAX_BURST_TX_OBJS
-#define MAX_BURST_TX_OBJS 131072
+#define MAX_BURST_TX_OBJS 2048
+#endif
+
+#ifndef NUM_OF_PER_DEST_QUEUES
+#define NUM_OF_PER_DEST_QUEUES 3
 #endif
 
 struct burst_rx {
