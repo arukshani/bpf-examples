@@ -895,7 +895,7 @@ port_rx_burst(struct port *p, struct burst_rx *b, int index)
 	n_pkts = bcache_cons_check(p->bc, n_pkts);
 
 	if (!n_pkts) {
-		// printf("There are no consumer slabs....\n");
+		printf("There are no consumer slabs....\n");
 		return 0;
 	}
 		
@@ -2336,7 +2336,7 @@ int main(int argc, char **argv)
 	// thread_data[1].cpu_core_id = 11; // cat /proc/cpuinfo | grep 'core id'
 	
 
-	int thread_core_id = 9;
+	int thread_core_id = 13;
 	for (x = 0; x < n_threads; x++)
 	{
 		thread_data[x].cpu_core_id = thread_core_id; 

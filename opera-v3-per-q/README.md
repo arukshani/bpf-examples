@@ -91,8 +91,8 @@ cd /home/dathapathu/emulator/github_code/bpf-examples/opera-v3-debugging
 
 sudo ethtool -L ens4 combined 1
 
-sudo ./scenario_3 10.1.0.1 configs/node-1-link.csv /dev/ptp0 120 2 2
-sudo ./scenario_3 10.1.0.2 configs/node-2-link.csv /dev/ptp0 120 2 2 
+sudo ./scenario_3 10.1.0.1 configs/node-1-link.csv /dev/ptp0 120 1 1 
+sudo ./scenario_3 10.1.0.2 configs/node-2-link.csv /dev/ptp0 120 1 1 
 ```
 
 
@@ -102,9 +102,26 @@ sudo ip link set ens4 xdpgeneric off
 ```
 
 ```
+
+ethtool -K ens4 ntuple on 
+
+ethtool --show-ntuple ens4
+
 sudo ethtool -U ens4 flow-type tcp4 dst-port 5100 action 0
 sudo ethtool -U ens4 flow-type tcp4 dst-port 5101 action 1
 sudo ethtool -U ens4 flow-type tcp4 dst-port 5102 action 2
 sudo ethtool -U ens4 flow-type tcp4 dst-port 5103 action 3
 sudo ethtool -U ens4 flow-type tcp4 dst-port 5104 action 4
+
+sudo ethtool -U ens4 delete 1019
+
+
+
+lstopo
+lstopo --output-format png -v > cpu-yeti.png
+
+sudo ethtool -G ens4 rx 2048
+sudo ethtool -G ens4 tx 2048
+sudo ethtool -g ens4
+
 ```
