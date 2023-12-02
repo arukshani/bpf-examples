@@ -30,11 +30,13 @@ myArray=("blue" "red" "ns12" "ns13" "ns15" "ns16" "ns17" "ns18" "ns19" "ns20" "n
 # sender_total_tput=$(echo $output | grep -Po '[0-9.]*(?= Gbits/sec)' | awk '{sum+=$1} END {print sum}')
 # echo "parallel: $num_namespaces, sender: $sender_total_tput"
 
+cpu_core_id=$(echo "63" | bc)
 # output=$(
 for i in $(seq 0 $num_namespaces);
 do
     port=$(echo "5100+$i" | bc)
     numactl -N $nic_local_numa_node ip netns exec ${myArray[$i]} iperf -s $server -p $port -u &
+    # sudo taskset --cpu-list $cpu_core_id ip netns exec ${myArray[$i]} iperf -s $server -p $port -u &
 done
 # )
 

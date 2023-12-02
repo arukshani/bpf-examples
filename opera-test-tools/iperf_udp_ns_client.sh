@@ -20,10 +20,12 @@ done
 
 myArray=("blue" "red" "ns12" "ns13" "ns15" "ns16" "ns17" "ns18" "ns19" "ns20" "ns21" "ns22" "ns23" "ns24")
 
+cpu_core_id=$(echo "63" | bc)
 output=$(
 for i in $(seq 0 $num_namespaces); do
     port=$(echo "5100+$i" | bc);
     numactl -N $nic_local_numa_node ip netns exec ${myArray[$i]} iperf -c $server -p $port -u -t 30 -b $bandwidth -f g &
+    # sudo taskset --cpu-list $cpu_core_id ip netns exec ${myArray[$i]} iperf -c $server -p $port -u -t 30 -b $bandwidth -f g &
 done
 )
 

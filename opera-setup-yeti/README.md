@@ -120,3 +120,7 @@ sudo ./p2_drop 10.1.0.1 configs/node-1-link.csv /dev/ptp0 100 1
 sudo ./p2_drop 10.1.0.1 configs/node-1-link.csv /dev/ptp0 100 2
 sudo ./p2_drop 10.1.0.1 configs/node-1-link.csv /dev/ptp0 100 3
 ```
+
+```
+lscpu | grep NUMA
+```
