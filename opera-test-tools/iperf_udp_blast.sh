@@ -23,7 +23,10 @@ output=$(
 for i in $(seq 0 $num_namespaces); do
     # echo ${myArray[$i]}
     port=$(echo "5100+$i" | bc);
-    sudo numactl -N $nic_local_numa_node ip netns exec ${myArray[$i]} iperf -c $server -p $port -u -t 60 -b $bandwidth &
+    sudo numactl -N $nic_local_numa_node ip netns exec ${myArray[$i]} iperf -c $server -p $port -u -t 30 -b $bandwidth &
+    sudo numactl -N $nic_local_numa_node ip netns exec ${myArray[$i]} iperf -c $server -p $port -u -t 30 -b $bandwidth &
+    sudo numactl -N $nic_local_numa_node ip netns exec ${myArray[$i]} iperf -c $server -p $port -u -t 30 -b $bandwidth &
+    # sudo numactl -N $nic_local_numa_node ip netns exec ${myArray[$i]} iperf -c $server -p $port -u -t 30 -b $bandwidth &
 done
 )
 

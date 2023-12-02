@@ -60,7 +60,7 @@ struct bpool_params {
 #endif
 
 #ifndef MAX_BURST_TX_OBJS
-#define MAX_BURST_TX_OBJS 131072
+#define MAX_BURST_TX_OBJS 2048
 #endif
 
 #ifndef NUM_OF_PER_DEST_QUEUES
@@ -143,7 +143,7 @@ struct bpool {
  */
 static const struct bpool_params bpool_params_default = {
 	// .n_buffers = 64 * 1024,
-	.n_buffers = 128 * 1024 * 2,
+	.n_buffers = 128 * 1024,
 	.buffer_size = XSK_UMEM__DEFAULT_FRAME_SIZE,
 	.mmap_flags = 0,
 
@@ -214,7 +214,8 @@ struct thread_data {
 	u32 cpu_core_id;
 	int quit;
 	ringbuf_t *ring_bf_array[13][3]; 
-	ringbuf_t *veth_side_queue_array[13];
+	// ringbuf_t *veth_side_queue_array[13];
+	struct mpmc_queue *veth_side_queue_array[13];
 	ringbuf_t *burst_tx_queue_array[13];
 	int assinged_veth_count;
 };
@@ -235,9 +236,10 @@ struct bcache {
 
 ringbuf_t *ring_array[13][3];
 // ringbuf_t *non_local_ring_array[3];
-ringbuf_t *burst_tx_queue_veth[13];
-ringbuf_t *burst_tx_queue_nic[13];
-ringbuf_t *veth_side_queue[13];
+// ringbuf_t *burst_tx_queue_veth[13];
+// ringbuf_t *burst_tx_queue_nic[13];
+// ringbuf_t *veth_side_queue[13];
+struct mpmc_queue *veth_side_queue[13];
 
 __u32 t1ms;
 
