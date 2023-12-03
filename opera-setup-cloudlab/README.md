@@ -19,6 +19,7 @@ python3 setup_mac.py
 
 ### Add ARP records
 ```
+sudo ./get_veth_info.sh -n 13
 
 ```
 
