@@ -92,7 +92,10 @@ cd /home/dathapathu/emulator/github_code/bpf-examples/opera-test-tools
 sudo ethtool -L ens4 combined 1
 
 sudo taskset --cpu-list 11 ./no_desc_buf 10.1.0.1 configs/node-1-link.csv /dev/ptp0 120 1 1 
-sudo taskset --cpu-list 11 ./no_desc_buf 10.1.0.2 configs/node-2-link.csv /dev/ptp0 120 1 1 
+sudo taskset --cpu-list 11 ./no_desc_buf 10.1.0.2 configs/node-2-link.csv /dev/ptp0 120 1 1
+
+sudo taskset --cpu-list 15 ./cloud_intel 192.168.1.1 configs/node-1-link.csv /dev/ptp0 120 1 1 
+sudo taskset --cpu-list 15 ./cloud_intel 192.168.1.2 configs/node-2-link.csv /dev/ptp0 120 1 1 
 ```
 
 
