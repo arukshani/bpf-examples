@@ -2273,7 +2273,7 @@ int main(int argc, char **argv)
 	n_threads = (n_nic_ports * 2) + (veth_port_count * 2);
 	printf("Total number of rx and tx threads : %d \n", n_threads);
 
-	int thread_core_id = 13;
+	int thread_core_id = 15;
 	for (x = 0; x < n_threads; x++)
 	{
 		thread_data[x].cpu_core_id = thread_core_id; 
