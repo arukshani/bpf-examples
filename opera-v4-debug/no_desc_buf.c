@@ -1866,10 +1866,10 @@ thread_func_nic_to_veth_tx(void *arg)
 	int track_veth_tx_port = 0;
     int num_veths = veth_port_count - 1;
 
-	while (starttime < endtime)
-	{ // A hack to get the thread to return
-	// while (!t->quit) {
-		starttime = time(NULL);
+	// while (starttime < endtime)
+	// { // A hack to get the thread to return
+	while (!t->quit) {
+		// starttime = time(NULL);
 		// track_veth_tx_port = 1 - track_veth_tx_port;
 		struct port *port_tx = t->ports_tx[0];
 

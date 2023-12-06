@@ -14,6 +14,7 @@ sudo ip link set dev ens4 up
 ### Worker things
 ```
 ./setup_worker.sh
+./create_multi_ns.sh
 ```
 
 ### Write mac details to file
@@ -23,9 +24,16 @@ python3 setup_mac.py
 
 ### Add ARP records
 ```
-python3 setup_arp.py "10.1.0.1"
-python3 setup_arp.py "10.1.0.2"
+./get_veth_info.sh -n 13
+scp arp records
+python3 setup_arp.py yeti-00.sysnet.ucsd.edu.csv
+python3 setup_arp.py yeti-01.sysnet.ucsd.edu.csv
 ```
+
+```
+sudo set_irq_affinity.sh ens4
+```
+
 
 ### Update clang version to 11 if needed 
 ```

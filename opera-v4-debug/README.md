@@ -70,6 +70,7 @@ sudo ./iperf_udp_ns_client.sh -n 0
 
 sudo ./iperf_tcp_ns_server.sh -n 0
 sudo ./iperf_tcp_ns_client.sh -n 0
+sudo ./mp_iperf_tcp_ns_client.sh -n 0
 
 sudo ./opera_multi_nicq 10.1.0.1 configs/node-1-link.csv /dev/ptp0 100 1
 sudo ./opera_multi_nicq 10.1.0.2 configs/node-2-link.csv /dev/ptp0 100 1
@@ -126,5 +127,8 @@ lstopo --output-format png -v > cpu-yeti.png
 sudo ethtool -G ens4 rx 2048
 sudo ethtool -G ens4 tx 2048
 sudo ethtool -g ens4
+
+apt-get install libpython2.7
+sudo apt-get install libatlas3-base
 
 ```

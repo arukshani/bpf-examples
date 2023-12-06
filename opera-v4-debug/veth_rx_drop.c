@@ -2591,39 +2591,39 @@ int main(int argc, char **argv)
 	}
 
 	//START VETH TX THREADS
-	// for (i = veth_tx_threads_start_index; i < n_threads; i++)
-	// {
-	// 	int status;
-	// 	status = pthread_create(&threads[i],
-	// 							NULL,
-	// 							thread_func_nic_to_veth_tx,
-	// 							&thread_data[i]);
-	// 	printf("Create VETH TX thread %d \n", i);
-	// }
+	for (i = veth_tx_threads_start_index; i < n_threads; i++)
+	{
+		int status;
+		status = pthread_create(&threads[i],
+								NULL,
+								thread_func_nic_to_veth_tx,
+								&thread_data[i]);
+		printf("Create VETH TX thread %d \n", i);
+	}
 
 	//START NIC TX THREADS
-	// for (i = 0; i < n_nic_ports; i++)
-	// {
-	// 	int status;
-	// 	status = pthread_create(&threads[i],
-	// 								NULL,
-	// 								thread_func_veth_to_nic_tx,
-	// 								&thread_data[i]);
-	// 	printf("Create NIC TX thread %d \n", i);
-	// }
+	for (i = 0; i < n_nic_ports; i++)
+	{
+		int status;
+		status = pthread_create(&threads[i],
+									NULL,
+									thread_func_veth_to_nic_tx,
+									&thread_data[i]);
+		printf("Create NIC TX thread %d \n", i);
+	}
 
 	int nix_rx_end = n_nic_ports * 2;
 
 	//START NIC RX THREADS
-	// for (i = n_nic_ports; i < nix_rx_end; i++)
-	// {
-	// 	int status;
-	// 	status = pthread_create(&threads[i],
-	// 								NULL,
-	// 								thread_func_nic,
-	// 								&thread_data[i]);
-	// 	printf("Create NIC RX thread %d \n", i);
-	// }
+	for (i = n_nic_ports; i < nix_rx_end; i++)
+	{
+		int status;
+		status = pthread_create(&threads[i],
+									NULL,
+									thread_func_nic,
+									&thread_data[i]);
+		printf("Create NIC RX thread %d \n", i);
+	}
 	printf("All threads created successfully.\n");
 
 	/* Print statistics. */

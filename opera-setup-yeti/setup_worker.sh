@@ -20,8 +20,8 @@ sudo apt-get -y update
 # NODE_INTERFACE=${NODE_INTERFACE::-1}
 NODE_INTERFACE=ens4
 
-# echo 2| sudo tee /sys/class/net/$NODE_INTERFACE/napi_defer_hard_irqs
-# echo 1000 | sudo tee /sys/class/net/$NODE_INTERFACE/gro_flush_timeout
+echo 2| sudo tee /sys/class/net/$NODE_INTERFACE/napi_defer_hard_irqs
+echo 1000 | sudo tee /sys/class/net/$NODE_INTERFACE/gro_flush_timeout
 
 sudo ip netns add blue
 sudo ip link add veth0 type veth peer name veth1
